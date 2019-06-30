@@ -5,7 +5,7 @@ import { createKoaServer } from "routing-controllers";
 
 import { User } from "./entity/User";
 import { logRequest } from "./middlewares";
-import { useEntitiesRoutes } from "./services/EntityRouteMaker";
+import { useEntitiesRoutes } from "./services/EntityRoute";
 import { getAppRoutes } from "./utils/getAppRoutes";
 import { logger } from "./services/Logger";
 
