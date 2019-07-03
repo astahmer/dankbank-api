@@ -30,6 +30,7 @@
       "@types/koa-router": "^7.0.42",
       "@types/node": "^8.10.49",
       "@types/pino": "^5.8.8",
+      "@types/ramda": "^0.26.12",
       "husky": "^2.7.0",
       "prettier": "^1.18.2",
       "ts-node": "3.3.0",

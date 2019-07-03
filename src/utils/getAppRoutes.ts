@@ -1,6 +1,7 @@
 export const getAppRoutes = (arr: any): string[] => {
-    const returnPath = (midw: any) => {
-        return midw.router && midw.router.stack.length && midw.router.stack.map((v: any) => v.path);
+    const returnRoute = (midw: any) => {
+        const formatRoute = (v: any) => v.methods.join(",") + " : " + v.path;
+        return midw.router && midw.router.stack.length && midw.router.stack.map(formatRoute);
     };
-    return arr.map(returnPath).filter((path: string) => path);
+    return arr.map(returnRoute).filter((path: string) => path);
 };

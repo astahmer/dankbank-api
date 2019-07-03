@@ -1,22 +1,23 @@
 import "reflect-metadata";
 
+import * as Koa from "koa";
+import * as bodyParser from "koa-bodyparser";
 import { createConnection } from "typeorm";
 import { createKoaServer } from "routing-controllers";
 
-import { User } from "./entity/User";
 import { logRequest } from "./middlewares";
 import { useEntitiesRoutes } from "./services/EntityRoute";
-import { getAppRoutes } from "./utils/getAppRoutes";
 import { logger } from "./services/Logger";
+import { getAppRoutes } from "./utils/getAppRoutes";
+import { User } from "./entity/User";
 
 createConnection()
     .then(async (connection) => {
-        connection;
-
-        const app = createKoaServer();
+        const app: Koa = createKoaServer();
+        app.use(bodyParser());
         app.use(logRequest(logger));
 
-        useEntitiesRoutes(app, [User]);
+        useEntitiesRoutes(connection, app, [User]);
 
         if (process.env.NODE_ENV === "development") {
             logger.info(getAppRoutes(app.middleware));

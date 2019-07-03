@@ -1,7 +1,9 @@
-export const EntityRoute = (path: string, operations: Operations[]): ClassDecorator => {
-    return (target: any) => {
-        const route: IRoute = { path, operations };
-        Reflect.defineMetadata("route", route, target);
+import { Operation } from "../services/EntityRoute/types";
+// import { union, mergeWith } from "ramda";
+
+export const EntityRoute = (path: string, operations: Operation[]): ClassDecorator => {
+    return (target: object) => {
+        Reflect.defineMetadata("route", { path, operations }, target);
         Reflect.defineMetadata("entity", target, target);
     };
 };

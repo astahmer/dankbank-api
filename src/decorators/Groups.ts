@@ -1,27 +1,18 @@
-import { Operations } from "./EntityRoute";
+import { Operation } from "../services/EntityRoute/types";
 
 export interface IGroups {
-    operations: Operations[];
+    operations: Operation[];
     propName: string;
     propType: any;
 }
 
-export const Groups = (operations: Operations[]): PropertyDecorator => {
-    return (target, propName: string): void => {
-        /*
-        if (!Reflect.hasMetadata("groups", target.constructor)) {
-            Reflect.defineMetadata("groups", [], target.constructor);
-        }
-
-        const groups = Reflect.getMetadata("groups", target.constructor) as IGroups[];
-        const propType = Reflect.getMetadata("design:type", target, propName);
-        groups.push({ operations, propName, propType });
-        */
-        if (!Reflect.hasMetadata("groups", target.constructor)) {
+export const Groups = (operations: Operation[]) => {
+    return (target: Object, propName: string) => {
+        if (!Reflect.hasOwnMetadata("groups", target.constructor)) {
             Reflect.defineMetadata("groups", {}, target.constructor);
         }
 
-        const groups = Reflect.getMetadata("groups", target.constructor);
+        const groups = Reflect.getOwnMetadata("groups", target.constructor);
         for (let i = 0; i < operations.length; i++) {
             if (!groups[operations[i]]) {
                 groups[operations[i]] = [];
