@@ -1,29 +1,21 @@
 import * as Koa from "koa";
-import { Connection } from "typeorm";
+import { Connection, ObjectType } from "typeorm";
 
-import { makeEntityRouter } from "./makeEntityRouter";
 import { IClassMetadatas } from "./types";
+import { OPERATIONS_ROUTES } from "./operationsRoutes";
+import { EntityRouter } from "./EntityRoute";
 
-const getOwnMetaDataProps = (props: string[], entity: any) => {
-    const metadata: any = {};
-    for (let i = 0; i < props.length; i++) {
-        metadata[props[i]] = Reflect.getOwnMetadata(props[i], entity);
-    }
-    console.log(metadata);
-    return metadata;
-};
-
-export async function useEntitiesRoutes(connection: Connection, app: Koa, entities: object[]) {
+export async function useEntitiesRoutes(connection: Connection, app: Koa, entities: ObjectType<any>[]) {
     for (let i = 0; i < entities.length; i++) {
-        const router = makeEntityRouter(getClassMetadatas(connection, entities[i]));
-        app.use(router.routes());
+        const entityRouter = new EntityRouter(getEntityRouteParams(connection, entities[i]), OPERATIONS_ROUTES);
+        app.use(entityRouter.makeRouter().routes());
     }
 }
 
-function getClassMetadatas(connection: Connection, entity: object): IClassMetadatas {
+function getEntityRouteParams(connection: Connection, entity: ObjectType<any>): IClassMetadatas {
     return {
         connection,
-        routeMetadatas: getOwnMetaDataProps(["entity", "route", "groups"], entity),
-        entityMetadatas: connection.getMetadata("User"),
+        routeMetadatas: Reflect.getOwnMetadata("route", entity),
+        entityMetadata: connection.getMetadata(entity),
     };
 }

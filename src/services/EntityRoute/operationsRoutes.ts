@@ -22,19 +22,8 @@ export const OPERATIONS_ROUTES: IOperationsRoutes = {
     list: {
         path: "",
         verb: "get",
-        method({ repository, tableName, selectData }) {
-            const qb = repository.createQueryBuilder(tableName);
-            console.log(tableName);
-            console.log(selectData);
-            if (selectData.relations) {
-                selectData.relations.forEach((rel) =>
-                    qb.leftJoin(`${tableName}.${rel.propertyName}`, rel.propertyName)
-                );
-            }
-            qb.select(selectData.selectProps);
-            console.log(qb.getSql());
-
-            return qb.getManyAndCount();
+        async method() {
+            return;
         },
     },
     details: {

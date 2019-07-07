@@ -1,11 +1,5 @@
 import { Operation } from "../services/EntityRoute/types";
 
-export interface IGroups {
-    operations: Operation[];
-    propName: string;
-    propType: any;
-}
-
 export const Groups = (operations: Operation[]) => {
     return (target: Object, propName: string) => {
         if (!Reflect.hasOwnMetadata("groups", target.constructor)) {

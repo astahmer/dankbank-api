@@ -4,12 +4,14 @@ import { Repository, ObjectType, EntityMetadata, Connection } from "typeorm";
 export interface IOperationRouteItemParams {
     repository: Repository<any>;
     tableName: string;
-    entityMetadatas?: EntityMetadata;
+    entityMetadata?: EntityMetadata;
     selectProps?: string[];
-    selectData?: ISelectData;
+    selectData?: ISelectsData;
+    exposedProps: any;
     entityId?: number;
     values?: any;
     relations?: any[];
+    joins?: any;
 }
 
 export interface IOperationRouteItem {
@@ -22,9 +24,19 @@ export interface IOperationsRoutes {
     [verb: string]: IOperationRouteItem;
 }
 
+export interface IRouteAction {
+    path: string;
+    verb: string;
+    method: (params: IOperationRouteItemParams) => Promise<any>;
+}
+
+export interface IRouteActions {
+    [verb: string]: IOperationRouteItem;
+}
+
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
-export interface IEntityRouteParams {
+export interface IEntityRouteMetadatas {
     path: string;
     operations: Operation[];
 }
@@ -33,23 +45,17 @@ export type EntityRouteGroups = {
     [group in Operation]: string[];
 };
 
-export interface IEntityRouteMetadatas {
-    entity: ObjectType<any>;
-    route: IEntityRouteParams;
-    groups: EntityRouteGroups;
-}
-
 export interface IClassMetadatas {
     connection: Connection;
     routeMetadatas: IEntityRouteMetadatas;
-    entityMetadatas: EntityMetadata;
+    entityMetadata: EntityMetadata;
 }
 
 export interface IMapGroupsToSelectArgs {
     connection: Connection;
     operation: Operation;
     groups: EntityRouteGroups;
-    entityMetadatas: EntityMetadata;
+    entityMetadata: EntityMetadata;
     relationName?: string;
 }
 
@@ -58,7 +64,22 @@ export interface IRelationProp {
     propertyName: string;
 }
 
-export interface ISelectData {
-    relations?: IRelationProp[];
-    selectProps: string[];
+export interface IRelationJoin {
+    alias: string;
+    propertyName: string;
+    nestedRelations: IRelationJoin;
+}
+
+export interface ISelectsData {
+    selects: string[];
+    joins?: IRelationJoin[];
+}
+
+export interface IEntityRouteMapping {
+    [tableName: string]: {
+        metadata?: EntityMetadata;
+        mapping: IEntityRouteMapping;
+        exposedProps?: any;
+        relationProps?: any;
+    };
 }

@@ -1,11 +1,10 @@
 import { Entity, Column, ManyToOne, OneToOne, JoinColumn } from "typeorm";
-import { EntityRoute, Groups } from "../decorators";
+import { Groups } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { User } from "./User";
 import { Picture } from "./Picture";
 
 @Entity()
-@EntityRoute("/memes", ["list"])
 export class Meme extends AbstractEntity {
     @ManyToOne((_type) => User, (user) => user.memes)
     user: User;
@@ -14,7 +13,7 @@ export class Meme extends AbstractEntity {
     @Groups(["list", "details"])
     title: string;
 
-    @Groups(["details"])
+    @Groups(["list", "details"])
     @Column()
     description: string;
 
@@ -26,8 +25,8 @@ export class Meme extends AbstractEntity {
     @Groups(["create", "details"])
     downvoteCount: number;
 
-    @Groups(["update", "details"])
-    @OneToOne(() => Picture)
+    @Groups(["list", "details"])
+    @OneToOne(() => Picture, (picture) => picture.associatedMeme)
     @JoinColumn()
     picture: Picture;
 }
