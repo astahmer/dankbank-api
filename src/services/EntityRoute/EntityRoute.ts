@@ -1,34 +1,27 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Connection, EntityMetadata, Repository, getRepository } from "typeorm";
+import { Connection, EntityMetadata, Repository, getRepository, ObjectType } from "typeorm";
 
-import {
-    IClassMetadatas,
-    IEntityRouteMetadatas,
-    Operation,
-    IRouteActions,
-    EntityRouteGroups,
-    IEntityRouteMapping,
-} from "./types";
+import { IEntityRouteMetadatas, Operation, IRouteActions, EntityRouteGroups, IEntityRouteMapping } from "./types";
 import { mergeWith, concat, path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
+import { AbstractEntity } from "../../entity/AbstractEntity";
 
-export class EntityRouter {
+export class EntityRouter<T extends AbstractEntity> {
     private connection: Connection;
     private repository: Repository<any>;
 
     private routeMetadatas: IEntityRouteMetadatas;
-    private entityMetadata: EntityMetadata;
+    private metadata: EntityMetadata;
     private actions: IRouteActions;
     private mapping: IEntityRouteMapping;
 
-    constructor({ connection, routeMetadatas: routeMetadatas, entityMetadata }: IClassMetadatas, actions: any) {
+    constructor(connection: Connection, entity: ObjectType<T>, actions: any) {
         this.connection = connection;
-        this.routeMetadatas = routeMetadatas;
-        this.entityMetadata = entityMetadata;
+        this.routeMetadatas = Reflect.getOwnMetadata("route", entity);
         this.actions = actions;
-
-        this.repository = getRepository(this.entityMetadata.target);
+        this.repository = getRepository(entity);
+        this.metadata = this.repository.metadata;
     }
 
     public makeRouter() {
@@ -57,15 +50,15 @@ export class EntityRouter {
     }
 
     private async getList({ operation, exposedProps }: any) {
-        const qb = this.repository.createQueryBuilder(this.entityMetadata.tableName);
+        const qb = this.repository.createQueryBuilder(this.metadata.tableName);
 
-        const { selectProps, relationProps } = this.getsPropsTypes(exposedProps, this.entityMetadata);
+        const { selectProps, relationProps } = this.getsPropsTypes(exposedProps, this.metadata);
         qb.select(selectProps);
 
         const results = await qb.getManyAndCount();
 
         this.mapping = {
-            [this.entityMetadata.tableName]: {
+            [this.metadata.tableName]: {
                 // entityMetadata: this.entityMetadata,
                 exposedProps,
                 relationProps: pluck("prop", relationProps),
@@ -75,11 +68,11 @@ export class EntityRouter {
         const itemsResults = await this.retrieveNestedPropsInCollection(
             results[0],
             operation,
-            this.entityMetadata,
-            this.entityMetadata.tableName
+            this.metadata,
+            this.metadata.tableName
         );
 
-        return itemsResults;
+        return [itemsResults, results[1]];
     }
 
     private async retrieveNestedPropsInCollection(
@@ -130,10 +123,17 @@ export class EntityRouter {
                 // console.log("circular in " + entityMetadata.tableName + "." + rel.relation.propertyName);
                 return { prop: rel.prop, value: "CIRCULAR" };
             }
-            // const localPropPath = currentPath.concat(rel.relation.inverseEntityMetadata.tableName);
+
             const localPropPath = currentPath + "." + rel.relation.inverseEntityMetadata.tableName;
-            let propResult: any = await this.getNestedRelationProp(operation, rel, item);
+            let propResult: any = (await this.getNestedRelationProp(operation, rel, item)) || null;
+
             const isArray = Array.isArray(propResult);
+
+            if (rel.relation.isManyToOne) {
+                propResult = propResult[rel.prop];
+            } else if (rel.relation.isManyToMany) {
+                propResult = propResult.map((el: any) => el[rel.prop])[0];
+            }
 
             if (isArray && propResult.length) {
                 propResult = await this.retrieveNestedPropsInCollection(
@@ -186,21 +186,21 @@ export class EntityRouter {
         const relationOwner = rel.relation.entityMetadata.tableName;
         const relationInversedBy = rel.relation.inverseSidePropertyPath;
 
-        if (rel.relation.relationType === "one-to-many") {
+        if (rel.relation.isOneToMany) {
             qb.select(selectProps)
                 .from(relationTarget, relationTableName)
                 .where(relationTableName + "." + relationInversedBy + "Id = :id", { id: item.id });
 
             // console.log(qb.getSql());
             return qb.getMany();
-        } else if (rel.relation.relationType === "one-to-one") {
+        } else if (rel.relation.isOneToOne) {
             qb.select(selectProps)
                 .from(relationTarget, relationTableName)
                 .leftJoin(relationTableName + "." + relationInversedBy, relationOwner)
                 .where(relationOwner + ".id = :id", { id: item.id });
             // console.log(qb.getSql());
             return qb.getOne();
-        } else if (rel.relation.relationType === "many-to-many") {
+        } else if (rel.relation.isManyToMany) {
             selectProps.push(relationOwner + ".id");
             qb.select(selectProps)
                 .from(rel.relation.entityMetadata.target, relationOwner)
@@ -208,17 +208,23 @@ export class EntityRouter {
                 .where(relationOwner + ".id = :id", { id: item.id });
             // console.log(qb.getSql());
             return qb.getMany();
-        } else {
-            console.log(rel.relation);
+        } else if (rel.relation.isManyToOne) {
+            selectProps.push(relationOwner + ".id");
+            qb.select(selectProps)
+                .from(rel.relation.entityMetadata.target, relationOwner)
+                .leftJoin(relationOwner + "." + rel.relation.propertyName, relationTableName)
+                .where(relationOwner + ".id = :id", { id: item.id });
+            // console.log(qb.getSql());
+            return qb.getOne();
         }
     }
 
     private makeResponseMethod(operation: Operation, action: any): Koa.Middleware {
-        const exposedProps = this.getExposedProps(operation, this.entityMetadata);
+        const exposedProps = this.getExposedProps(operation, this.metadata);
 
         return async (ctx, next) => {
             const isUpserting = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
-            const params = {
+            const params: IActionParams = {
                 operation,
                 exposedProps,
                 ...(ctx.params.id && { entityId: ctx.params.id }),
@@ -227,22 +233,19 @@ export class EntityRouter {
 
             action;
             const result = await this.getList(params);
-            console.log(result);
             let items, totalItems;
-            // if (!isUpserting) {
-            //     [items, totalItems] = result;
-            // } else {
-            //     items = [result];
-            //     totalItems = 1;
-            // }
-            // console.log(result, items);
+            if (!isUpserting) {
+                [items, totalItems] = result;
+            } else {
+                items = [result];
+                totalItems = 1;
+            }
 
             ctx.body = {
                 context: {
                     operation,
-                    entity: this.entityMetadata.target,
+                    entity: this.metadata.tableName,
                 },
-                result,
                 items,
                 totalItems,
                 mapping: this.mapping,
@@ -250,4 +253,11 @@ export class EntityRouter {
             next();
         };
     }
+}
+
+interface IActionParams {
+    operation: Operation;
+    exposedProps: string[];
+    entityId?: number;
+    isUpserting?: boolean;
 }
