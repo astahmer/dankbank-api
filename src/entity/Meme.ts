@@ -6,7 +6,7 @@ import { Picture } from "./Picture";
 
 @Entity()
 export class Meme extends AbstractEntity {
-    @ManyToOne((_type) => User, (user) => user.memes)
+    @ManyToOne(() => User, (user) => user.memes)
     user: User;
 
     @Column()

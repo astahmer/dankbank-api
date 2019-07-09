@@ -1,7 +1,8 @@
-import { Entity, Column, ManyToOne } from "typeorm";
+import { Entity, Column, ManyToOne, OneToMany } from "typeorm";
 import { Groups } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Picture } from "./Picture";
+import { User } from "./User";
 
 @Entity()
 export class Category extends AbstractEntity {
@@ -16,4 +17,8 @@ export class Category extends AbstractEntity {
     @ManyToOne(() => Picture, (picture) => picture.categories)
     @Groups(["list", "details"])
     picture: Picture[];
+
+    @Groups(["list", "details"])
+    @OneToMany(() => User, (user) => user.profileCategory)
+    users: User[];
 }

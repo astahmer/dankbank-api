@@ -1,9 +1,10 @@
-import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany } from "typeorm";
+import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
 import { EntityRoute, Groups } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
+import { Category } from "./Category";
 
 @Entity()
 @EntityRoute("/users", ["list"])
@@ -16,11 +17,11 @@ export class User extends AbstractEntity {
     @Column()
     lastName: string;
 
-    @Groups(["create", "details", "update"])
+    @Groups(["list", "create", "details", "update"])
     @Column()
     age: number;
 
-    @Groups(["update", "details", "list"])
+    @Groups(["update", "details"])
     @OneToMany(() => Meme, (memes) => memes.user)
     memes: Meme[];
 
@@ -32,4 +33,8 @@ export class User extends AbstractEntity {
     @Groups(["list", "details"])
     @ManyToMany(() => Team, (team) => team.members)
     teams: Team[];
+
+    @Groups(["list", "details"])
+    @ManyToOne(() => Category, (category) => category.users)
+    profileCategory: Category;
 }

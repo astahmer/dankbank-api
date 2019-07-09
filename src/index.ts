@@ -13,6 +13,7 @@ import { useEntitiesRoutes } from "./services/EntityRoute";
 
 import { getAppRoutes } from "./utils/getAppRoutes";
 import { User } from "./entity/User";
+import { makeFixtures } from "./fixtures";
 
 createConnection()
     .then(async (connection) => {
@@ -20,6 +21,7 @@ createConnection()
         app.use(bodyParser());
         app.use(logRequest(logger));
 
+        makeFixtures(connection);
         useEntitiesRoutes(connection, app, [User]);
         useCustomRoute(connection, app);
 

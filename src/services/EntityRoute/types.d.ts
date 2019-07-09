@@ -1,5 +1,8 @@
 import * as Router from "koa-router";
 import { Repository, ObjectType, EntityMetadata, Connection } from "typeorm";
+import { AbstractEntity } from "../../entity/AbstractEntity";
+
+export type Entity<T extends AbstractEntity> = ObjectType<T>;
 
 export interface IOperationRouteItemParams {
     repository: Repository<any>;
@@ -44,12 +47,6 @@ export interface IEntityRouteMetadatas {
 export type EntityRouteGroups = {
     [group in Operation]: string[];
 };
-
-export interface IClassMetadatas {
-    connection: Connection;
-    routeMetadatas: IEntityRouteMetadatas;
-    entityMetadata: EntityMetadata;
-}
 
 export interface IMapGroupsToSelectArgs {
     connection: Connection;
