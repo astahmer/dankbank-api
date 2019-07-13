@@ -23,7 +23,7 @@ createConnection()
         app.use(logRequest(logger));
 
         makeFixtures(connection);
-        useEntitiesRoutes(connection, app, [User, Picture]);
+        useEntitiesRoutes(connection, app, [User, Picture], { isMaxDepthEnabledByDefault: true });
         useCustomRoute(connection, app);
 
         if (process.env.NODE_ENV === "development") {

@@ -15,6 +15,10 @@ import { mergeWith, concat, path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
 
+export interface IEntityRouteOptions {
+    isMaxDepthEnabledByDefault: boolean;
+}
+
 export class EntityRouter<T extends AbstractEntity> {
     private connection: Connection;
     private repository: Repository<T>;
@@ -22,12 +26,14 @@ export class EntityRouter<T extends AbstractEntity> {
     private metadata: EntityMetadata;
     private actions: RouteActions;
     private mapping: IMapping;
+    private options: IEntityRouteOptions;
 
-    constructor(connection: Connection, entity: ObjectType<T>) {
+    constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
         this.connection = connection;
         this.routeMetadatas = Reflect.getOwnMetadata("route", entity);
         this.repository = getRepository(entity);
         this.metadata = this.repository.metadata;
+        this.options = options;
 
         this.actions = {
             create: {
@@ -129,12 +135,20 @@ export class EntityRouter<T extends AbstractEntity> {
         }
 
         const propPromises = relationProps.map(async (relation) => {
-            this.setMappingAt(operation, currentPath, relation);
+            // this.setMappingAt(operation, currentPath, relation);
 
-            const isCircular = currentPath.indexOf(relation.inverseEntityMetadata.tableName) !== -1;
-            if (isCircular) {
-                // console.log("circular in " + entityMetadata.tableName + "." + relation.propertyName);
-                return { prop: relation.propertyName, value: "CIRCULAR" };
+            const currentDepthLvl = currentPath.split(entityMetadata.tableName).length - 1;
+            // Circular relation
+            if (currentDepthLvl > 1) {
+                const maxDepthMeta = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
+                console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
+                if (
+                    this.options.isMaxDepthEnabledByDefault ||
+                    (maxDepthMeta &&
+                        (currentDepthLvl > maxDepthMeta.fields[relation.propertyName] || maxDepthMeta.enabled))
+                ) {
+                    return { prop: relation.propertyName, value: "CIRCULAR " + currentDepthLvl };
+                }
             }
 
             const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;

@@ -1,12 +1,8 @@
 import { Operation } from "../services/EntityRoute/types";
 
-export const Groups = (operations: Operation[]) => {
+export const Groups = (operations: Operation[]): PropertyDecorator => {
     return (target: Object, propName: string) => {
-        if (!Reflect.hasOwnMetadata("groups", target.constructor)) {
-            Reflect.defineMetadata("groups", {}, target.constructor);
-        }
-
-        const groups = Reflect.getOwnMetadata("groups", target.constructor);
+        const groups = Reflect.getOwnMetadata("groups", target.constructor) || {};
         for (let i = 0; i < operations.length; i++) {
             if (!groups[operations[i]]) {
                 groups[operations[i]] = [];
