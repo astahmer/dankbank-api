@@ -26,7 +26,7 @@ export class Meme extends AbstractEntity {
     downvoteCount: number;
 
     @Groups(["list", "details"])
-    @OneToOne(() => Picture, (picture) => picture.associatedMeme)
+    @OneToOne(() => Picture, (picture) => picture.associatedMeme, { cascade: ["insert"] })
     @JoinColumn()
     picture: Picture;
 }

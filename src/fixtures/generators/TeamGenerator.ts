@@ -2,9 +2,6 @@ import { AbstractGenerator } from "../AbstractGenerator";
 import { Team } from "../../entity/Team";
 import { UserGenerator } from "./UserGenerator";
 import { Connection } from "typeorm";
-import { CategoryGenerator } from "./CategoryGenerator";
-
-const pickId = (el: any) => el.id;
 
 export class TeamGenerator extends AbstractGenerator<Team> {
     constructor(connection: Connection) {
@@ -17,37 +14,23 @@ export class TeamGenerator extends AbstractGenerator<Team> {
         };
     }
 
-    async generateBundle(shouldReturnInserted = false) {
+    async generateBundle() {
         const userGenerator = new UserGenerator(this.connection);
-        const [users, categories, team] = await Promise.all([
-            userGenerator.generate({ x: 5, shouldReturnInserted: true }),
-            new CategoryGenerator(this.connection).generate({ x: 2, shouldReturnInserted: true }),
-            this.generate(),
-        ]);
-
-        const catPromises = [];
-        for (let i = 0; i < users.length; i++) {
-            catPromises.push(
-                userGenerator.addRelation({
-                    relationProp: "profileCategory",
-                    entity: users[i],
-                    relation: this.faker.random.arrayElement(categories),
-                })
-            );
-        }
+        const userPromises = Promise.all(
+            Array(3)
+                .fill(null)
+                .map(() => userGenerator.generateBundle())
+        );
+        const [users, team] = await Promise.all([userPromises, this.generate()]);
 
         const membersPromise = this.addRelation({
             relationProp: "members",
             entity: team.raw,
-            relation: users.map(pickId),
+            relation: users,
         });
-        const promises = Promise.all([catPromises, membersPromise]);
+        const promises = Promise.all([membersPromise]);
 
-        if (shouldReturnInserted) {
-            await promises;
-            return team.raw;
-        }
-
-        return promises;
+        await promises;
+        return team.raw;
     }
 }

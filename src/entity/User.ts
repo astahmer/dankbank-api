@@ -7,7 +7,7 @@ import { Team } from "./Team";
 import { Category } from "./Category";
 
 @Entity()
-@EntityRoute("/users", ["list"])
+@EntityRoute("/users", ["list", "details"])
 export class User extends AbstractEntity {
     @Groups(["list", "details"])
     @Column()
@@ -21,7 +21,7 @@ export class User extends AbstractEntity {
     @Column()
     age: number;
 
-    @Groups(["update", "details"])
+    @Groups(["update", "details", "list"])
     @OneToMany(() => Meme, (memes) => memes.user)
     memes: Meme[];
 
@@ -30,11 +30,11 @@ export class User extends AbstractEntity {
     @JoinColumn()
     profilePicture: Picture;
 
-    @Groups(["list", "details"])
-    @ManyToMany(() => Team, (team) => team.members)
+    @Groups(["details"])
+    @ManyToMany(() => Team)
     teams: Team[];
 
-    @Groups(["list", "details"])
-    @ManyToOne(() => Category, (category) => category.users)
+    @Groups(["details"])
+    @ManyToOne(() => Category, { cascade: ["insert"] })
     profileCategory: Category;
 }

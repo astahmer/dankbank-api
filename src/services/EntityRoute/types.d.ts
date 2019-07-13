@@ -1,45 +1,32 @@
 import * as Router from "koa-router";
 import { Repository, ObjectType, EntityMetadata, Connection } from "typeorm";
 import { AbstractEntity } from "../../entity/AbstractEntity";
+import { EntityRouter } from "./EntityRoute";
 
 export type Entity<T extends AbstractEntity> = ObjectType<T>;
 
-export interface IOperationRouteItemParams {
-    repository: Repository<any>;
-    tableName: string;
-    entityMetadata?: EntityMetadata;
-    selectProps?: string[];
-    selectData?: ISelectsData;
-    exposedProps: any;
+export interface IActionParams {
+    operation: Operation;
+    exposedProps: string[];
     entityId?: number;
+    isUpserting?: boolean;
     values?: any;
-    relations?: any[];
-    joins?: any;
 }
 
-export interface IOperationRouteItem {
+export type ActionMethod = "create" | "getList" | "getItem" | "update" | "delete";
+
+export interface IAction {
     path: string;
     verb: string;
-    method: (params: IOperationRouteItemParams) => Promise<any>;
+    method: ActionMethod;
 }
 
-export interface IOperationsRoutes {
-    [verb: string]: IOperationRouteItem;
-}
-
-export interface IRouteAction {
-    path: string;
-    verb: string;
-    method: (params: IOperationRouteItemParams) => Promise<any>;
-}
-
-export interface IRouteActions {
-    [verb: string]: IOperationRouteItem;
-}
-
+export type RouteActions = {
+    [K in Operation]: IAction;
+};
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
-export interface IEntityRouteMetadatas {
+export interface IRouteMetadatas {
     path: string;
     operations: Operation[];
 }
@@ -48,35 +35,13 @@ export type EntityRouteGroups = {
     [group in Operation]: string[];
 };
 
-export interface IMapGroupsToSelectArgs {
-    connection: Connection;
-    operation: Operation;
-    groups: EntityRouteGroups;
-    entityMetadata: EntityMetadata;
-    relationName?: string;
+export interface IMappingItem {
+    metadata?: EntityMetadata;
+    mapping: IMapping;
+    exposedProps?: any;
+    relationProps?: any;
 }
 
-export interface IRelationProp {
-    target: EntityMetadata["target"];
-    propertyName: string;
-}
-
-export interface IRelationJoin {
-    alias: string;
-    propertyName: string;
-    nestedRelations: IRelationJoin;
-}
-
-export interface ISelectsData {
-    selects: string[];
-    joins?: IRelationJoin[];
-}
-
-export interface IEntityRouteMapping {
-    [tableName: string]: {
-        metadata?: EntityMetadata;
-        mapping: IEntityRouteMapping;
-        exposedProps?: any;
-        relationProps?: any;
-    };
+export interface IMapping {
+    [tableName: string]: IMappingItem;
 }

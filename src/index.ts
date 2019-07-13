@@ -14,6 +14,7 @@ import { useEntitiesRoutes } from "./services/EntityRoute";
 import { getAppRoutes } from "./utils/getAppRoutes";
 import { User } from "./entity/User";
 import { makeFixtures } from "./fixtures";
+import { Picture } from "./entity/Picture";
 
 createConnection()
     .then(async (connection) => {
@@ -22,7 +23,7 @@ createConnection()
         app.use(logRequest(logger));
 
         makeFixtures(connection);
-        useEntitiesRoutes(connection, app, [User]);
+        useEntitiesRoutes(connection, app, [User, Picture]);
         useCustomRoute(connection, app);
 
         if (process.env.NODE_ENV === "development") {
