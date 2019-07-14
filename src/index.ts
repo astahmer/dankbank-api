@@ -12,9 +12,8 @@ import { useCustomRoute } from "./controllers/CustomController";
 import { useEntitiesRoutes } from "./services/EntityRoute";
 
 import { getAppRoutes } from "./utils/getAppRoutes";
-import { User } from "./entity/User";
+import { Category, Meme, Picture, Team, User } from "./entity";
 import { makeFixtures } from "./fixtures";
-import { Picture } from "./entity/Picture";
 
 createConnection()
     .then(async (connection) => {
@@ -23,7 +22,7 @@ createConnection()
         app.use(logRequest(logger));
 
         makeFixtures(connection);
-        useEntitiesRoutes(connection, app, [User, Picture], { isMaxDepthEnabledByDefault: true });
+        useEntitiesRoutes(connection, app, [Category, Meme, Picture, Team, User], { isMaxDepthEnabledByDefault: true });
         useCustomRoute(connection, app);
 
         if (process.env.NODE_ENV === "development") {

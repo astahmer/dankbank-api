@@ -3,14 +3,20 @@ import { EntityRoute, Groups } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { User } from "./User";
 
+@EntityRoute("/teams", ["list", "details"])
 @Entity()
-@EntityRoute("/users", ["list"])
 export class Team extends AbstractEntity {
-    @Groups(["list", "details"])
+    @Groups({
+        user: ["details"],
+        team: ["list", "details"],
+    })
     @Column()
     teamName: string;
 
-    @Groups(["list", "details"])
+    @Groups({
+        user: ["details"],
+        team: ["list", "details"],
+    })
     @ManyToMany(() => User, (user) => user.teams)
     @JoinTable()
     members: User[];

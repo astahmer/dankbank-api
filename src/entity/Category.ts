@@ -1,24 +1,37 @@
 import { Entity, Column, ManyToOne, OneToMany } from "typeorm";
-import { Groups } from "../decorators";
+import { Groups, EntityRoute } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Picture } from "./Picture";
 import { User } from "./User";
 
+@EntityRoute("/categories", ["list", "details"])
 @Entity()
 export class Category extends AbstractEntity {
+    @Groups({
+        category: ["list", "details"],
+        user: ["list", "details"],
+        picture: ["list", "details"],
+    })
     @Column()
-    @Groups(["list", "details"])
     name: string;
 
+    @Groups({
+        category: ["list", "details"],
+        user: ["details"],
+    })
     @Column()
-    @Groups(["list", "details", "update"])
     icon: string;
 
-    @ManyToOne(() => Picture, (picture) => picture.categories, { cascade: ['insert']})
-    @Groups(["list", "details"])
+    @Groups({
+        category: ["details"],
+        user: ["details"],
+    })
+    @ManyToOne(() => Picture, (picture) => picture.categories, { cascade: ["insert"] })
     picture: Picture[];
 
-    @Groups(["list", "details"])
+    @Groups({
+        category: ["details"],
+    })
     @OneToMany(() => User, (user) => user.profileCategory)
     users: User[];
 }

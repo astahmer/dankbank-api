@@ -4,26 +4,44 @@ import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Category } from "./Category";
 
-@Entity()
 @EntityRoute("/pictures", ["list", "details"])
+@Entity()
 export class Picture extends AbstractEntity {
+    @Groups({
+        picture: ["list", "details"],
+        user: ["list", "details"],
+        meme: ["list", "details"],
+    })
     @Column()
-    @Groups(["list", "details"])
     url: string;
 
+    @Groups({
+        picture: ["details"],
+    })
     @OneToOne(() => Meme, (meme) => meme.picture)
-    @Groups(["create", "details", "list"])
     associatedMeme: Meme;
 
+    @Groups({
+        picture: ["list", "details"],
+        user: ["list", "details"],
+        meme: ["list", "details"],
+    })
     @Column()
-    @Groups(["list", "details", "update"])
     title: string;
 
+    @Groups({
+        picture: ["list", "details"],
+        user: ["list", "details"],
+        meme: ["list", "details"],
+    })
     @Column()
-    @Groups(["create", "details", "list"])
     downloads: number;
 
+    @Groups({
+        picture: ["list", "details"],
+        user: ["list"],
+        meme: ["list", "details"],
+    })
     @OneToMany(() => Category, (category) => category.picture)
-    @Groups(["list", "details"])
     categories: Category[];
 }

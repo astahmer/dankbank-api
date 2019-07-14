@@ -2,22 +2,17 @@ import * as Koa from "koa";
 import * as Router from "koa-router";
 import { Connection, EntityMetadata, Repository, getRepository, ObjectType } from "typeorm";
 
-import {
-    IRouteMetadatas,
-    Operation,
-    EntityRouteGroups,
-    IMapping,
-    IMappingItem,
-    IActionParams,
-    RouteActions,
-} from "./types";
+import { IRouteMetadatas, Operation, IMapping, IMappingItem, IActionParams, RouteActions } from "./types";
 import { mergeWith, concat, path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
+import { GroupsMeta, RouteGroups, OperationGroups } from "../../decorators/Groups";
 
 export interface IEntityRouteOptions {
     isMaxDepthEnabledByDefault: boolean;
 }
+
+type EntityProp<U> = Array<keyof U>;
 
 export class EntityRouter<T extends AbstractEntity> {
     private connection: Connection;
@@ -27,6 +22,7 @@ export class EntityRouter<T extends AbstractEntity> {
     private actions: RouteActions;
     private mapping: IMapping;
     private options: IEntityRouteOptions;
+    private groups: RouteGroups;
 
     constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
         this.connection = connection;
@@ -34,6 +30,7 @@ export class EntityRouter<T extends AbstractEntity> {
         this.repository = getRepository(entity);
         this.metadata = this.repository.metadata;
         this.options = options;
+        this.groups = {};
 
         this.actions = {
             create: {
@@ -64,6 +61,11 @@ export class EntityRouter<T extends AbstractEntity> {
         };
     }
 
+    /**
+     * Make a Koa Router with given operations for this entity and return it
+     *
+     * @returns Koa.Router
+     */
     public makeRouter() {
         const router = new Router();
 
@@ -79,15 +81,71 @@ export class EntityRouter<T extends AbstractEntity> {
         return router;
     }
 
-    private getExposedProps(operation: Operation, entityMetadata: EntityMetadata) {
-        let groups: EntityRouteGroups = Reflect.getOwnMetadata("groups", entityMetadata.target);
-        for (let i = 1; i < entityMetadata.inheritanceTree.length; i++) {
-            groups = mergeWith(concat, groups, Reflect.getOwnMetadata("groups", entityMetadata.inheritanceTree[i]));
+    /**
+     * Get groups metadata for a given entity and merge it with every inherited entity's groups
+     * Also merge global groups (GroupsMeta.all) with route specific groups (GroupsMeta.route)
+     *
+     * @param target Entity class from which the groups metadata will be retrieved
+     * @returns an object with every operations as key and an array of props associated to an operation as value
+     */
+    private getGroupsMetadata(target: string | Function): OperationGroups {
+        const meta: GroupsMeta = Reflect.getOwnMetadata("groups", target);
+        if (!meta) {
+            return;
+        }
+
+        const routeGroups = meta.routes && meta.routes[this.metadata.tableName];
+        let groups;
+        if (meta.all && routeGroups) {
+            groups = mergeWith(concat, meta.all, routeGroups);
+        } else {
+            groups = meta.all || routeGroups;
+        }
+
+        return groups;
+    }
+
+    /**
+     * Get exposed props (from groups) for a given entity (using its EntityMetadata)
+     * @param operation
+     * @param entityMetadata
+     *
+     * @returns an array of (the given entity's) props
+     */
+    private getExposedProps<U extends AbstractEntity>(
+        operation: Operation,
+        entityMetadata: EntityMetadata
+    ): EntityProp<U> {
+        let groups;
+        if (!this.groups[entityMetadata.tableName] || !this.groups[entityMetadata.tableName][operation]) {
+            groups = this.getGroupsMetadata(entityMetadata.target);
+            let i = 1,
+                parentGroups;
+            for (i; i < entityMetadata.inheritanceTree.length; i++) {
+                parentGroups = this.getGroupsMetadata(entityMetadata.inheritanceTree[i]);
+
+                if (parentGroups) {
+                    groups = mergeWith(concat, groups, parentGroups);
+                }
+            }
+            this.groups[entityMetadata.tableName] = groups;
+        } else {
+            groups = this.groups[entityMetadata.tableName];
         }
 
         return groups && groups[operation];
     }
 
+    /**
+     * Retrieve exposed nested props in array of entities
+     *
+     * @param items entities
+     * @param operation
+     * @param entityMetadata
+     * @param currentPath dot delimited path to keep track of the properties select nesting
+     *
+     * @returns items with nested props
+     */
     private async retrieveNestedPropsInCollection<U extends AbstractEntity>(
         items: U[],
         operation: Operation,
@@ -97,9 +155,14 @@ export class EntityRouter<T extends AbstractEntity> {
         const promises = items.map((item) =>
             this.retrieveNestedPropsInItem<U>(item, operation, entityMetadata, currentPath)
         );
-        return await Promise.all(promises);
+        return Promise.all(promises);
     }
 
+    /**
+     * Retrieve mapping at current path
+     *
+     * @param currentPath dot delimited path to keep track of the properties select nesting
+     */
     private getMappingAt(currentPath: string): IMappingItem {
         const currentPathArray = currentPath
             .split(".")
@@ -123,6 +186,16 @@ export class EntityRouter<T extends AbstractEntity> {
         }
     }
 
+    /**
+     * Retrieve exposed (from its groups meta) nested props of an entity
+     *
+     * @param item entity
+     * @param operation
+     * @param entityMetadata
+     * @param currentPath dot delimited path to keep track of the properties select nesting
+     *
+     * @returns item with nested props
+     */
     private async retrieveNestedPropsInItem<U extends AbstractEntity>(
         item: U,
         operation: Operation,
@@ -141,13 +214,14 @@ export class EntityRouter<T extends AbstractEntity> {
             // Circular relation
             if (currentDepthLvl > 1) {
                 const maxDepthMeta = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
-                console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
+                // console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
+                // Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
                 if (
                     this.options.isMaxDepthEnabledByDefault ||
                     (maxDepthMeta &&
                         (currentDepthLvl > maxDepthMeta.fields[relation.propertyName] || maxDepthMeta.enabled))
                 ) {
-                    return { prop: relation.propertyName, value: "CIRCULAR " + currentDepthLvl };
+                    return { prop: relation.propertyName, value: "CIRCULAR lvl: " + currentDepthLvl };
                 }
             }
 
@@ -162,6 +236,7 @@ export class EntityRouter<T extends AbstractEntity> {
             }
 
             if (isArray && propResult.length) {
+                // Prop is a collection relation
                 propResult = await this.retrieveNestedPropsInCollection(
                     propResult,
                     operation,
@@ -169,6 +244,7 @@ export class EntityRouter<T extends AbstractEntity> {
                     localPropPath
                 );
             } else if (!isArray && propResult instanceof Object && propResult) {
+                // Prop is a (single) relation
                 propResult = await this.retrieveNestedPropsInItem(
                     propResult,
                     operation,
@@ -177,30 +253,48 @@ export class EntityRouter<T extends AbstractEntity> {
                 );
             }
 
+            // Prop is a primitive type, not a relation
             return { prop: relation.propertyName, value: propResult };
         });
 
+        // Set entity's props to each propResults
         const propResults = await Promise.all(propPromises);
         propResults.forEach((result) => (item[result.prop as keyof U] = result.value));
         return item;
     }
 
-    private getPropsByType(exposedProps: string[], entity: EntityMetadata) {
+    /**
+     * Split exposed props in 2 lists : selectsProps which are primitive types props & relationProps which are others entities embedded
+     *
+     * @param exposedProps props to filter
+     * @param entityMeta meta to check for relations in
+     *
+     * @returns obj with both lists (selectProps & relationProps)
+     */
+    private getPropsByType(exposedProps: string[], entityMeta: EntityMetadata) {
         const selectProps: string[] = [];
         const relationProps: RelationMetadata[] = [];
 
         exposedProps.forEach((prop: string) => {
-            const relation = entity.relations.find((relation) => relation.propertyName === prop);
+            const relation = entityMeta.relations.find((relation) => relation.propertyName === prop);
             if (relation) {
                 relationProps.push(relation);
             } else {
-                selectProps.push(entity.tableName + "." + prop);
+                selectProps.push(entityMeta.tableName + "." + prop);
             }
         });
 
         return { selectProps, relationProps };
     }
 
+    /**
+     * Make a db request to retrieve the exposed props of an entity's relationProp,
+     * no matter its type (OneToOne, OneToMany, ManyToOne, ManyToMany) and no matter if uni/bi-directionnal
+     *
+     * @param operation
+     * @param relation
+     * @param item
+     */
     private getNestedRelationProp<U extends AbstractEntity>(operation: Operation, relation: RelationMetadata, item: U) {
         const qb = this.connection.createQueryBuilder();
         const exposedProps = this.getExposedProps(operation, relation.inverseEntityMetadata);
@@ -372,6 +466,7 @@ export class EntityRouter<T extends AbstractEntity> {
 
     private makeResponseMethod(operation: Operation): Koa.Middleware {
         const exposedProps = this.getExposedProps(operation, this.metadata);
+        console.log(exposedProps);
 
         return async (ctx, next) => {
             const isUpserting = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
