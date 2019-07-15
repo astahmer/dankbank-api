@@ -13,7 +13,7 @@ export interface IActionParams {
     values?: any;
 }
 
-export type ActionMethod = "create" | "getList" | "getItem" | "update" | "delete";
+export type ActionMethod = "create" | "getList" | "getDetails" | "update" | "delete";
 
 export interface IAction {
     path: string;

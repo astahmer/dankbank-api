@@ -44,17 +44,17 @@ export class EntityRouter<T extends AbstractEntity> {
                 method: "getList",
             },
             details: {
-                path: "/:id",
+                path: "/:id(\\d+)",
                 verb: "get",
-                method: "getItem",
+                method: "getDetails",
             },
             update: {
-                path: "/:id",
+                path: "/:id(\\d+)",
                 verb: "put",
                 method: "update",
             },
             delete: {
-                path: "/:id",
+                path: "/:id(\\d+)",
                 verb: "remove",
                 method: "delete",
             },
@@ -75,7 +75,10 @@ export class EntityRouter<T extends AbstractEntity> {
             const path = this.routeMetadatas.path + this.actions[operation].path;
 
             const responseMethod = this.makeResponseMethod(operation);
+            const mappingMethod = this.makeMappingMethod(operation);
+
             (<any>router)[verb](path, responseMethod);
+            (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
         return router;
@@ -163,16 +166,29 @@ export class EntityRouter<T extends AbstractEntity> {
      *
      * @param currentPath dot delimited path to keep track of the properties select nesting
      */
-    private getMappingAt(currentPath: string): IMappingItem {
+    private getMappingAt(currentPath: string, mapping: IMapping): IMappingItem {
         const currentPathArray = currentPath
             .split(".")
             .join(".mapping.")
             .split(".");
-        return path(currentPathArray, this.mapping);
+        return path(currentPathArray, mapping);
     }
 
-    private setMappingAt(operation: Operation, currentPath: string, relation: RelationMetadata) {
-        const entityPropPath = this.getMappingAt(currentPath);
+    /**
+     * Retrieve & set mapping from exposed/relations props of an entity
+     *
+     * @param mapping object that will be recursively written into
+     * @param operation
+     * @param currentPath
+     * @param relation
+     */
+    private setMappingForRelation(
+        mapping: IMapping,
+        operation: Operation,
+        currentPath: string,
+        relation: RelationMetadata
+    ) {
+        const entityPropPath = this.getMappingAt(currentPath, mapping);
 
         if (!entityPropPath.mapping[relation.inverseEntityMetadata.tableName]) {
             const exposedProps = this.getExposedProps(operation, relation.inverseEntityMetadata);
@@ -183,7 +199,49 @@ export class EntityRouter<T extends AbstractEntity> {
                 relationProps: pluck("propertyName", relationProps),
                 mapping: {},
             };
+
+            for (let i = 0; i < relationProps.length; i++) {
+                const circularProp = this.isCircular(currentPath, relationProps[i].entityMetadata, relation);
+                if (circularProp) {
+                    continue;
+                }
+
+                this.setMappingForRelation(
+                    mapping,
+                    operation,
+                    currentPath + "." + relationProps[i].entityMetadata.tableName,
+                    relationProps[i]
+                );
+            }
         }
+
+        return entityPropPath.mapping[relation.inverseEntityMetadata.tableName];
+    }
+
+    /**
+     * Checks if this prop/relation entity was already fetched
+     * Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
+     *
+     * @param currentPath
+     * @param entityMetadata
+     * @param relation
+     */
+    private isCircular(currentPath: string, entityMetadata: EntityMetadata, relation: RelationMetadata) {
+        const currentDepthLvl = currentPath.split(entityMetadata.tableName).length - 1;
+        if (currentDepthLvl > 1) {
+            // console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
+            const maxDepthMeta = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
+
+            // Should stop getting nested relations ?
+            if (
+                this.options.isMaxDepthEnabledByDefault ||
+                (maxDepthMeta && (currentDepthLvl > maxDepthMeta.fields[relation.propertyName] || maxDepthMeta.enabled))
+            ) {
+                return { prop: relation.propertyName, value: "CIRCULAR lvl: " + currentDepthLvl };
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -208,21 +266,9 @@ export class EntityRouter<T extends AbstractEntity> {
         }
 
         const propPromises = relationProps.map(async (relation) => {
-            // this.setMappingAt(operation, currentPath, relation);
-
-            const currentDepthLvl = currentPath.split(entityMetadata.tableName).length - 1;
-            // Circular relation
-            if (currentDepthLvl > 1) {
-                const maxDepthMeta = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
-                // console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
-                // Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
-                if (
-                    this.options.isMaxDepthEnabledByDefault ||
-                    (maxDepthMeta &&
-                        (currentDepthLvl > maxDepthMeta.fields[relation.propertyName] || maxDepthMeta.enabled))
-                ) {
-                    return { prop: relation.propertyName, value: "CIRCULAR lvl: " + currentDepthLvl };
-                }
+            const circularProp = this.isCircular(currentPath, entityMetadata, relation);
+            if (circularProp) {
+                return circularProp;
             }
 
             const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
@@ -417,7 +463,7 @@ export class EntityRouter<T extends AbstractEntity> {
         return [items, baseItems[1]];
     }
 
-    private async getItem({
+    private async getDetails({
         operation,
         exposedProps,
     }: {
@@ -497,6 +543,34 @@ export class EntityRouter<T extends AbstractEntity> {
                 totalItems,
                 result,
                 mapping: this.mapping,
+            };
+            next();
+        };
+    }
+
+    private makeMappingMethod(operation: Operation): Koa.Middleware {
+        const exposedProps = this.getExposedProps(operation, this.metadata);
+
+        return async (ctx, next) => {
+            const { relationProps } = this.getPropsByType(exposedProps, this.metadata);
+            const mapping = {
+                [this.metadata.tableName]: {
+                    exposedProps,
+                    relationProps: pluck("propertyName", relationProps),
+                    mapping: {},
+                },
+            };
+
+            for (let i = 0; i < relationProps.length; i++) {
+                this.setMappingForRelation(mapping, operation, this.metadata.tableName, relationProps[i]);
+            }
+
+            ctx.body = {
+                context: {
+                    operation: operation + ".mapping",
+                    entity: this.metadata.tableName,
+                },
+                mapping,
             };
             next();
         };

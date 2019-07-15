@@ -6,7 +6,7 @@ import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
 
-@EntityRoute("/users", ["details"])
+@EntityRoute("/users", ["list", "details"])
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
