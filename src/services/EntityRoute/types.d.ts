@@ -45,3 +45,14 @@ export interface IMappingItem {
 export interface IMapping {
     [tableName: string]: IMappingItem;
 }
+
+export interface IMaxDeptMetas {
+    [tableName: string]: IMaxDeptMetasItem;
+}
+
+export interface IMaxDeptMetasItem {
+    enabled?: EntityMetadata;
+    fields: {
+        [propName: string]: number;
+    };
+}

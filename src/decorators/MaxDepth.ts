@@ -20,6 +20,5 @@ export function MaxDepth(max?: number): ClassDecorator | PropertyDecorator {
             maxDepth.enabled = true;
         }
         Reflect.defineMetadata("maxDepth", maxDepth, target);
-        console.log(maxDepth, target);
     };
 }

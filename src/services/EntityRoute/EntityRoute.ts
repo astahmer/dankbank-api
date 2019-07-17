@@ -2,7 +2,15 @@ import * as Koa from "koa";
 import * as Router from "koa-router";
 import { Connection, EntityMetadata, Repository, getRepository, ObjectType } from "typeorm";
 
-import { IRouteMetadatas, Operation, IMapping, IMappingItem, IActionParams, RouteActions } from "./types";
+import {
+    IRouteMetadatas,
+    Operation,
+    IMapping,
+    IMappingItem,
+    IActionParams,
+    RouteActions,
+    IMaxDeptMetas,
+} from "./types";
 import { mergeWith, concat, path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
@@ -23,6 +31,8 @@ export class EntityRouter<T extends AbstractEntity> {
     private mapping: IMapping;
     private options: IEntityRouteOptions;
     private groups: RouteGroups;
+    private maxDepthMetas: IMaxDeptMetas = {};
+    private onlyExposeIdMetas: any = {};
 
     constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
         this.connection = connection;
@@ -91,7 +101,7 @@ export class EntityRouter<T extends AbstractEntity> {
      * @param target Entity class from which the groups metadata will be retrieved
      * @returns an object with every operations as key and an array of props associated to an operation as value
      */
-    private getGroupsMetadata(target: string | Function): OperationGroups {
+    private getMergedGroupsMetadata(target: string | Function): OperationGroups {
         const meta: GroupsMeta = Reflect.getOwnMetadata("groups", target);
         if (!meta) {
             return;
@@ -121,11 +131,11 @@ export class EntityRouter<T extends AbstractEntity> {
     ): EntityProp<U> {
         let groups;
         if (!this.groups[entityMetadata.tableName] || !this.groups[entityMetadata.tableName][operation]) {
-            groups = this.getGroupsMetadata(entityMetadata.target);
+            groups = this.getMergedGroupsMetadata(entityMetadata.target);
             let i = 1,
                 parentGroups;
             for (i; i < entityMetadata.inheritanceTree.length; i++) {
-                parentGroups = this.getGroupsMetadata(entityMetadata.inheritanceTree[i]);
+                parentGroups = this.getMergedGroupsMetadata(entityMetadata.inheritanceTree[i]);
 
                 if (parentGroups) {
                     groups = mergeWith(concat, groups, parentGroups);
@@ -219,6 +229,34 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     /**
+     * Retrieve & store entity maxDepthMeta in memory
+     * @param entityMetadata
+     */
+    private getMaxDepthMetaFor(entityMetadata: EntityMetadata) {
+        if (!this.maxDepthMetas || !this.maxDepthMetas[entityMetadata.tableName]) {
+            this.maxDepthMetas[entityMetadata.tableName] = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
+        }
+        return this.maxDepthMetas[entityMetadata.tableName];
+    }
+
+    /**
+     * Check if @ExposeId decorator was added on given relationProp
+     * @param entityMetadata
+     */
+    private doesRelationOnlyExposeId(entityMetadata: EntityMetadata, propName: string) {
+        if (!this.onlyExposeIdMetas || !this.onlyExposeIdMetas[entityMetadata.tableName]) {
+            this.onlyExposeIdMetas[entityMetadata.tableName] = Reflect.getOwnMetadata(
+                "onlyExposeId",
+                entityMetadata.target
+            );
+        }
+        return (
+            this.onlyExposeIdMetas[entityMetadata.tableName] &&
+            this.onlyExposeIdMetas[entityMetadata.tableName][propName]
+        );
+    }
+
+    /**
      * Checks if this prop/relation entity was already fetched
      * Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
      *
@@ -230,7 +268,7 @@ export class EntityRouter<T extends AbstractEntity> {
         const currentDepthLvl = currentPath.split(entityMetadata.tableName).length - 1;
         if (currentDepthLvl > 1) {
             // console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
-            const maxDepthMeta = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
+            const maxDepthMeta = this.getMaxDepthMetaFor(entityMetadata);
 
             // Should stop getting nested relations ?
             if (
@@ -271,8 +309,17 @@ export class EntityRouter<T extends AbstractEntity> {
                 return circularProp;
             }
 
+            if (this.doesRelationOnlyExposeId(relation.entityMetadata, relation.propertyName)) {
+                const propResult = await this.getRelationProps(
+                    [relation.inverseEntityMetadata.tableName + ".id"],
+                    relation,
+                    item
+                );
+                return { prop: relation.propertyName, value: propResult };
+            }
+
             const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
-            let propResult = (await this.getNestedRelationProp(operation, relation, item)) || null;
+            let propResult = (await this.getExposedPropsInRelationProp(operation, relation, item)) || null;
             const isArray = Array.isArray(propResult);
 
             if (relation.isManyToOne) {
@@ -334,91 +381,109 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     /**
-     * Make a db request to retrieve the exposed props of an entity's relationProp,
+     * Retrieve exposed props of an entity's relationProp on a given operation (using its groups),
      * no matter its type (OneToOne, OneToMany, ManyToOne, ManyToMany) and no matter if uni/bi-directionnal
      *
      * @param operation
-     * @param relation
-     * @param item
+     * @param relation meta
+     * @param item that owns the relation
      */
-    private getNestedRelationProp<U extends AbstractEntity>(operation: Operation, relation: RelationMetadata, item: U) {
+    private getExposedPropsInRelationProp<U extends AbstractEntity>(
+        operation: Operation,
+        relation: RelationMetadata,
+        item: U
+    ) {
+        const { selectProps } = this.getPropsByType(
+            this.getExposedProps(operation, relation.inverseEntityMetadata),
+            relation.inverseEntityMetadata
+        );
+        return this.getRelationProps(selectProps, relation, item);
+    }
+
+    /**
+     * Retrieve given props from a relation
+     * no matter its type (OneToOne, OneToMany, ManyToOne, ManyToMany) and no matter if uni/bi-directionnal
+     *
+     * @param selectProps
+     * @param relation meta
+     * @param item that owns the relation
+     */
+    private getRelationProps<U extends AbstractEntity>(selectProps: string[], relationMeta: RelationMetadata, item: U) {
         const qb = this.connection.createQueryBuilder();
-        const exposedProps = this.getExposedProps(operation, relation.inverseEntityMetadata);
-        const { selectProps } = this.getPropsByType(exposedProps, relation.inverseEntityMetadata);
 
-        const relationTableName = relation.inverseEntityMetadata.tableName;
-        const relationTarget = relation.inverseEntityMetadata.target;
-        const ownerTableName = relation.entityMetadata.tableName;
-        const ownerTarget = relation.entityMetadata.target;
-        const relationInversedBy = relation.inverseSidePropertyPath;
+        const inverse = relationMeta.inverseEntityMetadata;
+        const owner = relationMeta.entityMetadata;
+        const relationInversedBy = relationMeta.inverseSidePropertyPath;
 
-        if (relation.isOneToMany) {
+        if (relationMeta.isOneToMany) {
             qb.select(selectProps)
-                .from(relationTarget, relationTableName)
-                .where(relationTableName + "." + relationInversedBy + "Id = :id", { id: item.id });
+                .from(inverse.target, inverse.tableName)
+                .where(inverse.tableName + "." + relationInversedBy + "Id = :id", { id: item.id });
 
             // console.log(qb.getSql());
             return qb.getMany();
-        } else if (relation.isOneToOne) {
+        } else if (relationMeta.isOneToOne) {
             // Bi-directionnal
             if (relationInversedBy) {
                 qb.select(selectProps)
-                    .from(relationTarget, relationTableName)
-                    .leftJoin(relationTableName + "." + relationInversedBy, ownerTableName)
-                    .where(ownerTableName + ".id = :id", { id: item.id });
+                    .from(inverse.target, inverse.tableName)
+                    .leftJoin(inverse.tableName + "." + relationInversedBy, owner.tableName)
+                    .where(owner.tableName + ".id = :id", { id: item.id });
             } else {
-                if (relation.isOneToOneOwner) {
+                if (relationMeta.isOneToOneOwner) {
                     qb.select(selectProps)
-                        .from(relationTarget, relationTableName)
+                        .from(inverse.target, inverse.tableName)
                         .where((qb) => {
                             const subQuery = qb
                                 .subQuery()
-                                .select([relation.joinColumns[0].databaseName])
-                                .from(ownerTarget, ownerTableName)
-                                .where(ownerTableName + ".id = :id", { id: item.id })
+                                .select([relationMeta.joinColumns[0].databaseName])
+                                .from(owner.target, owner.tableName)
+                                .where(owner.tableName + ".id = :id", { id: item.id })
                                 .getQuery();
-                            return relationTableName + ".id = " + subQuery;
+                            return inverse.tableName + ".id = " + subQuery;
                         });
                 } else {
                     qb.select(selectProps)
-                        .from(relationTarget, relationTableName)
-                        .where(ownerTableName + "Id = :id", { id: item.id });
+                        .from(inverse.target, inverse.tableName)
+                        .where(owner.tableName + "Id = :id", { id: item.id });
                 }
             }
 
             // console.log(qb.getSql());
             return qb.getOne();
-        } else if (relation.isManyToMany) {
+        } else if (relationMeta.isManyToMany) {
             // Bi-directionnal
             if (relationInversedBy) {
-                selectProps.push(ownerTableName + ".id");
+                selectProps.push(owner.tableName + ".id");
                 qb.select(selectProps)
-                    .from(ownerTarget, ownerTableName)
-                    .leftJoin(ownerTableName + "." + relation.propertyName, relationTableName)
-                    .where(ownerTableName + ".id = :id", { id: item.id });
+                    .from(owner.target, owner.tableName)
+                    .leftJoin(owner.tableName + "." + relationMeta.propertyName, inverse.tableName)
+                    .where(owner.tableName + ".id = :id", { id: item.id });
             } else {
-                const junctionTableName = relation.junctionEntityMetadata.tableName;
+                const junction = relationMeta.junctionEntityMetadata;
                 qb.select(selectProps)
-                    .from(relationTarget, relationTableName)
+                    .from(inverse.target, inverse.tableName)
                     .where((qb) => {
                         const subQuery = qb
                             .subQuery()
-                            .select(junctionTableName + "." + relation.junctionEntityMetadata.columns[0].propertyName)
-                            .from(relation.junctionEntityMetadata.target, junctionTableName)
-                            .where(ownerTableName + "Id = :id", { id: item.id })
+                            .select(
+                                junction.tableName + "." + relationMeta.junctionEntityMetadata.columns[0].propertyName
+                            )
+                            .from(relationMeta.junctionEntityMetadata.target, junction.tableName)
+                            .where(owner.tableName + "Id = :id", { id: item.id })
                             .getQuery();
-                        return relationTableName + ".id IN " + subQuery;
+                        return inverse.tableName + ".id IN " + subQuery;
                     });
             }
 
             // console.log(qb.getSql());
             return qb.getMany();
-        } else if (relation.isManyToOne) {
-            selectProps.push(ownerTableName + ".id");
+        } else if (relationMeta.isManyToOne) {
+            selectProps.push(owner.tableName + ".id");
             qb.select(selectProps)
-                .from(ownerTarget, ownerTableName)
-                .leftJoin(ownerTableName + "." + relation.propertyName, relationTableName)
-                .where(ownerTableName + ".id = :id", { id: item.id });
+                .from(owner.target, owner.tableName)
+                .leftJoin(owner.tableName + "." + relationMeta.propertyName, inverse.tableName)
+                .where(owner.tableName + ".id = :id", { id: item.id });
 
             // console.log(qb.getSql());
             return qb.getOne();
@@ -512,7 +577,6 @@ export class EntityRouter<T extends AbstractEntity> {
 
     private makeResponseMethod(operation: Operation): Koa.Middleware {
         const exposedProps = this.getExposedProps(operation, this.metadata);
-        console.log(exposedProps);
 
         return async (ctx, next) => {
             const isUpserting = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
