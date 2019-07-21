@@ -7,7 +7,7 @@ export type Entity<T extends AbstractEntity> = ObjectType<T>;
 
 export interface IActionParams {
     operation: Operation;
-    exposedProps: string[];
+    exposedProps?: string[];
     entityId?: number;
     isUpserting?: boolean;
     values?: any;
@@ -26,6 +26,10 @@ export type RouteActions = {
 };
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
+export interface IEntityRouteOptions {
+    isMaxDepthEnabledByDefault: boolean;
+}
+
 export interface IRouteMetadatas {
     path: string;
     operations: Operation[];
@@ -39,6 +43,7 @@ export interface IMappingItem {
     metadata?: EntityMetadata;
     mapping: IMapping;
     exposedProps?: any;
+    selectProps?: any;
     relationProps?: any;
 }
 

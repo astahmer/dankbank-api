@@ -6,11 +6,9 @@ export abstract class AbstractEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @Groups(["details"])
     @CreateDateColumn()
     dateCreated: string;
 
-    @Groups(["details"])
     @UpdateDateColumn()
     dateUpdated: string;
 }

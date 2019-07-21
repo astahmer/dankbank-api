@@ -10,17 +10,18 @@ import {
     IActionParams,
     RouteActions,
     IMaxDeptMetas,
+    IEntityRouteOptions,
 } from "./types";
-import { mergeWith, concat, path, pluck } from "ramda";
+import { path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
-import { GroupsMeta, RouteGroups, OperationGroups } from "../../decorators/Groups";
+import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
+import { GroupsMetadata } from "./GroupsMetadata";
+import { OnlyExposeIdGroupsMetadata } from "./OnlyExposeIdGroupsMetadata";
 
-export interface IEntityRouteOptions {
-    isMaxDepthEnabledByDefault: boolean;
-}
-
-type EntityProp<U> = Array<keyof U>;
+type GroupsMetaByRoutes<G extends GroupsMetadata> = {
+    [routeName: string]: G;
+};
 
 export class EntityRouter<T extends AbstractEntity> {
     private connection: Connection;
@@ -30,9 +31,9 @@ export class EntityRouter<T extends AbstractEntity> {
     private actions: RouteActions;
     private mapping: IMapping;
     private options: IEntityRouteOptions;
-    private groups: RouteGroups;
+    private groupsMetas: GroupsMetaByRoutes<EntityGroupsMetadata> = {};
     private maxDepthMetas: IMaxDeptMetas = {};
-    private onlyExposeIdMetas: any = {};
+    private onlyExposeIdMetas: GroupsMetaByRoutes<OnlyExposeIdGroupsMetadata> = {};
 
     constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
         this.connection = connection;
@@ -40,7 +41,6 @@ export class EntityRouter<T extends AbstractEntity> {
         this.repository = getRepository(entity);
         this.metadata = this.repository.metadata;
         this.options = options;
-        this.groups = {};
 
         this.actions = {
             create: {
@@ -76,7 +76,7 @@ export class EntityRouter<T extends AbstractEntity> {
      *
      * @returns Koa.Router
      */
-    public makeRouter() {
+    makeRouter() {
         const router = new Router();
 
         for (let i = 0; i < this.routeMetadatas.operations.length; i++) {
@@ -94,59 +94,28 @@ export class EntityRouter<T extends AbstractEntity> {
         return router;
     }
 
-    /**
-     * Get groups metadata for a given entity and merge it with every inherited entity's groups
-     * Also merge global groups (GroupsMeta.all) with route specific groups (GroupsMeta.route)
-     *
-     * @param target Entity class from which the groups metadata will be retrieved
-     * @returns an object with every operations as key and an array of props associated to an operation as value
-     */
-    private getMergedGroupsMetadata(target: string | Function): OperationGroups {
-        const meta: GroupsMeta = Reflect.getOwnMetadata("groups", target);
-        if (!meta) {
-            return;
+    private getGroupsMetadataFor(entityMetadata: EntityMetadata): EntityGroupsMetadata {
+        if (!this.groupsMetas[entityMetadata.tableName]) {
+            const groupsMeta =
+                Reflect.getOwnMetadata("groups", entityMetadata.target) || new EntityGroupsMetadata("groups");
+            groupsMeta.setRouteContext(this.metadata);
+            this.groupsMetas[entityMetadata.tableName] = groupsMeta;
         }
-
-        const routeGroups = meta.routes && meta.routes[this.metadata.tableName];
-        let groups;
-        if (meta.all && routeGroups) {
-            groups = mergeWith(concat, meta.all, routeGroups);
-        } else {
-            groups = meta.all || routeGroups;
-        }
-
-        return groups;
+        return this.groupsMetas[entityMetadata.tableName];
     }
 
     /**
-     * Get exposed props (from groups) for a given entity (using its EntityMetadata)
-     * @param operation
-     * @param entityMetadata
-     *
-     * @returns an array of (the given entity's) props
+     * Get selects props (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
-    private getExposedProps<U extends AbstractEntity>(
-        operation: Operation,
-        entityMetadata: EntityMetadata
-    ): EntityProp<U> {
-        let groups;
-        if (!this.groups[entityMetadata.tableName] || !this.groups[entityMetadata.tableName][operation]) {
-            groups = this.getMergedGroupsMetadata(entityMetadata.target);
-            let i = 1,
-                parentGroups;
-            for (i; i < entityMetadata.inheritanceTree.length; i++) {
-                parentGroups = this.getMergedGroupsMetadata(entityMetadata.inheritanceTree[i]);
+    private getSelectProps(operation: Operation, entityMetadata: EntityMetadata) {
+        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, entityMetadata);
+    }
 
-                if (parentGroups) {
-                    groups = mergeWith(concat, groups, parentGroups);
-                }
-            }
-            this.groups[entityMetadata.tableName] = groups;
-        } else {
-            groups = this.groups[entityMetadata.tableName];
-        }
-
-        return groups && groups[operation];
+    /**
+     * Get relation props metas (from groups) for a given entity (using its EntityMetadata) on a specific operation
+     */
+    private getRelationPropsMetas(operation: Operation, entityMetadata: EntityMetadata) {
+        return this.getGroupsMetadataFor(entityMetadata).getRelationPropsMetas(operation, entityMetadata);
     }
 
     /**
@@ -201,11 +170,11 @@ export class EntityRouter<T extends AbstractEntity> {
         const entityPropPath = this.getMappingAt(currentPath, mapping);
 
         if (!entityPropPath.mapping[relation.inverseEntityMetadata.tableName]) {
-            const exposedProps = this.getExposedProps(operation, relation.inverseEntityMetadata);
-            const { relationProps } = this.getPropsByType(exposedProps, relation.inverseEntityMetadata);
+            const selectProps = this.getSelectProps(operation, relation.inverseEntityMetadata);
+            const relationProps = this.getRelationPropsMetas(operation, relation.inverseEntityMetadata);
 
             entityPropPath.mapping[relation.inverseEntityMetadata.tableName] = {
-                exposedProps,
+                selectProps,
                 relationProps: pluck("propertyName", relationProps),
                 mapping: {},
             };
@@ -233,26 +202,32 @@ export class EntityRouter<T extends AbstractEntity> {
      * @param entityMetadata
      */
     private getMaxDepthMetaFor(entityMetadata: EntityMetadata) {
-        if (!this.maxDepthMetas || !this.maxDepthMetas[entityMetadata.tableName]) {
+        if (!this.maxDepthMetas[entityMetadata.tableName]) {
             this.maxDepthMetas[entityMetadata.tableName] = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
         }
         return this.maxDepthMetas[entityMetadata.tableName];
     }
 
     /**
-     * Check if @ExposeId decorator was added on given relationProp
-     * @param entityMetadata
+     * Check if @OnlyExposeId decorator was added on given relationProp + is always enabled / has corresponding group
      */
-    private doesRelationOnlyExposeId(entityMetadata: EntityMetadata, propName: string) {
-        if (!this.onlyExposeIdMetas || !this.onlyExposeIdMetas[entityMetadata.tableName]) {
+    private doesRelationOnlyExposeId(operation: Operation, entityMetadata: EntityMetadata, propName: string) {
+        if (!this.onlyExposeIdMetas[entityMetadata.tableName]) {
             this.onlyExposeIdMetas[entityMetadata.tableName] = Reflect.getOwnMetadata(
                 "onlyExposeId",
                 entityMetadata.target
             );
         }
-        return (
-            this.onlyExposeIdMetas[entityMetadata.tableName] &&
-            this.onlyExposeIdMetas[entityMetadata.tableName][propName]
+
+        if (!this.onlyExposeIdMetas[entityMetadata.tableName]) {
+            return false;
+        }
+
+        this.onlyExposeIdMetas[entityMetadata.tableName].setRouteContext(this.metadata);
+        return this.onlyExposeIdMetas[entityMetadata.tableName].doesRelationOnlyExposeId(
+            operation,
+            entityMetadata,
+            propName
         );
     }
 
@@ -282,6 +257,16 @@ export class EntityRouter<T extends AbstractEntity> {
         return null;
     }
 
+    private unwrapRelationResult(propResult: any, relation: RelationMetadata) {
+        if (relation.isManyToOne) {
+            propResult = propResult[relation.propertyName];
+        } else if (relation.isManyToMany && relation.inverseRelation) {
+            propResult = propResult.map((el: any) => el[relation.propertyName])[0];
+        }
+
+        return propResult;
+    }
+
     /**
      * Retrieve exposed (from its groups meta) nested props of an entity
      *
@@ -298,7 +283,7 @@ export class EntityRouter<T extends AbstractEntity> {
         entityMetadata: EntityMetadata,
         currentPath: string
     ) {
-        const { relationProps } = this.getPropsByType(this.getExposedProps(operation, entityMetadata), entityMetadata);
+        const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
         if (!relationProps.length) {
             return item;
         }
@@ -309,24 +294,21 @@ export class EntityRouter<T extends AbstractEntity> {
                 return circularProp;
             }
 
-            if (this.doesRelationOnlyExposeId(relation.entityMetadata, relation.propertyName)) {
-                const propResult = await this.getRelationProps(
+            if (this.doesRelationOnlyExposeId(operation, relation.entityMetadata, relation.propertyName)) {
+                let propResult = await this.getRelationProps(
                     [relation.inverseEntityMetadata.tableName + ".id"],
                     relation,
                     item
                 );
+
+                propResult = this.unwrapRelationResult(propResult, relation);
                 return { prop: relation.propertyName, value: propResult };
             }
 
             const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
             let propResult = (await this.getExposedPropsInRelationProp(operation, relation, item)) || null;
             const isArray = Array.isArray(propResult);
-
-            if (relation.isManyToOne) {
-                propResult = propResult[relation.propertyName];
-            } else if (relation.isManyToMany && relation.inverseRelation) {
-                propResult = propResult.map((el: any) => el[relation.propertyName])[0];
-            }
+            propResult = this.unwrapRelationResult(propResult, relation);
 
             if (isArray && propResult.length) {
                 // Prop is a collection relation
@@ -357,30 +339,6 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     /**
-     * Split exposed props in 2 lists : selectsProps which are primitive types props & relationProps which are others entities embedded
-     *
-     * @param exposedProps props to filter
-     * @param entityMeta meta to check for relations in
-     *
-     * @returns obj with both lists (selectProps & relationProps)
-     */
-    private getPropsByType(exposedProps: string[], entityMeta: EntityMetadata) {
-        const selectProps: string[] = [];
-        const relationProps: RelationMetadata[] = [];
-
-        exposedProps.forEach((prop: string) => {
-            const relation = entityMeta.relations.find((relation) => relation.propertyName === prop);
-            if (relation) {
-                relationProps.push(relation);
-            } else {
-                selectProps.push(entityMeta.tableName + "." + prop);
-            }
-        });
-
-        return { selectProps, relationProps };
-    }
-
-    /**
      * Retrieve exposed props of an entity's relationProp on a given operation (using its groups),
      * no matter its type (OneToOne, OneToMany, ManyToOne, ManyToMany) and no matter if uni/bi-directionnal
      *
@@ -393,10 +351,7 @@ export class EntityRouter<T extends AbstractEntity> {
         relation: RelationMetadata,
         item: U
     ) {
-        const { selectProps } = this.getPropsByType(
-            this.getExposedProps(operation, relation.inverseEntityMetadata),
-            relation.inverseEntityMetadata
-        );
+        const selectProps = this.getSelectProps(operation, relation.inverseEntityMetadata);
         return this.getRelationProps(selectProps, relation, item);
     }
 
@@ -499,25 +454,12 @@ export class EntityRouter<T extends AbstractEntity> {
             .execute();
     }
 
-    private async getList({
-        operation,
-        exposedProps,
-    }: {
-        operation: Operation;
-        exposedProps: string[];
-    }): Promise<[T[], number]> {
+    private async getList({ operation }: { operation: Operation }): Promise<[T[], number]> {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
-        const { selectProps, relationProps } = this.getPropsByType(exposedProps, this.metadata);
+        const selectProps = this.getSelectProps(operation, this.metadata);
         qb.select(selectProps);
         const baseItems = await qb.getManyAndCount();
 
-        this.mapping = {
-            [this.metadata.tableName]: {
-                exposedProps,
-                relationProps: pluck("propertyName", relationProps),
-                mapping: {},
-            },
-        };
         const items = await this.retrieveNestedPropsInCollection(
             baseItems[0],
             operation,
@@ -528,15 +470,9 @@ export class EntityRouter<T extends AbstractEntity> {
         return [items, baseItems[1]];
     }
 
-    private async getDetails({
-        operation,
-        exposedProps,
-    }: {
-        operation: Operation;
-        exposedProps: string[];
-    }): Promise<[T, number]> {
+    private async getDetails({ operation }: { operation: Operation }): Promise<[T, number]> {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
-        const { selectProps, relationProps } = this.getPropsByType(exposedProps, this.metadata);
+        const selectProps = this.getSelectProps(operation, this.metadata);
         qb.select(selectProps);
         const baseItem = await qb.getOne();
 
@@ -544,13 +480,6 @@ export class EntityRouter<T extends AbstractEntity> {
             return [null, 0];
         }
 
-        this.mapping = {
-            [this.metadata.tableName]: {
-                exposedProps,
-                relationProps: pluck("propertyName", relationProps),
-                mapping: {},
-            },
-        };
         const item = await this.retrieveNestedPropsInItem(baseItem, operation, this.metadata, this.metadata.tableName);
 
         return [item, 1];
@@ -576,13 +505,10 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     private makeResponseMethod(operation: Operation): Koa.Middleware {
-        const exposedProps = this.getExposedProps(operation, this.metadata);
-
         return async (ctx, next) => {
             const isUpserting = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
             const params: IActionParams = {
                 operation,
-                exposedProps,
                 ...(ctx.params.id && { entityId: ctx.params.id }),
                 ...(isUpserting && { values: ctx.request.body }),
             };
@@ -613,13 +539,13 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     private makeMappingMethod(operation: Operation): Koa.Middleware {
-        const exposedProps = this.getExposedProps(operation, this.metadata);
+        const selectProps = this.getSelectProps(operation, this.metadata);
+        const relationProps = this.getRelationPropsMetas(operation, this.metadata);
 
         return async (ctx, next) => {
-            const { relationProps } = this.getPropsByType(exposedProps, this.metadata);
             const mapping = {
                 [this.metadata.tableName]: {
-                    exposedProps,
+                    selectProps,
                     relationProps: pluck("propertyName", relationProps),
                     mapping: {},
                 },
