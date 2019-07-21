@@ -2,6 +2,7 @@ import { GroupsMetadata } from "./GroupsMetadata";
 import { Operation } from "./types";
 import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
+import { COMPUTED_PREFIX } from "../../decorators/Groups";
 
 export class EntityGroupsMetadata extends GroupsMetadata {
     /**
@@ -9,7 +10,11 @@ export class EntityGroupsMetadata extends GroupsMetadata {
      */
     getSelectProps(operation: Operation, entityMeta: EntityMetadata, withPrefix = true) {
         return this.getExposedProps(operation, entityMeta)
-            .filter((propName) => entityMeta.relations.map((rel) => rel.propertyName).indexOf(propName) === -1)
+            .filter(
+                (propName) =>
+                    propName.indexOf(COMPUTED_PREFIX) === -1 &&
+                    entityMeta.relations.map((rel) => rel.propertyName).indexOf(propName) === -1
+            )
             .map((propName) => (withPrefix ? entityMeta.tableName + "." : "") + propName);
     }
 
@@ -20,6 +25,15 @@ export class EntityGroupsMetadata extends GroupsMetadata {
         return this.getExposedProps(operation, entityMeta)
             .map((propName) => entityMeta.relations.find((rel) => rel.propertyName === propName))
             .filter((rel) => rel);
+    }
+
+    /**
+     * Get exposed props that are computed props, used to retrieve themselves
+     */
+    getComputedProps(operation: Operation, entityMeta: EntityMetadata) {
+        return this.getExposedProps(operation, entityMeta).filter(
+            (propName) => propName.indexOf(COMPUTED_PREFIX) !== -1
+        );
     }
 
     /**

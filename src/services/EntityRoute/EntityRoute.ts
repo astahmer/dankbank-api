@@ -5,23 +5,21 @@ import { Connection, EntityMetadata, Repository, getRepository, ObjectType } fro
 import {
     IRouteMetadatas,
     Operation,
-    IMapping,
+    Mapping,
     IMappingItem,
     IActionParams,
     RouteActions,
     IMaxDeptMetas,
     IEntityRouteOptions,
+    GroupsMetaByRoutes,
 } from "./types";
 import { path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
-import { GroupsMetadata } from "./GroupsMetadata";
 import { OnlyExposeIdGroupsMetadata } from "./OnlyExposeIdGroupsMetadata";
-
-type GroupsMetaByRoutes<G extends GroupsMetadata> = {
-    [routeName: string]: G;
-};
+import { COMPUTED_PREFIX } from "../../decorators/Groups";
+import { formatComputedProp, sortObjectByKeys } from "./utils";
 
 export class EntityRouter<T extends AbstractEntity> {
     private connection: Connection;
@@ -29,7 +27,6 @@ export class EntityRouter<T extends AbstractEntity> {
     private routeMetadatas: IRouteMetadatas;
     private metadata: EntityMetadata;
     private actions: RouteActions;
-    private mapping: IMapping;
     private options: IEntityRouteOptions;
     private groupsMetas: GroupsMetaByRoutes<EntityGroupsMetadata> = {};
     private maxDepthMetas: IMaxDeptMetas = {};
@@ -119,6 +116,13 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     /**
+     * Get computed props metas (from groups) for a given entity (using its EntityMetadata) on a specific operation
+     */
+    private getComputedProps(operation: Operation, entityMetadata: EntityMetadata) {
+        return this.getGroupsMetadataFor(entityMetadata).getComputedProps(operation, entityMetadata);
+    }
+
+    /**
      * Retrieve exposed nested props in array of entities
      *
      * @param items entities
@@ -145,7 +149,7 @@ export class EntityRouter<T extends AbstractEntity> {
      *
      * @param currentPath dot delimited path to keep track of the properties select nesting
      */
-    private getMappingAt(currentPath: string, mapping: IMapping): IMappingItem {
+    private getMappingAt(currentPath: string, mapping: Mapping): IMappingItem {
         const currentPathArray = currentPath
             .split(".")
             .join(".mapping.")
@@ -162,7 +166,7 @@ export class EntityRouter<T extends AbstractEntity> {
      * @param relation
      */
     private setMappingForRelation(
-        mapping: IMapping,
+        mapping: Mapping,
         operation: Operation,
         currentPath: string,
         relation: RelationMetadata
@@ -332,10 +336,17 @@ export class EntityRouter<T extends AbstractEntity> {
             return { prop: relation.propertyName, value: propResult };
         });
 
+        const computedProps = this.getComputedProps(operation, entityMetadata);
+        computedProps.forEach((computed) => {
+            const computedPropName = computed.replace(COMPUTED_PREFIX, "");
+            const propKey = formatComputedProp(computedPropName);
+            item[propKey as keyof U] = (item[computedPropName as keyof U] as any)();
+        });
+
         // Set entity's props to each propResults
         const propResults = await Promise.all(propPromises);
         propResults.forEach((result) => (item[result.prop as keyof U] = result.value));
-        return item;
+        return sortObjectByKeys(item);
     }
 
     /**
@@ -532,7 +543,6 @@ export class EntityRouter<T extends AbstractEntity> {
                 items,
                 totalItems,
                 result,
-                mapping: this.mapping,
             };
             next();
         };

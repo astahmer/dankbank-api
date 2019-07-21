@@ -2,6 +2,8 @@ import * as Router from "koa-router";
 import { Repository, ObjectType, EntityMetadata, Connection } from "typeorm";
 import { AbstractEntity } from "../../entity/AbstractEntity";
 import { EntityRouter } from "./EntityRoute";
+import { GroupsMetadata } from "./GroupsMetadata";
+import { type } from "os";
 
 export type Entity<T extends AbstractEntity> = ObjectType<T>;
 
@@ -21,9 +23,7 @@ export interface IAction {
     method: ActionMethod;
 }
 
-export type RouteActions = {
-    [K in Operation]: IAction;
-};
+export type RouteActions = { [K in Operation]: IAction };
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
 export interface IEntityRouteOptions {
@@ -35,26 +35,20 @@ export interface IRouteMetadatas {
     operations: Operation[];
 }
 
-export type EntityRouteGroups = {
-    [group in Operation]: string[];
-};
+export type EntityRouteGroups = { [group in Operation]: string[] };
+export type GroupsMetaByRoutes<G extends GroupsMetadata> = { [routeName: string]: G };
 
 export interface IMappingItem {
     metadata?: EntityMetadata;
-    mapping: IMapping;
+    mapping: Mapping;
     exposedProps?: any;
     selectProps?: any;
     relationProps?: any;
 }
 
-export interface IMapping {
-    [tableName: string]: IMappingItem;
-}
+export type Mapping = { [tableName: string]: IMappingItem };
 
-export interface IMaxDeptMetas {
-    [tableName: string]: IMaxDeptMetasItem;
-}
-
+export type IMaxDeptMetas = { [tableName: string]: IMaxDeptMetasItem };
 export interface IMaxDeptMetasItem {
     enabled?: EntityMetadata;
     fields: {

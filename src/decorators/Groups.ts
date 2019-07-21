@@ -6,6 +6,8 @@ export type OperationGroups = { [K in Operation]?: string[] };
 export type RouteGroups = { [entityRoute: string]: OperationGroups };
 export type RouteGroupsByContext = { [routeContext: string]: RouteGroups };
 
+export const COMPUTED_PREFIX = "_COMPUTED_";
+
 /**
  * Expose decorated property for each operation for each listed EntityRoute context
  * @param groups An object containing a list of every EntityRoute context
@@ -19,9 +21,21 @@ export function Groups(groups: GroupsParams): PropertyDecorator;
  */
 export function Groups(operations: Operation[]): PropertyDecorator;
 
-export function Groups(groups: Operation[] | GroupsParams): PropertyDecorator {
-    return (target: Object, propName: string) => {
+/**
+ * Expose decorated computed property (method) for each operation for each listed EntityRoute context
+ * @param groups An object containing a list of every EntityRoute context
+ * @param groups.route Contains an array of Operation in which the decorated property will be exposed
+ */
+export function Groups(groups: Operation[] | GroupsParams): MethodDecorator;
+
+export function Groups(groups: Operation[] | GroupsParams): PropertyDecorator | MethodDecorator {
+    return (target: Object, propName: string, descriptor: PropertyDescriptor) => {
         const groupsMeta = Reflect.getOwnMetadata("groups", target.constructor) || new EntityGroupsMetadata("groups");
+
+        // Is a computed property (method decorator)
+        if (descriptor) {
+            propName = COMPUTED_PREFIX + propName;
+        }
 
         if (Array.isArray(groups)) {
             groupsMeta.addPropToGlobalGroups(groups, propName);
