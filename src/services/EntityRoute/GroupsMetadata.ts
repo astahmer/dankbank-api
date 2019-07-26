@@ -1,7 +1,14 @@
 import { EntityMetadata } from "typeorm";
 import { mergeWith, concat } from "ramda";
 
-import { OperationGroups, RouteGroups, GroupsParams, RouteGroupsByContext } from "../../decorators/Groups";
+import {
+    OperationGroups,
+    RouteGroups,
+    RouteOperations,
+    RouteGroupsByContext,
+    OperationsOrAll,
+    ALL_OPERATIONS,
+} from "../../decorators/Groups";
 import { Operation } from "./types";
 
 export class GroupsMetadata {
@@ -21,7 +28,11 @@ export class GroupsMetadata {
         return this;
     }
 
-    addPropToGlobalGroups(groups: Operation[], propName: string) {
+    addPropToGlobalGroups(groups: OperationsOrAll, propName: string) {
+        if (groups === "all") {
+            groups = ALL_OPERATIONS;
+        }
+
         let i = 0;
         for (i; i < groups.length; i++) {
             if (!this.globals[groups[i]]) {
@@ -32,20 +43,28 @@ export class GroupsMetadata {
         this.decoratedProps.push(propName);
     }
 
-    addPropToRoutesGroups(groups: GroupsParams, propName: string) {
+    addPropToRoutesGroups(groups: RouteOperations, propName: string) {
         let route;
         for (route in groups) {
             let i = 0;
+
+            if (groups[route] === "all") {
+                groups[route] = ALL_OPERATIONS;
+            }
+
+            let operation: Operation;
             for (i; i < groups[route].length; i++) {
                 if (!this.routes[route]) {
                     this.routes[route] = {};
                 }
 
-                if (!this.routes[route][groups[route][i]]) {
-                    this.routes[route][groups[route][i]] = [];
+                operation = groups[route][i] as Operation;
+
+                if (!this.routes[route][operation]) {
+                    this.routes[route][operation] = [];
                 }
 
-                this.routes[route][groups[route][i]].push(propName);
+                this.routes[route][operation].push(propName);
             }
         }
         this.decoratedProps.push(propName);

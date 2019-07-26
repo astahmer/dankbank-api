@@ -1,11 +1,14 @@
-import { Operation } from "../services/EntityRoute/types";
+import { Operation, PartialRecord } from "../services/EntityRoute/types";
 import { EntityGroupsMetadata } from "../services/EntityRoute/EntityGroupsMetadata";
 
-export type GroupsParams = { [entityRoute: string]: Operation[] };
-export type OperationGroups = { [K in Operation]?: string[] };
-export type RouteGroups = { [entityRoute: string]: OperationGroups };
-export type RouteGroupsByContext = { [routeContext: string]: RouteGroups };
+// export type RouteOperations = Record<string, OperationsOrAll>;
+export type OperationsOrAll = Operation[] | "all";
+export type RouteOperations = Record<string, OperationsOrAll>;
+export type OperationGroups = PartialRecord<Operation, string[]>;
+export type RouteGroups = Record<string, OperationGroups>;
+export type RouteGroupsByContext = Record<string, RouteGroups>;
 
+export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update", "delete"];
 export const COMPUTED_PREFIX = "_COMPUTED_";
 export const ALIAS_PREFIX = "_ALIAS_";
 
@@ -15,14 +18,14 @@ export const ALIAS_PREFIX = "_ALIAS_";
  * @param groups An object containing a list of every EntityRoute context
  * @param groups.route Contains an array of Operation in which the decorated property will be exposed
  */
-export function Groups(groups: GroupsParams): PropertyDecorator;
+export function Groups(groups: RouteOperations): PropertyDecorator;
 
 /**
  * Expose decorated property for each operation listed (in any EntityContext, this list is global)
  *
  * @param operations An array containing a list of operation in which the decorated property will be exposed
  */
-export function Groups(operations: Operation[]): PropertyDecorator;
+export function Groups(operations: OperationsOrAll): PropertyDecorator;
 
 /**
  * Expose decorated computed property (method) for each operation for each listed EntityRoute context
@@ -31,9 +34,9 @@ export function Groups(operations: Operation[]): PropertyDecorator;
  * @param groups.route Contains an array of Operation in which the decorated property will be exposed
  * @param alias Override default generated name for this computed property in response
  */
-export function Groups(groups: Operation[] | GroupsParams, alias?: string): MethodDecorator;
+export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string): MethodDecorator;
 
-export function Groups(groups: Operation[] | GroupsParams, alias?: string): PropertyDecorator | MethodDecorator {
+export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string): PropertyDecorator | MethodDecorator {
     return (target: Object, propName: string, descriptor: PropertyDescriptor) => {
         const groupsMeta = Reflect.getOwnMetadata("groups", target.constructor) || new EntityGroupsMetadata("groups");
 
@@ -44,6 +47,8 @@ export function Groups(groups: Operation[] | GroupsParams, alias?: string): Prop
 
         if (Array.isArray(groups)) {
             groupsMeta.addPropToGlobalGroups(groups, propName);
+        } else if (groups === "all") {
+            groupsMeta.addPropToGlobalGroups(ALL_OPERATIONS, propName);
         } else {
             groupsMeta.addPropToRoutesGroups(groups, propName);
         }

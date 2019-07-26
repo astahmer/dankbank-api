@@ -6,7 +6,7 @@
         "tsc": "tsc",
         "start": "set DEBUG=* && ts-node-dev --respawn --transpileOnly ./src/index.ts",
         "prod": "tsc && node ./build/app.js",
-        "debug": "tsnd --inspect --respawn ./src/index.ts",
+        "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/index.ts",
         "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run",
         "prettier": "prettier --write \"./{src,tests}/**/*.ts\""
     },

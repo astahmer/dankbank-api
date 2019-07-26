@@ -6,6 +6,7 @@ import { GroupsMetadata } from "./GroupsMetadata";
 import { type } from "os";
 
 export type Entity<T extends AbstractEntity> = ObjectType<T>;
+export type PartialRecord<K extends keyof any, T> = Partial<Record<K, T>>;
 
 export interface IActionParams {
     operation: Operation;
@@ -23,7 +24,7 @@ export interface IAction {
     method: ActionMethod;
 }
 
-export type RouteActions = { [K in Operation]: IAction };
+export type RouteActions = Omit<Record<Operation, IAction>, "all">;
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
 export interface IEntityRouteOptions {
