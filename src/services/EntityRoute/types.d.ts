@@ -27,7 +27,8 @@ export type RouteActions = { [K in Operation]: IAction };
 export type Operation = "create" | "list" | "details" | "update" | "delete";
 
 export interface IEntityRouteOptions {
-    isMaxDepthEnabledByDefault: boolean;
+    isMaxDepthEnabledByDefault?: boolean;
+    shouldMaxDepthReturnRelationPropsIri?: boolean;
 }
 
 export interface IRouteMetadatas {

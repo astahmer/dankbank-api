@@ -17,7 +17,6 @@ import { path, pluck } from "ramda";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
-import { OnlyExposeIdGroupsMetadata } from "./OnlyExposeIdGroupsMetadata";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "../../decorators/Groups";
 import { formatComputedProp, sortObjectByKeys } from "./utils";
 
@@ -30,7 +29,6 @@ export class EntityRouter<T extends AbstractEntity> {
     private options: IEntityRouteOptions;
     private groupsMetas: GroupsMetaByRoutes<EntityGroupsMetadata> = {};
     private maxDepthMetas: IMaxDeptMetas = {};
-    private onlyExposeIdMetas: GroupsMetaByRoutes<OnlyExposeIdGroupsMetadata> = {};
 
     constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
         this.connection = connection;
@@ -213,29 +211,6 @@ export class EntityRouter<T extends AbstractEntity> {
     }
 
     /**
-     * Check if @OnlyExposeId decorator was added on given relationProp + is always enabled / has corresponding group
-     */
-    private doesRelationOnlyExposeId(operation: Operation, entityMetadata: EntityMetadata, propName: string) {
-        if (!this.onlyExposeIdMetas[entityMetadata.tableName]) {
-            this.onlyExposeIdMetas[entityMetadata.tableName] = Reflect.getOwnMetadata(
-                "onlyExposeId",
-                entityMetadata.target
-            );
-        }
-
-        if (!this.onlyExposeIdMetas[entityMetadata.tableName]) {
-            return false;
-        }
-
-        this.onlyExposeIdMetas[entityMetadata.tableName].setRouteContext(this.metadata);
-        return this.onlyExposeIdMetas[entityMetadata.tableName].doesRelationOnlyExposeId(
-            operation,
-            entityMetadata,
-            propName
-        );
-    }
-
-    /**
      * Checks if this prop/relation entity was already fetched
      * Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
      *
@@ -271,6 +246,16 @@ export class EntityRouter<T extends AbstractEntity> {
         return propResult;
     }
 
+    private unwrapPropResultWithIri(item: any) {
+        if (Array.isArray(item)) {
+            item = item.map((item) => item.getIri());
+        } else {
+            item = item.getIri();
+        }
+
+        return item;
+    }
+
     /**
      * Retrieve exposed (from its groups meta) nested props of an entity
      *
@@ -303,18 +288,18 @@ export class EntityRouter<T extends AbstractEntity> {
         const propPromises = relationProps.map(async (relation) => {
             const circularProp = this.isCircular(currentPath, entityMetadata, relation);
             if (circularProp) {
-                return circularProp;
-            }
+                if (this.options.shouldMaxDepthReturnRelationPropsIri) {
+                    let propResult = await this.getRelationProps(
+                        [relation.inverseEntityMetadata.tableName + ".id"],
+                        relation,
+                        item
+                    );
 
-            if (this.doesRelationOnlyExposeId(operation, relation.entityMetadata, relation.propertyName)) {
-                let propResult = await this.getRelationProps(
-                    [relation.inverseEntityMetadata.tableName + ".id"],
-                    relation,
-                    item
-                );
-
-                propResult = this.unwrapRelationResult(propResult, relation);
-                return { prop: relation.propertyName, value: propResult };
+                    propResult = this.unwrapPropResultWithIri(this.unwrapRelationResult(propResult, relation));
+                    return { prop: relation.propertyName, value: propResult };
+                } else {
+                    return circularProp;
+                }
             }
 
             const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
