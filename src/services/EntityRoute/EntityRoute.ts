@@ -18,7 +18,7 @@ import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { AbstractEntity } from "../../entity/AbstractEntity";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 import { OnlyExposeIdGroupsMetadata } from "./OnlyExposeIdGroupsMetadata";
-import { COMPUTED_PREFIX } from "../../decorators/Groups";
+import { COMPUTED_PREFIX, ALIAS_PREFIX } from "../../decorators/Groups";
 import { formatComputedProp, sortObjectByKeys } from "./utils";
 
 export class EntityRouter<T extends AbstractEntity> {
@@ -287,9 +287,17 @@ export class EntityRouter<T extends AbstractEntity> {
         entityMetadata: EntityMetadata,
         currentPath: string
     ) {
+        const computedProps = this.getComputedProps(operation, entityMetadata);
+        computedProps.forEach((computed) => {
+            const computedPropName = computed.replace(COMPUTED_PREFIX, "").split(ALIAS_PREFIX)[0];
+            const alias = computed.split(ALIAS_PREFIX)[1];
+            const propKey = alias || formatComputedProp(computedPropName);
+            item[propKey as keyof U] = (item[computedPropName as keyof U] as any)();
+        });
+
         const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
         if (!relationProps.length) {
-            return item;
+            return sortObjectByKeys(item);
         }
 
         const propPromises = relationProps.map(async (relation) => {
@@ -334,13 +342,6 @@ export class EntityRouter<T extends AbstractEntity> {
 
             // Prop is a primitive type, not a relation
             return { prop: relation.propertyName, value: propResult };
-        });
-
-        const computedProps = this.getComputedProps(operation, entityMetadata);
-        computedProps.forEach((computed) => {
-            const computedPropName = computed.replace(COMPUTED_PREFIX, "");
-            const propKey = formatComputedProp(computedPropName);
-            item[propKey as keyof U] = (item[computedPropName as keyof U] as any)();
         });
 
         // Set entity's props to each propResults

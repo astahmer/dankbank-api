@@ -22,11 +22,12 @@ export abstract class AbstractEntity {
         return routeMetadatas && "/api" + routeMetadatas.path;
     }
 
-    @Groups(["list", "details"])
+    @Groups(["list", "details"], "@id")
     getIri() {
         return this.getBaseRoute() + "/" + this.id;
     }
 
+    @Groups(["list", "details"], "@type")
     getClassName() {
         return this.constructor.name;
     }
