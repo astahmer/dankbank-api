@@ -1,12 +1,18 @@
 import { Operation, PartialRecord } from "../services/EntityRoute/types";
 import { EntityGroupsMetadata } from "../services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
 
-// export type RouteOperations = Record<string, OperationsOrAll>;
+// Types only used for @Groups decorator
 export type OperationsOrAll = Operation[] | "all";
 export type RouteOperations = Record<string, OperationsOrAll>;
+
+/** An object with Operation as keys and an array of entity props as values  */
 export type OperationGroups = PartialRecord<Operation, string[]>;
-export type RouteGroups = Record<string, OperationGroups>;
-export type RouteGroupsByContext = Record<string, RouteGroups>;
+
+/**
+ * An object containing many routeContext (keys) associated to OperationsGroups (values)
+ * A route context key is the tableName of the EntityRoute (/users => user, /pictures => picture).
+ */
+export type ContextOperations = Record<string, OperationGroups>;
 
 export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update", "delete"];
 export const COMPUTED_PREFIX = "_COMPUTED_";
@@ -38,7 +44,10 @@ export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string
 
 export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string): PropertyDecorator | MethodDecorator {
     return (target: Object, propName: string, descriptor: PropertyDescriptor) => {
-        const groupsMeta = Reflect.getOwnMetadata("groups", target.constructor) || new EntityGroupsMetadata("groups");
+        let groupsMeta: EntityGroupsMetadata = Reflect.getOwnMetadata("groups", target.constructor);
+        if (!groupsMeta) {
+            groupsMeta = new EntityGroupsMetadata("groups", target.constructor);
+        }
 
         // Is a computed property (method decorator)
         if (descriptor) {

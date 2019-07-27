@@ -1,31 +1,58 @@
-import { EntityMetadata } from "typeorm";
+import { EntityMetadata, getRepository } from "typeorm";
 import { mergeWith, concat } from "ramda";
 
 import {
     OperationGroups,
-    RouteGroups,
+    ContextOperations,
     RouteOperations,
-    RouteGroupsByContext,
     OperationsOrAll,
     ALL_OPERATIONS,
 } from "@/decorators/Groups";
 import { Operation } from "../types";
+import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
+
+const entityMetaSymbol = Symbol("entityMeta");
 
 export class GroupsMetadata {
+    /** The key under which the Reflect metadata will be store on the target entity */
     protected metaKey: string;
-    protected routeContext: EntityMetadata;
-    protected decoratedProps: string[] = [];
-    protected globals: OperationGroups = {};
-    protected routes: RouteGroups = {};
-    protected exposedProps: RouteGroupsByContext = {};
 
-    constructor(metaKey: string) {
-        this.metaKey = metaKey;
+    /** Entity class constructor, used to retrieve its related EntityMetadata */
+    protected entityTarget: Function;
+
+    /** EntityMetadata associated with the class */
+    protected [entityMetaSymbol]: EntityMetadata;
+
+    /** Every entity's props decorated with @Groups */
+    protected decoratedProps: string[] = [];
+
+    /** An array of Operations containing global props (exposed no matter which route context) */
+    protected globals: OperationGroups = {};
+
+    /** An object with route specific OperationsGroups */
+    protected routes: ContextOperations = {};
+
+    /**
+     * An object with every exposed props merged (globals + specific + parents globals + specific) for each route context > Operations
+     * */
+    protected exposedPropsByContexts: ContextOperations = {};
+
+    get entityMeta() {
+        return this[entityMetaSymbol];
     }
 
-    setRouteContext(entityMetadata: EntityMetadata) {
-        this.routeContext = entityMetadata;
-        return this;
+    set entityMeta(newVal) {
+        this[entityMetaSymbol] = newVal;
+    }
+
+    constructor(metaKey: string, entityOrMeta: EntityMetadata | Function) {
+        this.metaKey = metaKey;
+
+        if (entityOrMeta instanceof EntityMetadata) {
+            this.entityMeta = entityOrMeta;
+        } else {
+            this.entityTarget = entityOrMeta;
+        }
     }
 
     addPropToGlobalGroups(groups: OperationsOrAll, propName: string) {
@@ -77,7 +104,7 @@ export class GroupsMetadata {
      * this.routes = { user: ["create", "details", "delete"], category: ["create", "update"] };
      * return ['details', 'list', 'create', 'delete'] // for route = 'user'
      */
-    mergeGlobalsAndRouteSpecificGroups(route: string) {
+    mergeGlobalsAndRouteSpecificGroups(route: string): OperationGroups {
         let groups;
         if (this.globals && this.routes[route]) {
             groups = mergeWith(concat, this.globals, this.routes[route]);
@@ -91,55 +118,58 @@ export class GroupsMetadata {
     /**
      * Get groups metadata for a given entity and merge global groups with route specific groups
      */
-    getEntityRouteGroups(target: string | Function): OperationGroups {
-        const groupsMeta = Reflect.getOwnMetadata(this.metaKey, target);
+    getEntityRouteGroups(target: string | Function, tableName: string): OperationGroups {
+        const groupsMeta: EntityGroupsMetadata = Reflect.getOwnMetadata(this.metaKey, target);
 
         // If no groups are set on this entity
         if (!groupsMeta) {
             return;
         }
 
-        return groupsMeta.mergeGlobalsAndRouteSpecificGroups(this.routeContext.tableName);
+        return groupsMeta.mergeGlobalsAndRouteSpecificGroups(tableName);
     }
 
     /**
      * Merge groups with every parent entities
      */
-    mergeGroupsWithParentEntities(entityMetadata: EntityMetadata) {
-        let props = this.getEntityRouteGroups(entityMetadata.target);
+    mergeGroupsWithParentEntities(routeContext: EntityMetadata) {
+        if (!this.entityMeta) {
+            this.entityMeta = getRepository(this.entityTarget).metadata;
+        }
+
+        let props = this.getEntityRouteGroups(this.entityMeta.target, routeContext.tableName);
         let i = 1; // Skip itself
         let parentProps;
 
-        for (i; i < entityMetadata.inheritanceTree.length; i++) {
-            parentProps = this.getEntityRouteGroups(entityMetadata.inheritanceTree[i]);
+        for (i; i < this.entityMeta.inheritanceTree.length; i++) {
+            parentProps = this.getEntityRouteGroups(this.entityMeta.inheritanceTree[i], routeContext.tableName);
 
             if (parentProps) {
                 props = mergeWith(concat, props, parentProps);
             }
         }
 
-        if (!this.exposedProps[this.routeContext.tableName]) {
-            this.exposedProps[this.routeContext.tableName] = {};
+        if (!this.exposedPropsByContexts[routeContext.tableName]) {
+            this.exposedPropsByContexts[routeContext.tableName] = {};
         }
 
-        this.exposedProps[this.routeContext.tableName][entityMetadata.tableName] = props;
+        this.exposedPropsByContexts[routeContext.tableName] = props;
         return props;
     }
 
     /**
      * Get exposed props (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
-    getExposedProps(operation: Operation, entityMetadata: EntityMetadata) {
-        let exposedProps;
+    getExposedProps(operation: Operation, routeContext: EntityMetadata) {
+        let exposedProps: OperationGroups;
 
         if (
-            !this.exposedProps[this.routeContext.tableName] ||
-            !this.exposedProps[this.routeContext.tableName][entityMetadata.tableName] ||
-            !this.exposedProps[entityMetadata.tableName][operation]
+            !this.exposedPropsByContexts[routeContext.tableName] ||
+            !this.exposedPropsByContexts[routeContext.tableName][operation]
         ) {
-            exposedProps = this.mergeGroupsWithParentEntities(entityMetadata);
+            exposedProps = this.mergeGroupsWithParentEntities(routeContext);
         } else {
-            exposedProps = this.exposedProps[this.routeContext.tableName][entityMetadata.tableName];
+            exposedProps = this.exposedPropsByContexts[routeContext.tableName];
         }
 
         return exposedProps && exposedProps[operation];

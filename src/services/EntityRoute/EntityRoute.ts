@@ -91,10 +91,9 @@ export class EntityRouter<T extends AbstractEntity> {
 
     private getGroupsMetadataFor(entityMetadata: EntityMetadata): EntityGroupsMetadata {
         if (!this.groupsMetas[entityMetadata.tableName]) {
-            const groupsMeta =
-                Reflect.getOwnMetadata("groups", entityMetadata.target) || new EntityGroupsMetadata("groups");
-            groupsMeta.setRouteContext(this.metadata);
-            this.groupsMetas[entityMetadata.tableName] = groupsMeta;
+            this.groupsMetas[entityMetadata.tableName] =
+                Reflect.getOwnMetadata("groups", entityMetadata.target) ||
+                new EntityGroupsMetadata("groups", this.metadata);
         }
         return this.groupsMetas[entityMetadata.tableName];
     }
@@ -103,21 +102,21 @@ export class EntityRouter<T extends AbstractEntity> {
      * Get selects props (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
     private getSelectProps(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, entityMetadata);
+        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, this.metadata);
     }
 
     /**
      * Get relation props metas (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
     private getRelationPropsMetas(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor(entityMetadata).getRelationPropsMetas(operation, entityMetadata);
+        return this.getGroupsMetadataFor(entityMetadata).getRelationPropsMetas(operation, this.metadata);
     }
 
     /**
      * Get computed props metas (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
     private getComputedProps(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor(entityMetadata).getComputedProps(operation, entityMetadata);
+        return this.getGroupsMetadataFor(entityMetadata).getComputedProps(operation, this.metadata);
     }
 
     /**
@@ -256,6 +255,90 @@ export class EntityRouter<T extends AbstractEntity> {
         return item;
     }
 
+    private setComputedPropsForItem<U extends AbstractEntity>(
+        item: U,
+        operation: Operation,
+        entityMetadata: EntityMetadata
+    ) {
+        const computedProps = this.getComputedProps(operation, entityMetadata);
+
+        computedProps.forEach((computed) => {
+            const computedPropName = computed.replace(COMPUTED_PREFIX, "").split(ALIAS_PREFIX)[0];
+            const alias = computed.split(ALIAS_PREFIX)[1];
+            const propKey = alias || formatComputedProp(computedPropName);
+            item[propKey as keyof U] = (item[computedPropName as keyof U] as any)();
+        });
+    }
+
+    private async getRelationPropAsIri<U extends AbstractEntity>(item: U, relation: RelationMetadata) {
+        const propResult = await this.getSelectedPropsOfRelation(
+            [relation.inverseEntityMetadata.tableName + ".id"],
+            relation,
+            item
+        );
+
+        return this.unwrapPropResultWithIri(this.unwrapRelationResult(propResult, relation));
+    }
+
+    private async getRelationPropForItem<U extends AbstractEntity>(
+        item: U,
+        operation: Operation,
+        entityMetadata: EntityMetadata,
+        currentPath: string,
+        relation: RelationMetadata
+    ) {
+        const circularProp = this.isCircular(currentPath, entityMetadata, relation);
+        if (circularProp) {
+            if (this.options.shouldMaxDepthReturnRelationPropsIri) {
+                return { prop: relation.propertyName, value: await this.getRelationPropAsIri(item, relation) };
+            } else {
+                return circularProp;
+            }
+        }
+
+        const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
+        let propResult = (await this.getExposedPropsInRelationProp(operation, relation, item)) || null;
+        const isArray = Array.isArray(propResult);
+        propResult = this.unwrapRelationResult(propResult, relation);
+
+        if (isArray && propResult.length) {
+            // Prop is a collection relation
+            propResult = await this.retrieveNestedPropsInCollection(
+                propResult,
+                operation,
+                relation.inverseEntityMetadata,
+                localPropPath
+            );
+        } else if (!isArray && propResult instanceof Object && propResult) {
+            // Prop is a (single) relation
+            propResult = await this.retrieveNestedPropsInItem(
+                propResult,
+                operation,
+                relation.inverseEntityMetadata,
+                localPropPath
+            );
+        }
+
+        // Prop is a primitive type, not a relation
+        return { prop: relation.propertyName, value: propResult };
+    }
+
+    private async setRelationPropsForItem<U extends AbstractEntity>(
+        item: U,
+        operation: Operation,
+        entityMetadata: EntityMetadata,
+        currentPath: string,
+        relationProps: RelationMetadata[]
+    ) {
+        const propPromises = relationProps.map(async (relation) =>
+            this.getRelationPropForItem(item, operation, entityMetadata, currentPath, relation)
+        );
+
+        // Set entity's props to each propResults
+        const propResults = await Promise.all(propPromises);
+        propResults.forEach((result) => (item[result.prop as keyof U] = result.value));
+    }
+
     /**
      * Retrieve exposed (from its groups meta) nested props of an entity
      *
@@ -272,66 +355,14 @@ export class EntityRouter<T extends AbstractEntity> {
         entityMetadata: EntityMetadata,
         currentPath: string
     ) {
-        const computedProps = this.getComputedProps(operation, entityMetadata);
-        computedProps.forEach((computed) => {
-            const computedPropName = computed.replace(COMPUTED_PREFIX, "").split(ALIAS_PREFIX)[0];
-            const alias = computed.split(ALIAS_PREFIX)[1];
-            const propKey = alias || formatComputedProp(computedPropName);
-            item[propKey as keyof U] = (item[computedPropName as keyof U] as any)();
-        });
+        this.setComputedPropsForItem(item, operation, entityMetadata);
 
         const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
         if (!relationProps.length) {
             return sortObjectByKeys(item);
         }
 
-        const propPromises = relationProps.map(async (relation) => {
-            const circularProp = this.isCircular(currentPath, entityMetadata, relation);
-            if (circularProp) {
-                if (this.options.shouldMaxDepthReturnRelationPropsIri) {
-                    let propResult = await this.getRelationProps(
-                        [relation.inverseEntityMetadata.tableName + ".id"],
-                        relation,
-                        item
-                    );
-
-                    propResult = this.unwrapPropResultWithIri(this.unwrapRelationResult(propResult, relation));
-                    return { prop: relation.propertyName, value: propResult };
-                } else {
-                    return circularProp;
-                }
-            }
-
-            const localPropPath = currentPath + "." + relation.inverseEntityMetadata.tableName;
-            let propResult = (await this.getExposedPropsInRelationProp(operation, relation, item)) || null;
-            const isArray = Array.isArray(propResult);
-            propResult = this.unwrapRelationResult(propResult, relation);
-
-            if (isArray && propResult.length) {
-                // Prop is a collection relation
-                propResult = await this.retrieveNestedPropsInCollection(
-                    propResult,
-                    operation,
-                    relation.inverseEntityMetadata,
-                    localPropPath
-                );
-            } else if (!isArray && propResult instanceof Object && propResult) {
-                // Prop is a (single) relation
-                propResult = await this.retrieveNestedPropsInItem(
-                    propResult,
-                    operation,
-                    relation.inverseEntityMetadata,
-                    localPropPath
-                );
-            }
-
-            // Prop is a primitive type, not a relation
-            return { prop: relation.propertyName, value: propResult };
-        });
-
-        // Set entity's props to each propResults
-        const propResults = await Promise.all(propPromises);
-        propResults.forEach((result) => (item[result.prop as keyof U] = result.value));
+        await this.setRelationPropsForItem(item, operation, entityMetadata, currentPath, relationProps);
         return sortObjectByKeys(item);
     }
 
@@ -349,7 +380,7 @@ export class EntityRouter<T extends AbstractEntity> {
         item: U
     ) {
         const selectProps = this.getSelectProps(operation, relation.inverseEntityMetadata);
-        return this.getRelationProps(selectProps, relation, item);
+        return this.getSelectedPropsOfRelation(selectProps, relation, item);
     }
 
     /**
@@ -360,7 +391,11 @@ export class EntityRouter<T extends AbstractEntity> {
      * @param relation meta
      * @param item that owns the relation
      */
-    private getRelationProps<U extends AbstractEntity>(selectProps: string[], relationMeta: RelationMetadata, item: U) {
+    private getSelectedPropsOfRelation<U extends AbstractEntity>(
+        selectProps: string[],
+        relationMeta: RelationMetadata,
+        item: U
+    ) {
         const qb = this.connection.createQueryBuilder();
 
         const inverse = relationMeta.inverseEntityMetadata;

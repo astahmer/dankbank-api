@@ -15,6 +15,7 @@ import { useEntitiesRoutes } from "./services/EntityRoute";
 import { getAppRoutes } from "./utils/getAppRoutes";
 import { Category, Meme, Picture, Team, User } from "./entity";
 import { makeFixtures } from "./fixtures";
+import { useGroupsRoute } from "./controllers/GroupsController";
 
 createConnection()
     .then(async (connection) => {
@@ -25,6 +26,7 @@ createConnection()
         makeFixtures(connection);
         useEntitiesRoutes(connection, app, [Category, Meme, Picture, Team, User]);
         useCustomRoute(connection, app);
+        useGroupsRoute(connection, app);
 
         if (process.env.NODE_ENV === "development") {
             logger.info(getAppRoutes(app.middleware));
