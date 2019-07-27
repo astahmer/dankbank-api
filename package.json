@@ -16,6 +16,7 @@
         "koa-bodyparser": "^4.2.1",
         "koa-multer": "^1.0.2",
         "koa-router": "^7.4.0",
+        "module-alias": "^2.2.0",
         "pino": "^5.12.6",
         "pino-pretty": "^3.2.0",
         "ramda": "^0.26.1",
@@ -37,5 +38,8 @@
         "prettier": "^1.18.2",
         "ts-node": "3.3.0",
         "typescript": "3.3.3333"
+    },
+    "_moduleAliases": {
+        "@": "./build"
     }
 }

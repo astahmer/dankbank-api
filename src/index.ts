@@ -1,3 +1,4 @@
+require("module-alias/register");
 import "reflect-metadata";
 
 import * as Koa from "koa";
