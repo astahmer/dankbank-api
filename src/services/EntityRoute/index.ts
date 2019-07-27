@@ -2,7 +2,7 @@ import * as Koa from "koa";
 import { Connection } from "typeorm";
 
 import { EntityRouter } from "./EntityRoute";
-import { AbstractEntity } from "../../entity/AbstractEntity";
+import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Entity, IEntityRouteOptions } from "./types";
 
 export async function useEntitiesRoutes<T extends AbstractEntity>(

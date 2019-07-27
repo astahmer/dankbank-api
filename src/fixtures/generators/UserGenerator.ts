@@ -1,6 +1,6 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { User } from "../../entity/User";
 import { Connection } from "typeorm";
+import { AbstractGenerator } from "../AbstractGenerator";
+import { User } from "@/entity/User";
 import { CategoryGenerator } from "./CategoryGenerator";
 import { PictureGenerator } from "./PictureGenerator";
 import { MemeGenerator } from "./MemeGenerator";

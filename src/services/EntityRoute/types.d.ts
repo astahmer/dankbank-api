@@ -1,9 +1,8 @@
 import * as Router from "koa-router";
 import { Repository, ObjectType, EntityMetadata, Connection } from "typeorm";
-import { AbstractEntity } from "../../entity/AbstractEntity";
+import { AbstractEntity } from "@/entity/AbstractEntity";
 import { EntityRouter } from "./EntityRoute";
-import { GroupsMetadata } from "./GroupsMetadata";
-import { type } from "os";
+import { GroupsMetadata } from "./GroupsMetadata/GroupsMetadata";
 
 export type Entity<T extends AbstractEntity> = ObjectType<T>;
 export type PartialRecord<K extends keyof any, T> = Partial<Record<K, T>>;

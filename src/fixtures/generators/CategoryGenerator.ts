@@ -1,6 +1,6 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { Category } from "../../entity/Category";
 import { Connection } from "typeorm";
+import { AbstractGenerator } from "../AbstractGenerator";
+import { Category } from "@/entity/Category";
 import { PictureGenerator } from "./PictureGenerator";
 
 export class CategoryGenerator extends AbstractGenerator<Category> {

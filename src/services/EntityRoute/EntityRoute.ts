@@ -1,6 +1,8 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
 import { Connection, EntityMetadata, Repository, getRepository, ObjectType } from "typeorm";
+import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
+import { path, pluck } from "ramda";
 
 import {
     IRouteMetadatas,
@@ -13,11 +15,9 @@ import {
     IEntityRouteOptions,
     GroupsMetaByRoutes,
 } from "./types";
-import { path, pluck } from "ramda";
-import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
-import { AbstractEntity } from "../../entity/AbstractEntity";
-import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
-import { COMPUTED_PREFIX, ALIAS_PREFIX } from "../../decorators/Groups";
+import { AbstractEntity } from "@/entity/AbstractEntity";
+import { EntityGroupsMetadata } from "./GroupsMetadata/EntityGroupsMetadata";
+import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
 import { formatComputedProp, sortObjectByKeys } from "./utils";
 
 export class EntityRouter<T extends AbstractEntity> {

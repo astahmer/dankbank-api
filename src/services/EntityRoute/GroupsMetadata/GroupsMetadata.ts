@@ -8,8 +8,8 @@ import {
     RouteGroupsByContext,
     OperationsOrAll,
     ALL_OPERATIONS,
-} from "../../decorators/Groups";
-import { Operation } from "./types";
+} from "@/decorators/Groups";
+import { Operation } from "../types";
 
 export class GroupsMetadata {
     protected metaKey: string;

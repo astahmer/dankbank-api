@@ -1,6 +1,6 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { Meme } from "../../entity/Meme";
 import { Connection } from "typeorm";
+import { AbstractGenerator } from "../AbstractGenerator";
+import { Meme } from "@/entity/Meme";
 import { PictureGenerator } from "./PictureGenerator";
 
 export class MemeGenerator extends AbstractGenerator<Meme> {

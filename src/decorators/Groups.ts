@@ -1,5 +1,5 @@
 import { Operation, PartialRecord } from "../services/EntityRoute/types";
-import { EntityGroupsMetadata } from "../services/EntityRoute/EntityGroupsMetadata";
+import { EntityGroupsMetadata } from "../services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
 
 // export type RouteOperations = Record<string, OperationsOrAll>;
 export type OperationsOrAll = Operation[] | "all";

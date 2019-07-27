@@ -1,7 +1,7 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { Team } from "../../entity/Team";
-import { UserGenerator } from "./UserGenerator";
 import { Connection } from "typeorm";
+import { AbstractGenerator } from "../AbstractGenerator";
+import { Team } from "@/entity/Team";
+import { UserGenerator } from "./UserGenerator";
 
 export class TeamGenerator extends AbstractGenerator<Team> {
     constructor(connection: Connection) {

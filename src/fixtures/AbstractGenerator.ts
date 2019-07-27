@@ -1,5 +1,5 @@
 import * as faker from "faker";
-import { Connection, Repository, getRepository, InsertResult, Brackets, EntityManager } from "typeorm";
+import { Connection, Repository, getRepository, Brackets } from "typeorm";
 import { AbstractEntity } from "../entity/AbstractEntity";
 import { Entity } from "../services/EntityRoute/types";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";

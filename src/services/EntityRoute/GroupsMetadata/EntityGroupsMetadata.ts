@@ -1,8 +1,8 @@
-import { GroupsMetadata } from "./GroupsMetadata";
-import { Operation } from "./types";
+import { Operation } from "../types";
 import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
-import { COMPUTED_PREFIX } from "../../decorators/Groups";
+import { COMPUTED_PREFIX } from "@/decorators/Groups";
+import { GroupsMetadata } from "./GroupsMetadata";
 
 export class EntityGroupsMetadata extends GroupsMetadata {
     /**
