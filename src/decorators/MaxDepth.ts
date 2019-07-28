@@ -1,3 +1,5 @@
+import { EntityMetadata } from "typeorm";
+
 /**
  * Will apply MaxDepth attribute on every properties of this entity
  */
@@ -22,3 +24,11 @@ export function MaxDepth(max?: number): ClassDecorator | PropertyDecorator {
         Reflect.defineMetadata("maxDepth", maxDepth, target);
     };
 }
+
+export type MaxDeptMetas = Record<string, MaxDeptMetasItem>;
+export type MaxDeptMetasItem = {
+    enabled?: EntityMetadata;
+    fields: {
+        [propName: string]: number;
+    };
+};

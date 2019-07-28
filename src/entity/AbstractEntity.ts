@@ -1,8 +1,8 @@
 import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, getRepository, Repository } from "typeorm";
 import { Groups } from "../decorators";
-import { IRouteMetadatas } from "../services/EntityRoute/types";
+import { RouteMetadata } from "@/services/EntityRoute/EntityRoute";
 
-const getRouteMetadata = (entity: Function): IRouteMetadatas => Reflect.getOwnMetadata("route", entity);
+const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata("route", entity);
 
 export abstract class AbstractEntity {
     private repository: Repository<AbstractEntity>;

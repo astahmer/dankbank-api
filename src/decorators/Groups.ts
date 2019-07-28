@@ -1,22 +1,5 @@
-import { Operation, PartialRecord } from "../services/EntityRoute/types";
 import { EntityGroupsMetadata } from "../services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
-
-// Types only used for @Groups decorator
-export type OperationsOrAll = Operation[] | "all";
-export type RouteOperations = Record<string, OperationsOrAll>;
-
-/** An object with Operation as keys and an array of entity props as values  */
-export type OperationGroups = PartialRecord<Operation, string[]>;
-
-/**
- * An object containing many routeContext (keys) associated to OperationsGroups (values)
- * A route context key is the tableName of the EntityRoute (/users => user, /pictures => picture).
- */
-export type ContextOperations = Record<string, OperationGroups>;
-
-export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update", "delete"];
-export const COMPUTED_PREFIX = "_COMPUTED_";
-export const ALIAS_PREFIX = "_ALIAS_";
+import { PartialRecord } from "@/utils/globalTypes";
 
 /**
  * Expose decorated property for each operation for each listed EntityRoute context
@@ -65,3 +48,22 @@ export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string
         Reflect.defineMetadata("groups", groupsMeta, target.constructor);
     };
 }
+
+export type Operation = "create" | "list" | "details" | "update" | "delete";
+
+// Types only used as params for @Groups decorator
+export type OperationsOrAll = Operation[] | "all";
+export type RouteOperations = Record<string, OperationsOrAll>;
+
+/** An object with Operation as keys and an array of entity props as values  */
+export type OperationGroups = PartialRecord<Operation, string[]>;
+
+/**
+ * An object containing many routeContext (keys) associated to OperationsGroups (values)
+ * A route context key is the tableName of the EntityRoute (/users => user, /pictures => picture).
+ */
+export type ContextOperations = Record<string, OperationGroups>;
+
+export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update", "delete"];
+export const COMPUTED_PREFIX = "_COMPUTED_";
+export const ALIAS_PREFIX = "_ALIAS_";

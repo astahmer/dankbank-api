@@ -1,8 +1,8 @@
 import * as faker from "faker";
 import { Connection, Repository, getRepository, Brackets } from "typeorm";
-import { AbstractEntity } from "../entity/AbstractEntity";
-import { Entity } from "../services/EntityRoute/types";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
+import { AbstractEntity } from "../entity/AbstractEntity";
+import { Entity } from "@/utils/globalTypes";
 
 type StringKeys<T> = Extract<keyof T, string>;
 interface IAddRelationArgs<T extends AbstractEntity> {

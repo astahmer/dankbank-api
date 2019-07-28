@@ -1,4 +1,4 @@
-import { Operation } from "../services/EntityRoute/types";
+import { Operation } from "./Groups";
 
 export const EntityRoute = (path: string, operations: Operation[] = []): ClassDecorator => {
     return (target: object) => {

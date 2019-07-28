@@ -7,8 +7,8 @@ import {
     RouteOperations,
     OperationsOrAll,
     ALL_OPERATIONS,
+    Operation,
 } from "@/decorators/Groups";
-import { Operation } from "../types";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
 const entityMetaSymbol = Symbol("entityMeta");
@@ -161,17 +161,14 @@ export class GroupsMetadata {
      * Get exposed props (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
     getExposedProps(operation: Operation, routeContext: EntityMetadata) {
-        let exposedProps: OperationGroups;
+        let exposedProps = this.exposedPropsByContexts[routeContext.tableName];
 
-        if (
-            !this.exposedPropsByContexts[routeContext.tableName] ||
-            !this.exposedPropsByContexts[routeContext.tableName][operation]
-        ) {
+        if (!exposedProps || !exposedProps[operation]) {
             exposedProps = this.mergeGroupsWithParentEntities(routeContext);
-        } else {
-            exposedProps = this.exposedPropsByContexts[routeContext.tableName];
         }
 
         return exposedProps && exposedProps[operation];
     }
 }
+
+export type GroupsMetaByRoutes<G extends GroupsMetadata> = Record<string, G>;
