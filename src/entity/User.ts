@@ -50,9 +50,9 @@ export class User extends AbstractEntity {
     profilePicture: Picture;
 
     @Groups({
-        user: ["details"],
+        user: ["list", "details"],
     })
-    @ManyToMany(() => Team)
+    @ManyToMany(() => Team, (team) => team.members)
     teams: Team[];
 
     @Groups({

@@ -7,14 +7,14 @@ export class EntityGroupsMetadata extends GroupsMetadata {
     /**
      * Get exposed props that are primitives props, used in queryBuilder selects
      */
-    getSelectProps(operation: Operation, routeContext: EntityMetadata, withPrefix = true) {
+    getSelectProps(operation: Operation, routeContext: EntityMetadata, withPrefix = true, prefix?: string) {
         return this.getExposedProps(operation, routeContext)
             .filter(
                 (propName) =>
                     propName.indexOf(COMPUTED_PREFIX) === -1 &&
                     this.entityMeta.relations.map((rel) => rel.propertyName).indexOf(propName) === -1
             )
-            .map((propName) => (withPrefix ? this.entityMeta.tableName + "." : "") + propName);
+            .map((propName) => (withPrefix ? (prefix || this.entityMeta.tableName) + "." : "") + propName);
     }
 
     /**

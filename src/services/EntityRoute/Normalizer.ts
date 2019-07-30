@@ -1,10 +1,10 @@
-import { Connection, EntityMetadata } from "typeorm";
+import { Connection, EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
 import { EntityGroupsMetadata } from "./GroupsMetadata/EntityGroupsMetadata";
-import { sortObjectByKeys, getComputedPropMethodAndKey } from "./utils";
+import { sortObjectByKeys, getComputedPropMethodAndKey, isPrimitive } from "./utils";
 import { GroupsMetaByRoutes } from "./GroupsMetadata/GroupsMetadata";
 import { MaxDeptMetas } from "@/decorators/MaxDepth";
 import { IEntityRouteOptions } from "./EntityRoute";
@@ -23,8 +23,8 @@ export class Normalizer {
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
-    public getSelectProps(operation: Operation, entityMetadata: EntityMetadata, withPrefix = true) {
-        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, this.metadata, withPrefix);
+    public getSelectProps(operation: Operation, entityMetadata: EntityMetadata, withPrefix = true, prefix?: string) {
+        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, this.metadata, withPrefix, prefix);
     }
 
     /** Get relation props metas (from groups) of a given entity for a specific operation */
@@ -38,7 +38,7 @@ export class Normalizer {
     }
 
     /** Get EntityGroupsMetada of a given entity */
-    private getGroupsMetadataFor(entityMetadata: EntityMetadata): EntityGroupsMetadata {
+    public getGroupsMetadataFor(entityMetadata: EntityMetadata): EntityGroupsMetadata {
         if (!this.groupsMetas[entityMetadata.tableName]) {
             this.groupsMetas[entityMetadata.tableName] =
                 Reflect.getOwnMetadata("groups", entityMetadata.target) ||
@@ -47,6 +47,77 @@ export class Normalizer {
         return this.groupsMetas[entityMetadata.tableName];
     }
 
+    public async getCollection<Entity extends AbstractEntity>(
+        operation: Operation,
+        qb: SelectQueryBuilder<Entity>
+    ): Promise<[Entity[], number]> {
+        this.makeJoinFromGroups(operation, qb, this.metadata);
+
+        const results = await qb.getManyAndCount();
+        const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
+        return [items, results[1]];
+    }
+
+    public async getItem<Entity extends AbstractEntity>(operation: Operation, qb: SelectQueryBuilder<Entity>) {
+        this.makeJoinFromGroups(operation, qb, this.metadata);
+
+        const result = await qb.getOne();
+        const item: Entity = this.recursiveBrowseItem(result, operation);
+        return item;
+    }
+
+    private recursiveBrowseItem<Entity extends AbstractEntity>(item: Entity, operation: Operation): Entity {
+        let key, prop, entityMetadata;
+        entityMetadata = getRepository(item.constructor.name).metadata;
+
+        for (key in item) {
+            prop = item[key as keyof Entity];
+            if (Array.isArray(prop)) {
+                item[key as keyof Entity] = prop.forEach((nestedItem) =>
+                    this.recursiveBrowseItem(nestedItem, operation)
+                ) as any;
+            } else if (prop instanceof Object && "id" in prop) {
+                item[key as keyof Entity] = this.recursiveBrowseItem(prop as any, operation);
+            } else if (isPrimitive(prop)) {
+                // console.log(key + " : " + prop);
+            } else if (typeof prop === "function") {
+                // console.log(key + " : " + prop);
+            }
+        }
+
+        this.setComputedPropsOnItem(item, operation, entityMetadata);
+        return sortObjectByKeys(item);
+    }
+
+    private makeJoinFromGroups(
+        operation: Operation,
+        qb: SelectQueryBuilder<any>,
+        entityMetadata: EntityMetadata,
+        currentPath?: string,
+        prevProp?: string
+    ) {
+        const selectProps = this.getSelectProps(operation, entityMetadata, true, prevProp);
+        qb.addSelect(selectProps);
+        const newPath = (currentPath ? currentPath + "." : "") + entityMetadata.tableName;
+
+        const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
+        relationProps.forEach((relation) => {
+            const circularProp = this.isRelationPropCircular(
+                newPath + "." + relation.inverseEntityMetadata.tableName,
+                relation.inverseEntityMetadata,
+                relation
+            );
+            if (!circularProp) {
+                qb.leftJoin(
+                    (prevProp || relation.entityMetadata.tableName) + "." + relation.propertyName,
+                    relation.propertyName
+                );
+                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, newPath, relation.propertyName);
+            } else {
+                console.log(circularProp);
+            }
+        });
+    }
     /**
      * Retrieve exposed nested props in array of entities & set them on given items
      *

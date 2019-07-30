@@ -34,3 +34,10 @@ export const sortObjectByKeys = (obj: any) =>
     Object.keys(obj)
         .sort()
         .reduce((acc, key) => ((acc[key] = obj[key]), acc), {} as any);
+
+export const isPrimitive = (value: any) => {
+    if (typeof value === "object") {
+        return value === null;
+    }
+    return typeof value !== "function";
+};

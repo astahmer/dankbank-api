@@ -57,7 +57,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
     }
 
     get filters() {
-        return this.routeMetadatas.options.filters;
+        return this.routeMetadatas.options && this.routeMetadatas.options.filters;
     }
 
     /**
@@ -93,41 +93,23 @@ export class EntityRouter<Entity extends AbstractEntity> {
     }
 
     private async getList({ operation, queryParams }: IActionParams): Promise<[Entity[], number]> {
-        const selectProps = this.normalizer.getSelectProps(operation, this.metadata);
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
-        qb.select(selectProps);
 
         if (this.filters) {
-            this.applyRouteFilters(queryParams, qb, selectProps);
+            this.applyRouteFilters(queryParams, qb);
         }
 
-        const baseItems = await qb.getManyAndCount();
-        const items = await this.normalizer.setNestedExposedPropsInCollection(
-            baseItems[0],
-            operation,
-            this.metadata,
-            this.metadata.tableName
-        );
-
-        return [items, baseItems[1]];
+        const results = await this.normalizer.getCollection<Entity>(operation, qb);
+        return results;
     }
 
     private async getDetails({ operation }: IActionParams): Promise<[Entity, number]> {
-        const selectProps = this.normalizer.getSelectProps(operation, this.metadata);
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
-        qb.select(selectProps);
-        const baseItem = await qb.getOne();
+        const item = await this.normalizer.getItem(operation, qb);
 
-        if (!baseItem) {
+        if (!item) {
             return [null, 0];
         }
-
-        const item = await this.normalizer.setNestedExposedPropsOnItem(
-            baseItem,
-            operation,
-            this.metadata,
-            this.metadata.tableName
-        );
 
         return [item, 1];
     }
@@ -206,7 +188,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         });
     }
 
-    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, selectProps: string[]) {
+    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>) {
         if (!Object.keys(queryParams).length) {
             return;
         }
@@ -215,7 +197,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
             if (filterOptions.queryParamKey && filterOptions.queryParamKey in queryParams) {
                 // TODO
             } else if (filterOptions.usePropertyNamesAsQueryParams) {
-                this.getFilter(filterOptions).apply({ queryParams, qb, selectProps });
+                this.getFilter(filterOptions).apply({ queryParams, qb });
             }
         });
     }

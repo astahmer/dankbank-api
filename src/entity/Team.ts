@@ -7,14 +7,14 @@ import { User } from "./User";
 @Entity()
 export class Team extends AbstractEntity {
     @Groups({
-        user: ["details"],
+        user: ["list", "details"],
         team: ["list", "details"],
     })
     @Column()
     teamName: string;
 
     @Groups({
-        user: ["details"],
+        user: ["list", "details"],
         team: ["list", "details"],
     })
     @ManyToMany(() => User, (user) => user.teams)

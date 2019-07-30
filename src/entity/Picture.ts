@@ -17,6 +17,7 @@ export class Picture extends AbstractEntity {
 
     @Groups({
         picture: ["details"],
+        user: ["details"],
     })
     @OneToOne(() => Meme, (meme) => meme.picture)
     associatedMeme: Meme;
