@@ -5,8 +5,17 @@ import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
+import { SearchFilter } from "../services/EntityRoute/Filters/SearchFilter";
 
-@EntityRoute("/users", ["list", "details"])
+@EntityRoute("/users", ["list", "details"], {
+    filters: [
+        {
+            class: SearchFilter,
+            properties: ["id", "profilePicture.id", "profileCategory", { "teams.teamName": "startWith" }],
+            usePropertyNamesAsQueryParams: true,
+        },
+    ],
+})
 @Entity()
 export class User extends AbstractEntity {
     @Groups({

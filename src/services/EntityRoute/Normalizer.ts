@@ -203,7 +203,7 @@ export class Normalizer {
         propResult = this.unwrapRelationResult(propResult, relation);
 
         if (!propResult || (Array.isArray(propResult) && !propResult.length)) {
-            return { prop: relation.propertyName, value: propResult };
+            return { prop: relation.propertyName, value: propResult || null };
         }
 
         if (Array.isArray(propResult)) {

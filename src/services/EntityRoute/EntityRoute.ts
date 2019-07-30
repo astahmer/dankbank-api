@@ -1,15 +1,16 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Connection, EntityMetadata, Repository, getRepository, ObjectType } from "typeorm";
+import { Connection, EntityMetadata, Repository, getRepository, ObjectType, SelectQueryBuilder } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
+import { AbstractFilter, AbstractFilterConstructor } from "./Filters/AbstractFilter";
 
-export class EntityRouter<T extends AbstractEntity> {
+export class EntityRouter<Entity extends AbstractEntity> {
     private connection: Connection;
-    private repository: Repository<T>;
+    private repository: Repository<Entity>;
     private routeMetadatas: RouteMetadata;
     private metadata: EntityMetadata;
     private actions: RouteActions;
@@ -17,7 +18,7 @@ export class EntityRouter<T extends AbstractEntity> {
     private normalizer: Normalizer;
     private mappingMaker: MappingMaker;
 
-    constructor(connection: Connection, entity: ObjectType<T>, options?: IEntityRouteOptions) {
+    constructor(connection: Connection, entity: ObjectType<Entity>, options?: IEntityRouteOptions) {
         this.connection = connection;
         this.routeMetadatas = Reflect.getOwnMetadata("route", entity);
         this.repository = getRepository(entity);
@@ -55,6 +56,10 @@ export class EntityRouter<T extends AbstractEntity> {
         };
     }
 
+    get filters() {
+        return this.routeMetadatas.options.filters;
+    }
+
     /**
      * Make a Koa Router with given operations for this entity and return it
      *
@@ -87,12 +92,16 @@ export class EntityRouter<T extends AbstractEntity> {
             .execute();
     }
 
-    private async getList({ operation }: { operation: Operation }): Promise<[T[], number]> {
+    private async getList({ operation, queryParams }: IActionParams): Promise<[Entity[], number]> {
         const selectProps = this.normalizer.getSelectProps(operation, this.metadata);
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
         qb.select(selectProps);
-        const baseItems = await qb.getManyAndCount();
 
+        if (this.filters) {
+            this.applyRouteFilters(queryParams, qb, selectProps);
+        }
+
+        const baseItems = await qb.getManyAndCount();
         const items = await this.normalizer.setNestedExposedPropsInCollection(
             baseItems[0],
             operation,
@@ -103,7 +112,7 @@ export class EntityRouter<T extends AbstractEntity> {
         return [items, baseItems[1]];
     }
 
-    private async getDetails({ operation }: { operation: Operation }): Promise<[T, number]> {
+    private async getDetails({ operation }: IActionParams): Promise<[Entity, number]> {
         const selectProps = this.normalizer.getSelectProps(operation, this.metadata);
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
         qb.select(selectProps);
@@ -149,6 +158,7 @@ export class EntityRouter<T extends AbstractEntity> {
                 operation,
                 ...(ctx.params.id && { entityId: ctx.params.id }),
                 ...(isUpserting && { values: ctx.request.body }),
+                ...(operation === "list" && { queryParams: ctx.query }),
             };
 
             const method = this.actions[operation].method;
@@ -187,11 +197,36 @@ export class EntityRouter<T extends AbstractEntity> {
             next();
         };
     }
+
+    private getFilter<Filter extends AbstractFilter>(options: RouteFilter<Filter>): Filter {
+        return new options.class({
+            options,
+            entityMetadata: this.metadata,
+            normalizer: this.normalizer,
+        });
+    }
+
+    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, selectProps: string[]) {
+        if (!Object.keys(queryParams).length) {
+            return;
+        }
+
+        this.filters.forEach((filterOptions) => {
+            if (filterOptions.queryParamKey && filterOptions.queryParamKey in queryParams) {
+                // TODO
+            } else if (filterOptions.usePropertyNamesAsQueryParams) {
+                this.getFilter(filterOptions).apply({ queryParams, qb, selectProps });
+            }
+        });
+    }
 }
 
 export type RouteMetadata = {
     path: string;
     operations: Operation[];
+    options?: {
+        filters?: RouteFilter<any>[];
+    };
 };
 
 export interface IEntityRouteOptions {
@@ -199,12 +234,22 @@ export interface IEntityRouteOptions {
     shouldMaxDepthReturnRelationPropsIri?: boolean;
 }
 
+type FilterProperties = string | Record<string, string>;
+
+export type RouteFilter<Filter extends AbstractFilter> = {
+    class: new ({ entityMetadata, options }: AbstractFilterConstructor) => Filter;
+    properties: FilterProperties[];
+    usePropertyNamesAsQueryParams?: Boolean;
+    queryParamKey?: string;
+};
+
 interface IActionParams {
     operation: Operation;
     exposedProps?: string[];
     entityId?: number;
     isUpserting?: boolean;
     values?: any;
+    queryParams: any;
 }
 
 type RouteAction = {

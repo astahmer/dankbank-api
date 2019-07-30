@@ -1,8 +1,8 @@
 import { Operation } from "./Groups";
 
-export const EntityRoute = (path: string, operations: Operation[] = []): ClassDecorator => {
+export const EntityRoute = (path: string, operations: Operation[] = [], options?: {}): ClassDecorator => {
     return (target: object) => {
-        Reflect.defineMetadata("route", { path, operations }, target);
+        Reflect.defineMetadata("route", { path, operations, options }, target);
     };
 };
 
