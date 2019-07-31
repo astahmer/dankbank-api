@@ -103,8 +103,12 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return results;
     }
 
-    private async getDetails({ operation }: IActionParams): Promise<[Entity, number]> {
-        const qb = this.repository.createQueryBuilder(this.metadata.tableName);
+    private async getDetails({ operation, entityId }: IActionParams): Promise<[Entity, number]> {
+        const selectProps = this.normalizer.getSelectProps(operation, this.metadata, true);
+        const qb: SelectQueryBuilder<any> = this.repository
+            .createQueryBuilder(this.metadata.tableName)
+            .select(selectProps)
+            .where(this.metadata.tableName + ".id = :id", { id: entityId });
         const item = await this.normalizer.getItem(operation, qb);
 
         if (!item) {
@@ -213,7 +217,9 @@ export type RouteMetadata = {
 
 export interface IEntityRouteOptions {
     isMaxDepthEnabledByDefault?: boolean;
-    shouldMaxDepthReturnRelationPropsIri?: boolean;
+    defaultMaxDepthLvl?: number;
+    shouldMaxDepthReturnRelationPropsId?: boolean;
+    shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
 type FilterProperties = string | Record<string, string>;

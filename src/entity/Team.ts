@@ -7,7 +7,7 @@ import { User } from "./User";
 @Entity()
 export class Team extends AbstractEntity {
     @Groups({
-        user: ["list", "details"],
+        user: ["details"],
         team: ["list", "details"],
     })
     @Column()

@@ -11,7 +11,7 @@ export function MaxDepth(): ClassDecorator;
  */
 export function MaxDepth(max: number): PropertyDecorator;
 
-export function MaxDepth(max?: number): ClassDecorator | PropertyDecorator {
+export function MaxDepth(max: number = 2): ClassDecorator | PropertyDecorator {
     return (target: Object, propName: string) => {
         // If propName is defined => PropertyDecorator, else it's a ClassDecorator
         target = propName ? target.constructor : target;
@@ -20,6 +20,7 @@ export function MaxDepth(max?: number): ClassDecorator | PropertyDecorator {
             maxDepth.fields[propName] = max;
         } else {
             maxDepth.enabled = true;
+            maxDepth.depthLvl = max;
         }
         Reflect.defineMetadata("maxDepth", maxDepth, target);
     };
@@ -28,6 +29,7 @@ export function MaxDepth(max?: number): ClassDecorator | PropertyDecorator {
 export type MaxDeptMetas = Record<string, MaxDeptMetasItem>;
 export type MaxDeptMetasItem = {
     enabled?: EntityMetadata;
+    depthLvl?: number;
     fields: {
         [propName: string]: number;
     };
