@@ -6,7 +6,7 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
-import { AbstractFilter, AbstractFilterConstructor } from "./Filters/AbstractFilter";
+import { AbstractFilter, IAbstractFilterOptions } from "./Filters/AbstractFilter";
 
 export class EntityRouter<Entity extends AbstractEntity> {
     private connection: Connection;
@@ -92,18 +92,26 @@ export class EntityRouter<Entity extends AbstractEntity> {
             .execute();
     }
 
-    private async getList({ operation, queryParams }: IActionParams): Promise<[Entity[], number]> {
+    private async getList({ dumpSql, operation, queryParams }: IActionParams) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
 
         if (this.filters) {
             this.applyRouteFilters(queryParams, qb);
         }
 
-        const results = await this.normalizer.getCollection<Entity>(operation, qb);
-        return results;
+        const collectionResult = await this.normalizer.getCollection<Entity>(operation, qb);
+        const result = {
+            items: collectionResult[0],
+            totalItems: collectionResult[1],
+            sql: undefined as any,
+        };
+
+        if (dumpSql) result.sql = qb.getSql();
+
+        return result;
     }
 
-    private async getDetails({ operation, entityId }: IActionParams): Promise<[Entity, number]> {
+    private async getDetails({ dumpSql, operation, entityId }: IActionParams) {
         const selectProps = this.normalizer.getSelectProps(operation, this.metadata, true);
         const qb: SelectQueryBuilder<any> = this.repository
             .createQueryBuilder(this.metadata.tableName)
@@ -111,11 +119,14 @@ export class EntityRouter<Entity extends AbstractEntity> {
             .where(this.metadata.tableName + ".id = :id", { id: entityId });
         const item = await this.normalizer.getItem(operation, qb);
 
-        if (!item) {
-            return [null, 0];
-        }
+        const result = {
+            item,
+            sql: undefined as any,
+        };
 
-        return [item, 1];
+        if (dumpSql) result.sql = qb.getSql();
+
+        return result;
     }
 
     private async update({ values, entityId }: IActionParams) {
@@ -139,34 +150,37 @@ export class EntityRouter<Entity extends AbstractEntity> {
 
     private makeResponseMethod(operation: Operation): Koa.Middleware {
         return async (ctx, next) => {
-            const isUpserting = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
-            const params: IActionParams = {
-                operation,
-                ...(ctx.params.id && { entityId: ctx.params.id }),
-                ...(isUpserting && { values: ctx.request.body }),
-                ...(operation === "list" && { queryParams: ctx.query }),
-            };
+            const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
+
+            const params: IActionParams = { operation };
+            if (ctx.params.id) params.entityId = ctx.params.id;
+            if (isUpdateOrCreate) params.values = ctx.request.body;
+            if (operation === "list") params.queryParams = ctx.query;
+            if ("dumpSql" in ctx.query) params.dumpSql = true;
 
             const method = this.actions[operation].method;
-            const result = await this[method](params);
+            const result: any = await this[method](params);
 
-            let items, totalItems;
-            // if (!isUpserting) {
-            //     [items, totalItems] = result;
-            // } else {
-            //     items = [result];
-            //     totalItems = 1;
-            // }
-
-            ctx.body = {
-                context: {
+            let response: IRouteResponse = {
+                "@context": {
                     operation,
                     entity: this.metadata.tableName,
                 },
-                items,
-                totalItems,
-                result,
             };
+
+            if (operation === "list") {
+                response["@context"].totalItems = result.totalItems;
+                response.items = result.items;
+            } else {
+                response = { ...response, ...result.item };
+            }
+
+            if ("dumpSql" in ctx.query) {
+                response["@context"].sql = result.sql;
+                console.log(result.sql);
+            }
+
+            ctx.body = response;
             next();
         };
     }
@@ -184,7 +198,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         };
     }
 
-    private getFilter<Filter extends AbstractFilter>(options: RouteFilter<Filter>): Filter {
+    private getFilter<Filter extends AbstractFilter>(options: IAbstractFilterOptions): Filter {
         return new options.class({
             options,
             entityMetadata: this.metadata,
@@ -211,7 +225,7 @@ export type RouteMetadata = {
     path: string;
     operations: Operation[];
     options?: {
-        filters?: RouteFilter<any>[];
+        filters?: IAbstractFilterOptions[];
     };
 };
 
@@ -222,22 +236,25 @@ export interface IEntityRouteOptions {
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
-type FilterProperties = string | Record<string, string>;
-
-export type RouteFilter<Filter extends AbstractFilter> = {
-    class: new ({ entityMetadata, options }: AbstractFilterConstructor) => Filter;
-    properties: FilterProperties[];
-    usePropertyNamesAsQueryParams?: Boolean;
-    queryParamKey?: string;
-};
-
 interface IActionParams {
     operation: Operation;
     exposedProps?: string[];
     entityId?: number;
-    isUpserting?: boolean;
+    isUpdateOrCreate?: boolean;
     values?: any;
-    queryParams: any;
+    queryParams?: any;
+    dumpSql?: Boolean;
+}
+
+interface IRouteResponse {
+    "@context": {
+        operation: string;
+        entity: string;
+        totalItems?: number;
+        sql?: string;
+    };
+    items?: any[];
+    [k: string]: any;
 }
 
 type RouteAction = {

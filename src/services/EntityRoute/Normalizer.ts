@@ -80,6 +80,7 @@ export class Normalizer {
 
         const results = await qb.getManyAndCount();
         const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
+
         return [items, results[1]];
     }
 
@@ -216,15 +217,6 @@ export class Normalizer {
         return this.maxDepthMetas[entityMetadata.tableName];
     }
 
-    private unwrapRelationResult(propResult: any, relation: RelationMetadata) {
-        if (relation.isManyToOne) {
-            propResult = propResult[relation.propertyName];
-        } else if (relation.isManyToMany && relation.inverseRelation) {
-            propResult = propResult.map((el: any) => el[relation.propertyName])[0];
-        }
-
-        return propResult;
-    }
     private setComputedPropsOnItem<U extends AbstractEntity>(
         item: U,
         operation: Operation,

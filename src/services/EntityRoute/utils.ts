@@ -41,3 +41,7 @@ export const isPrimitive = (value: any) => {
     }
     return typeof value !== "function";
 };
+
+export const getObjectOnlyKey = (obj: Object) => Object.keys(obj)[0];
+
+export const isDefined = (value: any) => value !== undefined && value !== null && value !== "";
