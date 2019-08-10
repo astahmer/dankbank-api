@@ -5,14 +5,14 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
 import { EntityGroupsMetadata } from "./GroupsMetadata/EntityGroupsMetadata";
 import { sortObjectByKeys, getComputedPropMethodAndKey, isPrimitive } from "./utils";
-import { GroupsMetaByRoutes } from "./GroupsMetadata/GroupsMetadata";
+import { GroupsMetaByRoutes, GroupsMetadata } from "./GroupsMetadata/GroupsMetadata";
 import { MaxDeptMetas } from "@/decorators/MaxDepth";
 import { IEntityRouteOptions } from "./EntityRoute";
 
 export class Normalizer {
     private connection: Connection;
     private metadata: EntityMetadata;
-    private groupsMetas: GroupsMetaByRoutes<EntityGroupsMetadata> = {};
+    private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
     private options: IEntityRouteOptions;
     private aliases: Record<string, number> = {};
@@ -25,27 +25,45 @@ export class Normalizer {
 
     /** Get selects props (from groups) of a given entity for a specific operation */
     public getSelectProps(operation: Operation, entityMetadata: EntityMetadata, withPrefix = true, prefix?: string) {
-        return this.getGroupsMetadataFor(entityMetadata).getSelectProps(operation, this.metadata, withPrefix, prefix);
+        return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getSelectProps(
+            operation,
+            this.metadata,
+            withPrefix,
+            prefix
+        );
     }
 
     /** Get relation props metas (from groups) of a given entity for a specific operation */
     public getRelationPropsMetas(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor(entityMetadata).getRelationPropsMetas(operation, this.metadata);
+        return this.getGroupsMetadataFor<EntityGroupsMetadata>(
+            entityMetadata,
+            EntityGroupsMetadata
+        ).getRelationPropsMetas(operation, this.metadata);
     }
 
     /** Get computed props metas (from groups) of a given entity for a specific operation */
     public getComputedProps(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor(entityMetadata).getComputedProps(operation, this.metadata);
+        return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getComputedProps(
+            operation,
+            this.metadata
+        );
     }
 
-    /** Get EntityGroupsMetada of a given entity */
-    public getGroupsMetadataFor(entityMetadata: EntityMetadata): EntityGroupsMetadata {
-        if (!this.groupsMetas[entityMetadata.tableName]) {
-            this.groupsMetas[entityMetadata.tableName] =
-                Reflect.getOwnMetadata("groups", entityMetadata.target) ||
-                new EntityGroupsMetadata("groups", this.metadata);
+    /** Get GroupsMetada of a given entity */
+    public getGroupsMetadataFor<G extends GroupsMetadata>(
+        entityMetadata: EntityMetadata,
+        metaClass: new (metaKey: string, entityOrMeta: EntityMetadata | Function) => G,
+        metaKey = "groups"
+    ): G {
+        if (!this.groupsMetas[metaKey]) {
+            this.groupsMetas[metaKey] = {};
         }
-        return this.groupsMetas[entityMetadata.tableName];
+
+        if (!this.groupsMetas[metaKey][entityMetadata.tableName]) {
+            this.groupsMetas[metaKey][entityMetadata.tableName] =
+                Reflect.getOwnMetadata(metaKey, entityMetadata.target) || new metaClass(metaKey, this.metadata);
+        }
+        return this.groupsMetas[metaKey][entityMetadata.tableName];
     }
 
     /**
@@ -124,8 +142,8 @@ export class Normalizer {
         }
 
         const newPath = (currentPath ? currentPath + "." : "") + entityMetadata.tableName;
-
         const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
+
         relationProps.forEach((relation) => {
             const circularProp = this.isRelationPropCircular(
                 newPath + "." + relation.inverseEntityMetadata.tableName,
@@ -141,9 +159,7 @@ export class Normalizer {
             if (!circularProp) {
                 this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, newPath, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
-                const selectProps = this.getSelectProps(operation, relation.inverseEntityMetadata, true, alias);
-                qb.addSelect(selectProps);
-                console.log(circularProp);
+                qb.addSelect(alias + ".id");
             }
         });
     }

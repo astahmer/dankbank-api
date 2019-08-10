@@ -13,7 +13,7 @@ import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
 const entityMetaSymbol = Symbol("entityMeta");
 
-export class GroupsMetadata {
+export class GroupsMetadata<PropNameType = string> {
     /** The key under which the Reflect metadata will be store on the target entity */
     protected metaKey: string;
 
@@ -24,18 +24,18 @@ export class GroupsMetadata {
     protected [entityMetaSymbol]: EntityMetadata;
 
     /** Every entity's props decorated with @Groups */
-    protected decoratedProps: string[] = [];
+    protected decoratedProps: PropNameType[] = [];
 
     /** An array of Operations containing global props (exposed no matter which route context) */
-    protected globals: OperationGroups = {};
+    protected globals: OperationGroups<PropNameType> = {};
 
     /** An object with route specific OperationsGroups */
-    protected routes: ContextOperations = {};
+    protected routes: ContextOperations<PropNameType> = {};
 
     /**
      * An object with every exposed props merged (globals + specific + parents globals + specific) for each route context > Operations
      * */
-    protected exposedPropsByContexts: ContextOperations = {};
+    protected exposedPropsByContexts: ContextOperations<PropNameType> = {};
 
     get entityMeta() {
         return this[entityMetaSymbol];
@@ -55,7 +55,7 @@ export class GroupsMetadata {
         }
     }
 
-    addPropToGlobalGroups(groups: OperationsOrAll, propName: string) {
+    addPropToGlobalGroups(groups: OperationsOrAll, propName: PropNameType) {
         if (groups === "all") {
             groups = ALL_OPERATIONS;
         }
@@ -70,7 +70,7 @@ export class GroupsMetadata {
         this.decoratedProps.push(propName);
     }
 
-    addPropToRoutesGroups(groups: RouteOperations, propName: string) {
+    addPropToRoutesGroups(groups: RouteOperations, propName: PropNameType) {
         let route;
         for (route in groups) {
             let i = 0;
@@ -104,7 +104,7 @@ export class GroupsMetadata {
      * this.routes = { user: ["create", "details", "delete"], category: ["create", "update"] };
      * return ['details', 'list', 'create', 'delete'] // for route = 'user'
      */
-    mergeGlobalsAndRouteSpecificGroups(route: string): OperationGroups {
+    mergeGlobalsAndRouteSpecificGroups<PropNameType>(route: string): OperationGroups<PropNameType> {
         let groups;
         if (this.globals && this.routes[route]) {
             groups = mergeWith(concat, this.globals, this.routes[route]);
@@ -118,7 +118,7 @@ export class GroupsMetadata {
     /**
      * Get groups metadata for a given entity and merge global groups with route specific groups
      */
-    getEntityRouteGroups(target: string | Function, tableName: string): OperationGroups {
+    getEntityRouteGroups(target: string | Function, tableName: string): OperationGroups<PropNameType> {
         const groupsMeta: EntityGroupsMetadata = Reflect.getOwnMetadata(this.metaKey, target);
 
         // If no groups are set on this entity
@@ -171,4 +171,4 @@ export class GroupsMetadata {
     }
 }
 
-export type GroupsMetaByRoutes<G extends GroupsMetadata> = Record<string, G>;
+export type GroupsMetaByRoutes<G extends GroupsMetadata = GroupsMetadata> = Record<string, G>;

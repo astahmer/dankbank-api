@@ -19,7 +19,7 @@ import { SearchFilter } from "../services/EntityRoute/Filters/SearchFilter";
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
-        user: ["list"],
+        user: ["list", "details"],
     })
     @Column()
     firstName: string;
