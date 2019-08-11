@@ -1,8 +1,6 @@
 import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, getRepository, Repository } from "typeorm";
 import { Groups } from "../decorators";
-import { RouteMetadata } from "@/services/EntityRoute/EntityRoute";
-
-const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata("route", entity);
+import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
 
 export abstract class AbstractEntity {
     private repository: Repository<AbstractEntity>;
@@ -18,8 +16,8 @@ export abstract class AbstractEntity {
     dateUpdated: string;
 
     getBaseRoute() {
-        const routeMetadatas = getRouteMetadata(this.constructor);
-        return routeMetadatas && "/api" + routeMetadatas.path;
+        const routeMetadata = getRouteMetadata(this.constructor);
+        return routeMetadata && "/api" + routeMetadata.path;
     }
 
     @Groups(["list", "details"], "@id")

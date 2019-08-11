@@ -1,31 +1,27 @@
 import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
-import { EntityRoute, Groups, MaxDepth } from "../decorators";
+import { EntityRoute, Groups, MaxDepth, SearchFilterDecorator as SearchFilter } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
-import { SearchFilter } from "../services/EntityRoute/Filters/SearchFilter";
 
-@EntityRoute("/users", ["list", "details"], {
-    filters: [
-        {
-            class: SearchFilter,
-            properties: [
-                "id",
-                { firstName: "startsWith" },
-                "profilePicture.id",
-                "profileCategory",
-                { "teams.teamName": "startsWith" },
-                { "profileCategory.name": "endsWith" },
-                { "profilePicture.title": "partial" },
-                "profileCategory.picture.id",
-            ],
-            usePropertyNamesAsQueryParams: true,
-            defaultWhereStrategy: "exact",
-        },
+@SearchFilter(
+    [
+        "id",
+        { firstName: "startsWith" },
+        "profilePicture.id",
+        "profileCategory",
+        { "teams.teamName": "startsWith" },
+        { "profileCategory.name": "endsWith" },
+        { "profilePicture.title": "partial" },
+        "profileCategory.picture.id",
     ],
-})
+    {
+        defaultWhereStrategy: "exact",
+    }
+)
+@EntityRoute("/users", ["list", "details"])
 @Entity()
 export class User extends AbstractEntity {
     @Groups({

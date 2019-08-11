@@ -1,6 +1,28 @@
-import { AbstractFilter, FilterApplyParams, IAbstractFilterOptions } from "./AbstractFilter";
+import { AbstractFilter, FilterApplyParams, FilterProperty } from "./AbstractFilter";
 import { SelectQueryBuilder, Brackets } from "typeorm";
 import { getObjectOnlyKey, isDefined } from "../utils";
+import { RouteMetadata, getRouteMetadata } from "../EntityRoute";
+
+export interface ISearchFilterOptions {
+    defaultWhereStrategy?: string;
+}
+
+export const SearchFilterDecorator = (properties: FilterProperty[], options?: ISearchFilterOptions): ClassDecorator => {
+    return (target: Function) => {
+        const routeMeta: RouteMetadata = getRouteMetadata(target);
+        const config = {
+            class: SearchFilter,
+            usePropertyNamesAsQueryParams: true,
+            options,
+            properties,
+        };
+
+        if (!routeMeta.options) routeMeta.options = {};
+        if (!routeMeta.options.filters) routeMeta.options.filters = [];
+
+        routeMeta.options.filters.push(config);
+    };
+};
 
 /**
  * Add a/multiple where clause on any (deep?) properties of the decorated entity
@@ -16,12 +38,12 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
 
     /** Retrieve a property whereStrategy from its propName/propPath */
     protected getPropertyWhereStrategy(propName: string) {
-        const propFilter = this.options.properties.find((propFilter) =>
+        const propFilter = this.config.properties.find((propFilter) =>
             typeof propFilter === "string" ? propFilter === propName : getObjectOnlyKey(propFilter) === propName
         );
 
         return typeof propFilter === "string"
-            ? SearchFilter.STRATEGY_TYPES.EXACT || this.options.defaultWhereStrategy
+            ? SearchFilter.STRATEGY_TYPES.EXACT || this.config.options.defaultWhereStrategy
             : propFilter[getObjectOnlyKey(propFilter)];
     }
 
@@ -113,8 +135,4 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
             }
         });
     }
-}
-
-interface ISearchFilterOptions extends IAbstractFilterOptions {
-    defaultWhereStrategy?: string;
 }

@@ -6,12 +6,15 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer, AliasList } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
-import { AbstractFilter, IAbstractFilterOptions } from "./Filters/AbstractFilter";
+import { AbstractFilter, IAbstractFilterConfig } from "./Filters/AbstractFilter";
+
+export const ROUTE_METAKEY = Symbol("route");
+export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
 
 export class EntityRouter<Entity extends AbstractEntity> {
     private connection: Connection;
     private repository: Repository<Entity>;
-    private routeMetadatas: RouteMetadata;
+    private routeMetadata: RouteMetadata;
     private metadata: EntityMetadata;
     private actions: RouteActions;
     private options: IEntityRouteOptions;
@@ -20,7 +23,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
 
     constructor(connection: Connection, entity: ObjectType<Entity>, options?: IEntityRouteOptions) {
         this.connection = connection;
-        this.routeMetadatas = Reflect.getOwnMetadata("route", entity);
+        this.routeMetadata = getRouteMetadata(entity);
         this.repository = getRepository(entity);
         this.metadata = this.repository.metadata;
         this.options = options;
@@ -57,7 +60,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
     }
 
     get filters() {
-        return this.routeMetadatas.options && this.routeMetadatas.options.filters;
+        return this.routeMetadata.options && this.routeMetadata.options.filters;
     }
 
     /**
@@ -68,10 +71,10 @@ export class EntityRouter<Entity extends AbstractEntity> {
     makeRouter() {
         const router = new Router();
 
-        for (let i = 0; i < this.routeMetadatas.operations.length; i++) {
-            const operation = this.routeMetadatas.operations[i];
+        for (let i = 0; i < this.routeMetadata.operations.length; i++) {
+            const operation = this.routeMetadata.operations[i];
             const verb = this.actions[operation].verb;
-            const path = this.routeMetadatas.path + this.actions[operation].path;
+            const path = this.routeMetadata.path + this.actions[operation].path;
 
             const responseMethod = this.makeResponseMethod(operation);
             const mappingMethod = this.makeMappingMethod(operation);
@@ -199,9 +202,9 @@ export class EntityRouter<Entity extends AbstractEntity> {
         };
     }
 
-    private getFilter<Filter extends AbstractFilter>(options: IAbstractFilterOptions): Filter {
-        return new options.class({
-            options,
+    private getFilter<Filter extends AbstractFilter>(config: IAbstractFilterConfig): Filter {
+        return new config.class({
+            config,
             entityMetadata: this.metadata,
             normalizer: this.normalizer,
         });
@@ -226,7 +229,7 @@ export type RouteMetadata = {
     path: string;
     operations: Operation[];
     options?: {
-        filters?: IAbstractFilterOptions[];
+        filters?: IAbstractFilterConfig[];
     };
 };
 

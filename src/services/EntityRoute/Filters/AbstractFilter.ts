@@ -2,13 +2,13 @@ import { SelectQueryBuilder, EntityMetadata } from "typeorm";
 import { Normalizer, AliasList } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
-export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOptions = IAbstractFilterOptions> {
-    protected options: FilterOptions;
+export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
+    protected config: IAbstractFilterConfig<FilterOptions>;
     protected entityMetadata: EntityMetadata;
     protected normalizer: Normalizer;
 
-    constructor({ options, entityMetadata, normalizer }: AbstractFilterConstructor) {
-        this.options = <FilterOptions>options;
+    constructor({ config: config, entityMetadata, normalizer }: AbstractFilterConstructor) {
+        this.config = <IAbstractFilterConfig<FilterOptions>>config;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
     }
@@ -27,7 +27,7 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
 
     /** Returns every filterable properties  */
     get filterProperties() {
-        return this.options.properties.map((prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)));
+        return this.config.properties.map((prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)));
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
@@ -119,7 +119,7 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
 
 export type AbstractFilterConstructor = {
     entityMetadata: EntityMetadata;
-    options: IAbstractFilterOptions;
+    config: IAbstractFilterConfig;
     normalizer: Normalizer;
 };
 
@@ -131,9 +131,10 @@ export type FilterApplyParams = {
 
 export type FilterProperty = string | Record<string, string>;
 
-export interface IAbstractFilterOptions {
-    class: new ({ entityMetadata, options }: AbstractFilterConstructor) => any;
+export interface IAbstractFilterConfig<Options = Record<string, any>> {
+    class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;
     properties: FilterProperty[];
     usePropertyNamesAsQueryParams?: Boolean;
     queryParamKey?: string;
+    options: Options;
 }
