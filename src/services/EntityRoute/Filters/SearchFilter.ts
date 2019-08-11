@@ -57,7 +57,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         }
     }
 
-    apply({ queryParams, qb }: FilterApplyParams) {
+    apply({ queryParams, qb, aliases }: FilterApplyParams) {
         const params = this.getPropertiesToFilter(queryParams);
         params.forEach((propPath) => {
             const props = propPath.split(".");
@@ -76,6 +76,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                     qb,
                     this.entityMetadata,
                     propPath,
+                    aliases,
                     props[0]
                 );
 

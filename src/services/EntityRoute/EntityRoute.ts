@@ -3,7 +3,7 @@ import * as Router from "koa-router";
 import { Connection, EntityMetadata, Repository, getRepository, ObjectType, SelectQueryBuilder } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Normalizer } from "./Normalizer";
+import { Normalizer, AliasList } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterOptions } from "./Filters/AbstractFilter";
@@ -94,12 +94,13 @@ export class EntityRouter<Entity extends AbstractEntity> {
 
     private async getList({ dumpSql, operation, queryParams }: IActionParams) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
+        const aliases = {};
 
         if (this.filters) {
-            this.applyRouteFilters(queryParams, qb);
+            this.applyRouteFilters(queryParams, qb, aliases);
         }
 
-        const collectionResult = await this.normalizer.getCollection<Entity>(operation, qb);
+        const collectionResult = await this.normalizer.getCollection<Entity>(operation, qb, aliases);
         const result = {
             items: collectionResult[0],
             totalItems: collectionResult[1],
@@ -206,7 +207,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         });
     }
 
-    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>) {
+    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
         if (!Object.keys(queryParams).length) {
             return;
         }
@@ -215,7 +216,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
             if (filterOptions.queryParamKey && filterOptions.queryParamKey in queryParams) {
                 // TODO
             } else if (filterOptions.usePropertyNamesAsQueryParams) {
-                this.getFilter(filterOptions).apply({ queryParams, qb });
+                this.getFilter(filterOptions).apply({ queryParams, qb, aliases });
             }
         });
     }

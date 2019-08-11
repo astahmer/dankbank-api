@@ -1,5 +1,5 @@
 import { SelectQueryBuilder, EntityMetadata } from "typeorm";
-import { Normalizer } from "../Normalizer";
+import { Normalizer, AliasList } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
 export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOptions = IAbstractFilterOptions> {
@@ -31,7 +31,7 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
-    abstract apply({ queryParams, qb }: FilterApplyParams): void;
+    abstract apply({ queryParams, qb, aliases }: FilterApplyParams): void;
 
     /**
      *Add inner joins to get a nested property
@@ -40,14 +40,15 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
      * @param entityMetadata current meta to search column or relation in
      * @param propPath dot delimited property path leading to a nested property
      * @param currentProp current propPath part used, needed to find column or relation meta
-     * @param prevProp TODO PREV ALIAS instead of prevProp
+     * @param prevAlias TODO PREV ALIAS instead of prevProp
      */
     protected makeJoinsFromPropPath(
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
         propPath: string,
+        aliases: AliasList,
         currentProp: string,
-        prevProp?: string
+        prevAlias?: string
     ): any {
         const column = entityMetadata.findColumnWithPropertyName(currentProp);
         const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(currentProp);
@@ -55,16 +56,29 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
         // Flat primitive property
         if (column && !relation) {
             return {
-                entityPrefix: prevProp,
+                entityPrefix: prevAlias,
                 propName: column.databaseName,
             };
         } else {
             // Relation
 
-            qb.innerJoin(
-                (prevProp || relation.entityMetadata.tableName) + "." + relation.propertyName,
+            const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
+                (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
+            );
+            let alias = this.normalizer.getPropertyLastAlias(
+                aliases,
+                relation.entityMetadata.tableName,
                 relation.propertyName
             );
+
+            if (!isJoinAlreadyMade) {
+                alias = this.normalizer.generateAlias(
+                    aliases,
+                    relation.entityMetadata.tableName,
+                    relation.propertyName
+                );
+                qb.innerJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
+            }
 
             const splitPath = propPath.split(".");
             const nextPropPath = splitPath.slice(1).join(".");
@@ -73,8 +87,9 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
                 qb,
                 relation.inverseEntityMetadata,
                 nextPropPath,
+                aliases,
                 splitPath[1],
-                splitPath[0]
+                alias
             );
         }
     }
@@ -109,6 +124,7 @@ export type AbstractFilterConstructor = {
 export type FilterApplyParams = {
     queryParams?: any;
     qb?: SelectQueryBuilder<any>;
+    aliases: AliasList;
 };
 
 export type FilterProperty = string | Record<string, string>;

@@ -15,7 +15,6 @@ export class Normalizer {
     private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
     private options: IEntityRouteOptions;
-    private aliases: Record<string, number> = {};
 
     constructor(connection: Connection, metadata: EntityMetadata, options?: IEntityRouteOptions) {
         this.connection = connection;
@@ -74,9 +73,10 @@ export class Normalizer {
      */
     public async getCollection<Entity extends AbstractEntity>(
         operation: Operation,
-        qb: SelectQueryBuilder<Entity>
+        qb: SelectQueryBuilder<Entity>,
+        aliases: AliasList
     ): Promise<[Entity[], number]> {
-        this.makeJoinFromGroups(operation, qb, this.metadata);
+        this.makeJoinFromGroups(operation, qb, this.metadata, aliases);
 
         const results = await qb.getManyAndCount();
         const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
@@ -85,7 +85,7 @@ export class Normalizer {
     }
 
     public async getItem<Entity extends AbstractEntity>(operation: Operation, qb: SelectQueryBuilder<Entity>) {
-        this.makeJoinFromGroups(operation, qb, this.metadata);
+        this.makeJoinFromGroups(operation, qb, this.metadata, {});
 
         // console.log(qb.getSql());
         const result = await qb.getOne();
@@ -134,6 +134,7 @@ export class Normalizer {
         operation: Operation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
+        aliases: AliasList,
         currentPath?: string,
         prevProp?: string
     ) {
@@ -152,13 +153,13 @@ export class Normalizer {
                 relation
             );
 
-            const alias = this.generateAlias(relation.propertyName);
+            const alias = this.generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
             if (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.leftJoin((prevProp || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
             }
 
             if (!circularProp) {
-                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, newPath, alias);
+                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, aliases, newPath, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.addSelect(alias + ".id");
             }
@@ -167,11 +168,19 @@ export class Normalizer {
 
     /**
      * Appends a number (of occurences) to a propertName in order to avoid ambiguous sql names
-     * @param newAlias
+     * @param aliases current list of aliases
+     * @param entity add one to the counter on this property name
+     * @param propName add one to the counter on this property name
      */
-    private generateAlias(newAlias: string) {
-        this.aliases[newAlias] = this.aliases[newAlias] ? this.aliases[newAlias] + 1 : 1;
-        return newAlias + "_" + this.aliases[newAlias];
+    public generateAlias(aliases: AliasList, entityTableName: string, propName: string) {
+        const key = entityTableName + "." + propName;
+        aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
+        return propName + "_" + aliases[key];
+    }
+
+    public getPropertyLastAlias(aliases: AliasList, entityTableName: string, propName: string) {
+        const key = entityTableName + "." + propName;
+        return propName + "_" + aliases[key];
     }
 
     /**
@@ -230,3 +239,5 @@ export class Normalizer {
         });
     }
 }
+
+export type AliasList = Record<string, number>;
