@@ -24,7 +24,7 @@ export class Category extends AbstractEntity {
 
     @Groups({
         category: ["details"],
-        user: ["details"],
+        user: ["list", "details"],
     })
     @ManyToOne(() => Picture, (picture) => picture.categories, { cascade: ["insert"] })
     picture: Picture[];

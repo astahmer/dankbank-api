@@ -103,12 +103,14 @@ export abstract class AbstractFilter<FilterOptions extends IAbstractFilterOption
         };
 
         return Object.keys(queryParams).reduce((acc, param: string) => {
+            const paramKey = param.replace("[]", "");
+
             if (
-                this.filterProperties.indexOf(param) !== -1 &&
-                isParamInEntityProps(param) &&
+                this.filterProperties.indexOf(paramKey) !== -1 &&
+                isParamInEntityProps(paramKey) &&
                 isDefined(queryParams[param])
             ) {
-                acc.push(param);
+                acc.push(paramKey);
             }
             return acc;
         }, []);

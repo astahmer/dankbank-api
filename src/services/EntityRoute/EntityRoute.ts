@@ -107,7 +107,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
             sql: undefined as any,
         };
 
-        if (dumpSql) result.sql = qb.getSql();
+        if (dumpSql) result.sql = qb.getQueryAndParameters();
 
         return result;
     }
@@ -125,7 +125,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
             sql: undefined as any,
         };
 
-        if (dumpSql) result.sql = qb.getSql();
+        if (dumpSql) result.sql = qb.getQueryAndParameters();
 
         return result;
     }

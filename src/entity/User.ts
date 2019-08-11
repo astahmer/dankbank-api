@@ -13,10 +13,12 @@ import { SearchFilter } from "../services/EntityRoute/Filters/SearchFilter";
             class: SearchFilter,
             properties: [
                 "id",
+                { firstName: "startsWith" },
                 "profilePicture.id",
                 "profileCategory",
                 { "teams.teamName": "startsWith" },
-                { "profileCategory.name": "startsWith" },
+                { "profileCategory.name": "endsWith" },
+                { "profilePicture.title": "partial" },
                 "profileCategory.picture.id",
             ],
             usePropertyNamesAsQueryParams: true,
