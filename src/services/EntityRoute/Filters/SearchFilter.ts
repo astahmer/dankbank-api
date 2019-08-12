@@ -1,40 +1,26 @@
-import { AbstractFilter, FilterApplyParams, FilterProperty } from "./AbstractFilter";
+import { AbstractFilter, FilterApplyParams } from "./AbstractFilter";
 import { SelectQueryBuilder, Brackets } from "typeorm";
 import { getObjectOnlyKey, isDefined } from "../utils";
-import { RouteMetadata, getRouteMetadata } from "../EntityRoute";
 
 export interface ISearchFilterOptions {
     defaultWhereStrategy?: string;
 }
 
-export const SearchFilterDecorator = (properties: FilterProperty[], options?: ISearchFilterOptions): ClassDecorator => {
-    return (target: Function) => {
-        const routeMeta: RouteMetadata = getRouteMetadata(target);
-        const config = {
-            class: SearchFilter,
-            usePropertyNamesAsQueryParams: true,
-            options,
-            properties,
-        };
+export enum SearchFilterStrategyTypes {
+    EXACT = "exact",
+    PARTIAL = "partial",
+    STARTS_WITH = "startsWith",
+    ENDS_WITH = "endsWith",
+}
 
-        if (!routeMeta.options) routeMeta.options = {};
-        if (!routeMeta.options.filters) routeMeta.options.filters = [];
-
-        routeMeta.options.filters.push(config);
-    };
-};
+export type SearchFilterStrategyTypesList = "exact" | "partial" | "startsWith" | "endsWith";
 
 /**
  * Add a/multiple where clause on any (deep?) properties of the decorated entity
  */
 export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     /** Enum of where condition strategy types */
-    static readonly STRATEGY_TYPES = {
-        EXACT: "exact",
-        PARTIAL: "partial",
-        STARTS_WITH: "startsWith",
-        ENDS_WITH: "endsWith",
-    };
+    static readonly STRATEGY_TYPES = SearchFilterStrategyTypes;
 
     /** Retrieve a property whereStrategy from its propName/propPath */
     protected getPropertyWhereStrategy(propName: string) {
@@ -114,9 +100,14 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         const params = this.getPropertiesToFilter(queryParams);
         params.forEach((propPath) => {
             const props = propPath.split(".");
-            const value = queryParams[propPath + "[]"]
-                ? queryParams[propPath + "[]"].filter(isDefined)
-                : queryParams[propPath];
+            let propArray = queryParams[propPath + "[]"];
+
+            // If there is only one value while using brackets, the value is read as string
+            if (propArray && !Array.isArray(propArray)) {
+                propArray = [propArray];
+            }
+
+            const value = propArray ? propArray.filter(isDefined) : queryParams[propPath];
 
             if (props.length === 1) {
                 const whereStrategy = this.getPropertyWhereStrategy(propPath);

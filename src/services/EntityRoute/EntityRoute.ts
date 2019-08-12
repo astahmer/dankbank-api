@@ -11,6 +11,10 @@ import { AbstractFilter, IAbstractFilterConfig } from "./Filters/AbstractFilter"
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
 
+export const ROUTE_FILTERS_METAKEY = Symbol("filters");
+export const getRouteFiltersMeta = (entity: Function): RouteFiltersMeta =>
+    Reflect.getOwnMetadata(ROUTE_FILTERS_METAKEY, entity);
+
 export class EntityRouter<Entity extends AbstractEntity> {
     private connection: Connection;
     private repository: Repository<Entity>;
@@ -21,7 +25,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
     private normalizer: Normalizer;
     private mappingMaker: MappingMaker;
 
-    constructor(connection: Connection, entity: ObjectType<Entity>, options?: IEntityRouteOptions) {
+    constructor(connection: Connection, entity: ObjectType<Entity>, options: IEntityRouteOptions = {}) {
         this.connection = connection;
         this.routeMetadata = getRouteMetadata(entity);
         this.repository = getRepository(entity);
@@ -30,6 +34,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         this.normalizer = new Normalizer(this.connection, this.metadata, this.options);
         this.mappingMaker = new MappingMaker(this.metadata, this.normalizer);
 
+        this.mergeRouteOptionsWithMetaFilters(entity);
         this.actions = {
             create: {
                 path: "",
@@ -84,6 +89,20 @@ export class EntityRouter<Entity extends AbstractEntity> {
         }
 
         return router;
+    }
+
+    private mergeRouteOptionsWithMetaFilters(entity: ObjectType<Entity>) {
+        const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(entity);
+        if (filtersMeta) {
+            if (!this.routeMetadata.options.filters) {
+                this.routeMetadata.options.filters = [];
+            }
+
+            let key;
+            for (key in filtersMeta) {
+                this.routeMetadata.options.filters.push(filtersMeta[key]);
+            }
+        }
     }
 
     private async create({ values }: IActionParams) {
@@ -232,6 +251,8 @@ export type RouteMetadata = {
         filters?: IAbstractFilterConfig[];
     };
 };
+
+export type RouteFiltersMeta = Record<string, IAbstractFilterConfig>;
 
 export interface IEntityRouteOptions {
     isMaxDepthEnabledByDefault?: boolean;
