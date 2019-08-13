@@ -1,3 +1,4 @@
+export { AbstractEntity } from "./AbstractEntity";
 export { Category } from "./Category";
 export { Meme } from "./Meme";
 export { Picture } from "./Picture";

@@ -29,7 +29,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         );
 
         return typeof propFilter === "string"
-            ? SearchFilter.STRATEGY_TYPES.EXACT || this.config.options.defaultWhereStrategy
+            ? this.config.options.defaultWhereStrategy || SearchFilter.STRATEGY_TYPES.EXACT
             : propFilter[getObjectOnlyKey(propFilter)];
     }
 

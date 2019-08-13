@@ -7,7 +7,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
     protected entityMetadata: EntityMetadata;
     protected normalizer: Normalizer;
 
-    constructor({ config: config, entityMetadata, normalizer }: AbstractFilterConstructor) {
+    constructor({ config, entityMetadata, normalizer }: AbstractFilterConstructor) {
         this.config = <IAbstractFilterConfig<FilterOptions>>config;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
