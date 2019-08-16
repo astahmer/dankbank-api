@@ -35,7 +35,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
-    abstract apply({ queryParams, qb, whereExp, aliases }: FilterApplyParams): void;
+    abstract apply({ queryParams, qb, whereExp, aliases }: AbstractFilterApplyArgs): void;
 
     /**
      *Add inner joins to get a nested property
@@ -134,11 +134,11 @@ export type AbstractFilterConstructor = {
 export type QueryParamValue = string | string[];
 export type QueryParams = Record<string, QueryParamValue>;
 
-export type FilterApplyParams = {
+export type AbstractFilterApplyArgs = {
     queryParams?: QueryParams;
     qb?: SelectQueryBuilder<any>;
-    whereExp: WhereExpression;
-    aliases: AliasList;
+    whereExp?: WhereExpression;
+    aliases?: AliasList;
 };
 
 export type FilterProperty = string | Record<string, string>;
@@ -149,6 +149,7 @@ export enum WhereType {
 }
 
 export type WhereMethod = "where" | "andWhere" | "orWhere";
+export type WhereOperator = "=" | "!=" | "LIKE" | "NOT LIKE" | "IN" | "NOT IN" | "<" | "<=" | ">" | ">=";
 
 export interface IAbstractFilterConfig<Options = Record<string, any>> {
     class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;

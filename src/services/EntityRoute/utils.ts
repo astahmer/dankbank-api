@@ -50,3 +50,26 @@ export const isDefined = (value: any) =>
 export const snakeToCamel = (str: string) => str.replace(/(_\w)/g, (group) => group[1].toUpperCase());
 export const camelToSnake = (str: string) =>
     str.replace(/[\w]([A-Z])/g, (group) => group[0] + "_" + group[1]).toLowerCase();
+
+export const setNestedKey = (obj: Record<string, any>, path: string[], value: any): Record<string, any> => {
+    if (path.length === 1) {
+        obj[path[0]] = value;
+        return;
+    } else if (!(path[0] in obj)) {
+        obj[path[0]] = {};
+    }
+
+    return setNestedKey(obj[path[0]], path.slice(1), value);
+};
+
+export type PropertyHook = (key: string, value: object) => any;
+export function recursiveBrowse(object: Record<string, any>, propHook: PropertyHook) {
+    for (let property in object) {
+        if (typeof object[property] === "object") {
+            propHook(property, object);
+            recursiveBrowse(object[property], propHook);
+        } else {
+            propHook(property, object[property]);
+        }
+    }
+}
