@@ -1,6 +1,5 @@
 import { RouteFiltersMeta, getRouteFiltersMeta, ROUTE_FILTERS_METAKEY } from "@/services/EntityRoute/EntityRoute";
 import { IAbstractFilterConfig, FilterProperty } from "./AbstractFilter";
-import { SearchFilterStrategyTypesList, ISearchFilterOptions } from "./SearchFilter";
 
 export function AbstractFilterDecorator({
     defaultConfig,
@@ -8,16 +7,16 @@ export function AbstractFilterDecorator({
     propFilterHook,
 }: {
     defaultConfig: Partial<IAbstractFilterConfig>;
-    propParamOrFilterProperties: SearchFilterStrategyTypesList | FilterProperty[];
+    propParamOrFilterProperties: any | FilterProperty[];
     propFilterHook?: (propName: string, filterConfig?: any) => FilterProperty;
 }) {
-    return (target: Object | Function, propName: string, _descriptor?: PropertyDescriptor) => {
+    return (target: object | Function, propName: string, _descriptor?: PropertyDescriptor) => {
         if (typeof target === "object") {
             target = target.constructor;
         }
 
         const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(target as Function) || {};
-        const filter: IAbstractFilterConfig<ISearchFilterOptions> = filtersMeta[defaultConfig.class.name];
+        const filter: IAbstractFilterConfig = filtersMeta[defaultConfig.class.name];
 
         if (!Array.isArray(propParamOrFilterProperties)) {
             // Property Decorator

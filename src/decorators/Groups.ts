@@ -51,7 +51,7 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
     propNameHook?: Function;
     groupsMetaHook?: Function;
 }) {
-    return (target: Object, propName: string, descriptor: PropertyDescriptor) => {
+    return (target: object, propName: string, descriptor: PropertyDescriptor) => {
         let groupsMeta: G = Reflect.getOwnMetadata(metaKey, target.constructor);
         if (!groupsMeta) {
             groupsMeta = new metaClass(metaKey, target.constructor);

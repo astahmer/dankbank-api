@@ -42,7 +42,11 @@ export const isPrimitive = (value: any) => {
     return typeof value !== "function";
 };
 
-export const getObjectOnlyKey = (obj: Object) => Object.keys(obj)[0];
+export const getObjectOnlyKey = (obj: object) => Object.keys(obj)[0];
 
 export const isDefined = (value: any) =>
     value !== undefined && value !== null && (typeof value === "string" ? value.trim() !== "" : true);
+
+export const snakeToCamel = (str: string) => str.replace(/(_\w)/g, (group) => group[1].toUpperCase());
+export const camelToSnake = (str: string) =>
+    str.replace(/[\w]([A-Z])/g, (group) => group[0] + "_" + group[1]).toLowerCase();

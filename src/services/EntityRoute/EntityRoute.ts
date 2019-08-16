@@ -65,7 +65,9 @@ export class EntityRouter<Entity extends AbstractEntity> {
     }
 
     get filters() {
-        return this.routeMetadata.options && this.routeMetadata.options.filters;
+        if (this.routeMetadata.options && this.routeMetadata.options.filters) {
+            return this.routeMetadata.options.filters;
+        }
     }
 
     /**
@@ -119,7 +121,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         const aliases = {};
 
         if (this.filters) {
-            this.applyRouteFilters(queryParams, qb, aliases);
+            this.applyFilters(queryParams, qb, aliases);
         }
 
         const collectionResult = await this.normalizer.getCollection<Entity>(operation, qb, aliases);
@@ -129,7 +131,11 @@ export class EntityRouter<Entity extends AbstractEntity> {
             sql: undefined as any,
         };
 
-        if (dumpSql) result.sql = qb.getQueryAndParameters();
+        if (dumpSql) {
+            if (dumpSql === "where") result.sql = qb.expressionMap.wheres;
+            else if (dumpSql === "params") result.sql = qb.getParameters();
+            else result.sql = qb.getQueryAndParameters();
+        }
 
         return result;
     }
@@ -147,7 +153,11 @@ export class EntityRouter<Entity extends AbstractEntity> {
             sql: undefined as any,
         };
 
-        if (dumpSql) result.sql = qb.getQueryAndParameters();
+        if (dumpSql) {
+            if (dumpSql === "where") result.sql = qb.expressionMap.wheres;
+            else if (dumpSql === "params") result.sql = qb.getParameters();
+            else result.sql = qb.getQueryAndParameters();
+        }
 
         return result;
     }
@@ -179,7 +189,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
             if (ctx.params.id) params.entityId = ctx.params.id;
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
-            if ("dumpSql" in ctx.query) params.dumpSql = true;
+            if ("dumpSql" in ctx.query) params.dumpSql = ctx.query.dumpSql;
 
             const method = this.actions[operation].method;
             const result: any = await this[method](params);
@@ -229,16 +239,21 @@ export class EntityRouter<Entity extends AbstractEntity> {
         });
     }
 
-    private applyRouteFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
+    private applyFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
         if (!Object.keys(queryParams).length) {
             return;
         }
+        qb.where("");
 
         this.filters.forEach((filterOptions) => {
             if (filterOptions.queryParamKey && filterOptions.queryParamKey in queryParams) {
                 // TODO
             } else if (filterOptions.usePropertyNamesAsQueryParams) {
-                this.getFilter(filterOptions).apply({ queryParams, qb, aliases });
+                // qb.andWhere(
+                // new Brackets((nestedWhere) =>
+                this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb, aliases });
+                // )
+                // );
             }
         });
     }
@@ -268,7 +283,7 @@ interface IActionParams {
     isUpdateOrCreate?: boolean;
     values?: any;
     queryParams?: any;
-    dumpSql?: Boolean;
+    dumpSql?: string;
 }
 
 interface IRouteResponse {

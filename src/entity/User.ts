@@ -1,5 +1,5 @@
 import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
-import { EntityRoute, Groups, MaxDepth, SearchFilterDecorator as SearchFilter } from "../decorators";
+import { EntityRoute, Groups, SearchFilterDecorator as SearchFilter } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Picture } from "./Picture";
@@ -8,12 +8,13 @@ import { Category } from "./Category";
 
 @SearchFilter([
     "id",
-    "firstName",
+    { firstName: "startsWith" },
+    "lastName",
     "profilePicture.id",
     "profileCategory",
     { "teams.teamName": "startsWith" },
     { "profileCategory.name": "endsWith" },
-    { "profilePicture.title": "partial" },
+    { "profilePicture.title": "contains" },
     "profileCategory.picture.id",
 ])
 @EntityRoute("/users", ["list", "details"])
@@ -44,15 +45,14 @@ export class User extends AbstractEntity {
     memes: Meme[];
 
     @Groups({
-        user: ["list"],
+        user: [],
     })
     @OneToOne(() => Picture)
     @JoinColumn()
     profilePicture: Picture;
 
-    @MaxDepth(1)
     @Groups({
-        user: ["list", "details"],
+        user: ["details"],
     })
     @ManyToMany(() => Team, (team) => team.members)
     teams: Team[];

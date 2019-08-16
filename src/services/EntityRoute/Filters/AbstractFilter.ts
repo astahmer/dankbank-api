@@ -1,4 +1,6 @@
-import { SelectQueryBuilder, EntityMetadata } from "typeorm";
+import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
+import { pick } from "ramda";
+
 import { Normalizer, AliasList } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
@@ -11,6 +13,8 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
         this.config = <IAbstractFilterConfig<FilterOptions>>config;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
+
+        if (!config.whereType) config.whereType = WhereType.AND;
     }
 
     /** Returns every properties of this route entity */
@@ -31,7 +35,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
-    abstract apply({ queryParams, qb, aliases }: FilterApplyParams): void;
+    abstract apply({ queryParams, qb, whereExp, aliases }: FilterApplyParams): void;
 
     /**
      *Add inner joins to get a nested property
@@ -40,7 +44,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
      * @param entityMetadata current meta to search column or relation in
      * @param propPath dot delimited property path leading to a nested property
      * @param currentProp current propPath part used, needed to find column or relation meta
-     * @param prevAlias TODO PREV ALIAS instead of prevProp
+     * @param prevAlias previous alias used to joins on current entity props
      */
     protected makeJoinsFromPropPath(
         qb: SelectQueryBuilder<any>,
@@ -94,26 +98,30 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
         }
     }
 
-    /** Returns true if filter is set for a given property && first part of propPath exists in this entity properties && given value to search for is defined  */
-    protected getPropertiesToFilter(queryParams: Record<string, string>) {
-        const isParamInEntityProps = (param: string) => {
-            return param.indexOf(".") !== -1
-                ? this.entityProperties.indexOf(param.split(".")[0]) !== -1
-                : this.entityProperties.indexOf(param) !== -1;
-        };
+    /** Return true if first part of propPath exists in this entity properties */
+    protected isParamInEntityProps(param: string) {
+        return param.indexOf(".") !== -1
+            ? this.entityProperties.indexOf(param.split(".")[0]) !== -1
+            : this.entityProperties.indexOf(param) !== -1;
+    }
 
+    /** Returns an array of valid query params to filter */
+    protected getPropertiesToFilter(queryParams: QueryParams) {
         return Object.keys(queryParams).reduce((acc, param: string) => {
-            const paramKey = param.replace("[]", "");
-
             if (
-                this.filterProperties.indexOf(paramKey) !== -1 &&
-                isParamInEntityProps(paramKey) &&
+                this.filterProperties.indexOf(param) !== -1 &&
+                this.isParamInEntityProps(param) &&
                 isDefined(queryParams[param])
             ) {
-                acc.push(paramKey);
+                acc.push(param);
             }
             return acc;
         }, []);
+    }
+
+    protected getQueryParamsToFilter(queryParams: QueryParams) {
+        const params = this.getPropertiesToFilter(queryParams);
+        return pick(params, queryParams);
     }
 }
 
@@ -123,18 +131,30 @@ export type AbstractFilterConstructor = {
     normalizer: Normalizer;
 };
 
+export type QueryParamValue = string | string[];
+export type QueryParams = Record<string, QueryParamValue>;
+
 export type FilterApplyParams = {
-    queryParams?: any;
+    queryParams?: QueryParams;
     qb?: SelectQueryBuilder<any>;
+    whereExp: WhereExpression;
     aliases: AliasList;
 };
 
 export type FilterProperty = string | Record<string, string>;
 
+export enum WhereType {
+    AND = "AND",
+    OR = "OR",
+}
+
+export type WhereMethod = "where" | "andWhere" | "orWhere";
+
 export interface IAbstractFilterConfig<Options = Record<string, any>> {
     class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;
+    whereType: keyof typeof WhereType;
     properties: FilterProperty[];
-    usePropertyNamesAsQueryParams?: Boolean;
+    usePropertyNamesAsQueryParams?: boolean;
     queryParamKey?: string;
     options: Options;
 }

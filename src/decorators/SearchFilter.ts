@@ -1,25 +1,21 @@
 import { FilterProperty, IAbstractFilterConfig } from "@/services/EntityRoute/Filters/AbstractFilter";
-import {
-    ISearchFilterOptions,
-    SearchFilter,
-    SearchFilterStrategyTypesList,
-} from "@/services/EntityRoute/Filters/SearchFilter";
+import { ISearchFilterOptions, SearchFilter, WhereStrategy } from "@/services/EntityRoute/Filters/SearchFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
 
-export function SearchFilterDecorator(strategy?: SearchFilterStrategyTypesList): PropertyDecorator;
+export function SearchFilterDecorator(strategy?: WhereStrategy): PropertyDecorator;
 export function SearchFilterDecorator(
     properties: FilterProperty[],
     filterOptions?: ISearchFilterOptions
 ): ClassDecorator;
 export function SearchFilterDecorator(
-    propParamOrFilterProperties?: SearchFilterStrategyTypesList | FilterProperty[],
+    propParamOrFilterProperties?: WhereStrategy | FilterProperty[],
     filterOptions?: ISearchFilterOptions
 ): ClassDecorator | PropertyDecorator {
     const defaultConfig: Partial<IAbstractFilterConfig<ISearchFilterOptions>> = {
         class: SearchFilter,
         usePropertyNamesAsQueryParams: true,
         options: filterOptions || {
-            defaultWhereStrategy: "exact",
+            defaultWhereStrategy: SearchFilter.STRATEGY_TYPES.EXACT,
         },
     };
 
