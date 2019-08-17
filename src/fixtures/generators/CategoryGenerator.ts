@@ -19,6 +19,7 @@ export class CategoryGenerator extends AbstractGenerator<Category> {
         const picture = await new PictureGenerator(this.connection).generate();
         const category = await this.generate({ picture: picture.raw });
 
+        console.log("✔️ CategoryGenerator.generateBundle");
         return category;
     }
 }

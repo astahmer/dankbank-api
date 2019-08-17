@@ -31,6 +31,8 @@ export class TeamGenerator extends AbstractGenerator<Team> {
         const promises = Promise.all([membersPromise]);
 
         await promises;
+
+        console.log("✔️ TeamGenerator.generateBundle");
         return team.raw;
     }
 }

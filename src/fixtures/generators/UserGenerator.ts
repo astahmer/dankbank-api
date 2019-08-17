@@ -55,6 +55,8 @@ export class UserGenerator extends AbstractGenerator<User> {
         const promises = Promise.all([memeRelationsPromises, profileCatPromise]);
 
         await promises;
+
+        console.log("✔️ UserGenerator.generateBundle");
         return user.raw;
     }
 }

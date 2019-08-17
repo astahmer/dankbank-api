@@ -23,7 +23,7 @@ createConnection()
         app.use(bodyParser());
         app.use(logRequest(logger));
 
-        makeFixtures(connection);
+        await makeFixtures(connection);
         useEntitiesRoutes(connection, app, [Category, Meme, Picture, Team, User]);
         useCustomRoute(connection, app);
         useGroupsRoute(connection, app);
@@ -33,5 +33,6 @@ createConnection()
         }
 
         app.listen(3000);
+        console.log("Listening on port 3000");
     })
     .catch((error) => console.log(error));

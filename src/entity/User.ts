@@ -38,6 +38,9 @@ export class User extends AbstractEntity {
     @Column()
     age: number;
 
+    @Column({ default: true })
+    isProfilePublic: boolean;
+
     @Groups({
         user: [],
     })
