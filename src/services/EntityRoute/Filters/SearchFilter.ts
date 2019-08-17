@@ -26,6 +26,7 @@ export interface ISearchFilterOptions extends IDefaultFilterOptions {
 enum STRATEGY_TYPES {
     EXACT = "EXACT",
     IN = "IN",
+    IS = "IS",
     EXISTS = "EXISTS",
     CONTAINS = "CONTAINS",
     STARTS_WITH = "STARTS_WITH",
@@ -73,6 +74,9 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
             case SearchFilter.STRATEGY_TYPES.IN:
                 return ((not ? "NOT " : "") + "IN") as WhereOperator;
 
+            case SearchFilter.STRATEGY_TYPES.IS:
+                return ("IS" + (not ? " NOT" : "")) as WhereOperator;
+
             case SearchFilter.STRATEGY_TYPES.EXISTS:
                 return ("IS" + (not ? " NOT" : "") + " NULL") as WhereOperator;
 
@@ -102,6 +106,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         switch (strategy) {
             case SearchFilter.STRATEGY_TYPES.EXACT:
             case SearchFilter.STRATEGY_TYPES.IN:
+            case SearchFilter.STRATEGY_TYPES.IS:
             case SearchFilter.STRATEGY_TYPES.LESS_THAN:
             case SearchFilter.STRATEGY_TYPES.LESS_THAN_OR_EQUAL:
             case SearchFilter.STRATEGY_TYPES.GREATER_THAN:
@@ -153,9 +158,13 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }) {
         const paramName = propCount ? propName + "_" + propCount : propName;
 
-        if (SearchFilter.STRATEGY_TYPES.EXISTS === strategy && typeof value === "string") {
+        if (typeof value === "string") {
             const valueAsBool = parseStringAsBoolean(value);
-            not = not ? !valueAsBool : valueAsBool;
+            if (SearchFilter.STRATEGY_TYPES.EXISTS === strategy) {
+                not = not ? !valueAsBool : valueAsBool;
+            } else if (SearchFilter.STRATEGY_TYPES.IS === strategy) {
+                value = not ? !valueAsBool : valueAsBool;
+            }
         }
 
         const whereOperator = this.getWhereOperatorByStrategy(strategy, not);
@@ -183,13 +192,13 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         if (Array.isArray(filter.value) && filter.strategy !== SearchFilter.STRATEGY_TYPES.IN) {
             whereExp[mainMethod](
                 new Brackets((qb) => {
-                    for (let i = 0; i < filter.value.length; i++) {
+                    for (let i = 0; i < (filter.value as string[]).length; i++) {
                         const { whereCondition, whereParam } = this.getWhereArgs({
                             strategy: filter.strategy,
                             not: filter.not,
                             entityPrefix,
                             propName,
-                            value: filter.value[i],
+                            value: (filter.value as string[])[i],
                             propCount: i,
                         });
 
@@ -233,12 +242,13 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
             const nestedCondition = typeRaw ? nestedConditionRaw.slice(0, -typeRaw.length) : nestedConditionRaw;
 
             // If query param value is a string and contains comma-separated values, make an array from it
-            const value = !Array.isArray(rawValue)
-                ? rawValue
-                      .split(",")
-                      .map((val) => val.trim())
-                      .filter(Boolean)
-                : rawValue;
+            const value =
+                typeof rawValue === "string"
+                    ? rawValue
+                          .split(",")
+                          .map((val) => val.trim())
+                          .filter(Boolean)
+                    : rawValue;
 
             return {
                 type,

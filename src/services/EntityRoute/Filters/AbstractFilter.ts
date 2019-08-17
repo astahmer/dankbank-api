@@ -143,7 +143,7 @@ export type AbstractFilterConstructor = {
     normalizer: Normalizer;
 };
 
-export type QueryParamValue = string | string[];
+export type QueryParamValue = string | string[] | boolean;
 export type QueryParams = Record<string, QueryParamValue>;
 
 export type AbstractFilterApplyArgs = {
@@ -161,6 +161,20 @@ export enum WhereType {
 }
 
 export type WhereMethod = "where" | "andWhere" | "orWhere";
+// TODO make an enum out of this list and use it in SearchFilter whereByStrategy methods ?
+export type WhereOperator =
+    | "="
+    | "!="
+    | "LIKE"
+    | "NOT LIKE"
+    | "IN"
+    | "NOT IN"
+    | "IS"
+    | "IS NOT"
+    | "<"
+    | "<="
+    | ">"
+    | ">=";
 
 export interface IDefaultFilterOptions {
     [key: string]: any;
