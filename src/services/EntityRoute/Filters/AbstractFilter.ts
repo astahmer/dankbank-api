@@ -38,7 +38,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
     abstract apply({ queryParams, qb, whereExp, aliases }: AbstractFilterApplyArgs): void;
 
     /**
-     *Add inner joins to get a nested property
+     *Add left joins to get a nested property
 
      * @param qb current queryBuilder instance
      * @param entityMetadata current meta to search column or relation in
@@ -81,7 +81,7 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
                     relation.entityMetadata.tableName,
                     relation.propertyName
                 );
-                qb.innerJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
+                qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
             }
 
             const splitPath = propPath.split(".");

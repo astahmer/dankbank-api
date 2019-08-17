@@ -14,6 +14,7 @@ import {
     camelToSnake,
     setNestedKey,
     sortObjectByKeys,
+    parseStringAsBoolean,
 } from "../utils";
 import { sortBy, prop, path } from "ramda";
 
@@ -24,6 +25,7 @@ export interface ISearchFilterOptions {
 enum STRATEGY_TYPES {
     EXACT = "EXACT",
     IN = "IN",
+    EXISTS = "EXISTS",
     CONTAINS = "CONTAINS",
     STARTS_WITH = "STARTS_WITH",
     ENDS_WITH = "ENDS_WITH",
@@ -65,6 +67,9 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
             case SearchFilter.STRATEGY_TYPES.IN:
                 return ((not ? "NOT " : "") + "IN") as WhereOperator;
 
+            case SearchFilter.STRATEGY_TYPES.EXISTS:
+                return ("IS" + (not ? " NOT" : "") + " NULL") as WhereOperator;
+
             case SearchFilter.STRATEGY_TYPES.CONTAINS:
             case SearchFilter.STRATEGY_TYPES.STARTS_WITH:
             case SearchFilter.STRATEGY_TYPES.ENDS_WITH:
@@ -97,6 +102,9 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
             case SearchFilter.STRATEGY_TYPES.GREATER_THAN_OR_EQUAL:
                 return { [propName]: value };
 
+            case SearchFilter.STRATEGY_TYPES.EXISTS:
+                return {};
+
             case SearchFilter.STRATEGY_TYPES.CONTAINS:
                 return { [propName]: "%" + value + "%" };
 
@@ -108,6 +116,16 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
 
             default:
                 throw new Error(strategy + " is not a a valid filter strategy");
+        }
+    }
+
+    protected getWhereParamSlotByStrategy(strategy: WhereStrategy, paramName: string) {
+        if (strategy === SearchFilter.STRATEGY_TYPES.IN) {
+            return `(:...${paramName})`;
+        } else if (strategy === SearchFilter.STRATEGY_TYPES.EXISTS) {
+            return "";
+        } else {
+            `:${paramName}`;
         }
     }
 
@@ -128,8 +146,14 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         not: boolean;
     }) {
         const paramName = propCount ? propName + "_" + propCount : propName;
+
+        if (SearchFilter.STRATEGY_TYPES.EXISTS === strategy && typeof value === "string") {
+            const valueAsBool = parseStringAsBoolean(value);
+            not = not ? !valueAsBool : valueAsBool;
+        }
+
         const whereOperator = this.getWhereOperatorByStrategy(strategy, not);
-        const whereParamSlot = strategy === SearchFilter.STRATEGY_TYPES.IN ? `(:...${paramName})` : `:${paramName}`;
+        const whereParamSlot = this.getWhereParamSlotByStrategy(strategy, paramName);
         const whereParam = this.getWhereParamByStrategy(strategy, paramName, value);
 
         const whereCondition = `${entityPrefix}.${propName} ${whereOperator} ${whereParamSlot}`;

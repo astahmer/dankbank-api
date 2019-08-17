@@ -73,3 +73,15 @@ export function recursiveBrowse(object: Record<string, any>, propHook: PropertyH
         }
     }
 }
+
+export const truthyRegex = /^(true|1)$/i;
+export const falsyRegex = /^(false|0)$/i;
+export function parseStringAsBoolean(str: string) {
+    if (truthyRegex.test(str)) {
+        return true;
+    } else if (falsyRegex.test(str)) {
+        return false;
+    }
+
+    return null;
+}
