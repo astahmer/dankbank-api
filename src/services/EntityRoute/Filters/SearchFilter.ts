@@ -6,6 +6,7 @@ import {
     WhereMethod,
     QueryParams,
     WhereOperator,
+    IDefaultFilterOptions,
 } from "./AbstractFilter";
 import { Brackets, WhereExpression } from "typeorm";
 import {
@@ -18,7 +19,7 @@ import {
 } from "../utils";
 import { sortBy, prop, path } from "ramda";
 
-export interface ISearchFilterOptions {
+export interface ISearchFilterOptions extends IDefaultFilterOptions {
     defaultWhereStrategy?: WhereStrategy;
 }
 
@@ -45,6 +46,11 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
 
     /** Retrieve a property default where strategy from its propName/propPath */
     protected getPropertyDefaultWhereStrategy(propPath: string) {
+        // If all entity props are authorized as filters, return default where strategy
+        if (this.config.options.all) {
+            return this.config.options.defaultWhereStrategy || SearchFilter.STRATEGY_TYPES.EXACT;
+        }
+
         const propFilter = this.config.properties.find((propFilter) =>
             typeof propFilter === "string" ? propFilter === propPath : getObjectFirstKey(propFilter) === propPath
         );
@@ -125,7 +131,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         } else if (strategy === SearchFilter.STRATEGY_TYPES.EXISTS) {
             return "";
         } else {
-            `:${paramName}`;
+            return `:${paramName}`;
         }
     }
 
@@ -214,11 +220,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         }
 
         const [, nestedConditionRaw, typeRaw, propPath, strategyRaw, not] = matches;
-        if (
-            this.filterProperties.indexOf(propPath) !== -1 &&
-            this.isParamInEntityProps(propPath) &&
-            isDefined(rawValue)
-        ) {
+        if (this.isFilterEnabledForProperty(propPath) && this.isParamInEntityProps(propPath) && isDefined(rawValue)) {
             const isNestedConditionFilter = nestedConditionRaw !== typeRaw;
             // Use type/strategy from key or defaults
             const type = typeRaw ? (typeRaw.toUpperCase() as WhereType) : WhereType.AND;

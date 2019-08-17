@@ -9,7 +9,7 @@ export function AbstractFilterDecorator({
     defaultConfig: Partial<IAbstractFilterConfig>;
     propParamOrFilterProperties: any | FilterProperty[];
     propFilterHook?: (propName: string, filterConfig?: any) => FilterProperty;
-}) {
+}): PropertyDecorator | ClassDecorator {
     return (target: object | Function, propName: string, _descriptor?: PropertyDescriptor) => {
         if (typeof target === "object") {
             target = target.constructor;
@@ -18,7 +18,12 @@ export function AbstractFilterDecorator({
         const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(target as Function) || {};
         const filter: IAbstractFilterConfig = filtersMeta[defaultConfig.class.name];
 
-        if (!Array.isArray(propParamOrFilterProperties)) {
+        // If all entity properties are authorized as filter, ignore this decorator
+        if (filter && filter.options.all) {
+            return;
+        }
+
+        if (propName) {
             // Property Decorator
             const propFilter = propFilterHook(propName, filter || defaultConfig);
 

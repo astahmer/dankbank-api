@@ -6,17 +6,7 @@ import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
 
-@SearchFilter([
-    "id",
-    { firstName: "startsWith" },
-    "lastName",
-    "profilePicture.id",
-    "profileCategory",
-    { "teams.teamName": "startsWith" },
-    { "profileCategory.name": "endsWith" },
-    { "profilePicture.title": "contains" },
-    "profileCategory.picture.id",
-])
+@SearchFilter(["profileCategory.id"], { all: true })
 @EntityRoute("/users", ["list", "details"])
 @Entity()
 export class User extends AbstractEntity {

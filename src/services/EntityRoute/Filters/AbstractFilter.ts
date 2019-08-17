@@ -4,13 +4,13 @@ import { pick } from "ramda";
 import { Normalizer, AliasList } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
-export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
+export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;
     protected entityMetadata: EntityMetadata;
     protected normalizer: Normalizer;
 
     constructor({ config, entityMetadata, normalizer }: AbstractFilterConstructor) {
-        this.config = <IAbstractFilterConfig<FilterOptions>>config;
+        this.config = config as IAbstractFilterConfig<FilterOptions>;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
 
@@ -105,11 +105,23 @@ export abstract class AbstractFilter<FilterOptions = Record<string, any>> {
             : this.entityProperties.indexOf(param) !== -1;
     }
 
+    /**
+     * Returns true if given propPath filter is enabled or property was decorated
+     * Nested properties using a path require being explicitly passed in properties array of @SearchFilter ClassDecorator
+     */
+    protected isFilterEnabledForProperty(propPath: string) {
+        if (this.config.options.all && propPath.split(".").length === 1) {
+            return true;
+        } else {
+            return this.filterProperties.indexOf(propPath) !== -1;
+        }
+    }
+
     /** Returns an array of valid query params to filter */
     protected getPropertiesToFilter(queryParams: QueryParams) {
         return Object.keys(queryParams).reduce((acc, param: string) => {
             if (
-                this.filterProperties.indexOf(param) !== -1 &&
+                this.isFilterEnabledForProperty(param) &&
                 this.isParamInEntityProps(param) &&
                 isDefined(queryParams[param])
             ) {
@@ -149,9 +161,13 @@ export enum WhereType {
 }
 
 export type WhereMethod = "where" | "andWhere" | "orWhere";
-export type WhereOperator = "=" | "!=" | "LIKE" | "NOT LIKE" | "IN" | "NOT IN" | "<" | "<=" | ">" | ">=";
 
-export interface IAbstractFilterConfig<Options = Record<string, any>> {
+export interface IDefaultFilterOptions {
+    [key: string]: any;
+    all: boolean;
+}
+
+export interface IAbstractFilterConfig<Options = IDefaultFilterOptions> {
     class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;
     whereType: keyof typeof WhereType;
     properties: FilterProperty[];

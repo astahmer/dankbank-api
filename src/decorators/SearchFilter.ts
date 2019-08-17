@@ -15,10 +15,12 @@ export function SearchFilterDecorator(
         class: SearchFilter,
         usePropertyNamesAsQueryParams: true,
         options: filterOptions || {
+            all: false,
             defaultWhereStrategy: SearchFilter.STRATEGY_TYPES.EXACT,
         },
     };
 
+    // Property Decorator
     const propFilterHook = (propName: string, filterConfig: IAbstractFilterConfig) => {
         return { [propName]: propParamOrFilterProperties || filterConfig.options.defaultWhereStrategy };
     };
