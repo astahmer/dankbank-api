@@ -22,10 +22,10 @@ import { sortBy, prop, path } from "ramda";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 export interface ISearchFilterOptions extends IDefaultFilterOptions {
-    defaultWhereStrategy?: WhereStrategy;
+    defaultWhereStrategy?: STRATEGY_TYPES;
 }
 
-enum STRATEGY_TYPES {
+export enum STRATEGY_TYPES {
     EXACT = "EXACT",
     IN = "IN",
     IS = "IS",
@@ -33,12 +33,18 @@ enum STRATEGY_TYPES {
     CONTAINS = "CONTAINS",
     STARTS_WITH = "STARTS_WITH",
     ENDS_WITH = "ENDS_WITH",
+    BETWEEN = "BETWEEN",
+    BETWEEN_STRICT = "BETWEEN_STRICT",
     LESS_THAN = "LESS_THAN",
     LESS_THAN_OR_EQUAL = "LESS_THAN_OR_EQUAL",
     GREATER_THAN = "GREATER_THAN",
     GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL",
 }
-export type WhereStrategy = keyof typeof STRATEGY_TYPES;
+
+const complexFilterRegex = /(?:((?:(?:(and|or)|(?:\(\w+\))))*):)?/;
+const propRegex = /((?:(?:\w)+\.?)+)/;
+const strategyRegex = /(?:(?:(?:;(\w+))|(<>|><|<\||>\||<|>|)?))?(!?)/;
+const queryParamRegex = new RegExp(complexFilterRegex.source + propRegex.source + strategyRegex.source, "i");
 
 /**
  * Add a/multiple where clause on any (deep?) properties of the decorated entity
@@ -65,10 +71,10 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
 
     /** Returns where strategy formatted as a valid keyof STRATEGY_TYPES */
     protected formatWhereStrategy(strategyRaw: string) {
-        return camelToSnake(strategyRaw).toUpperCase() as WhereStrategy;
+        return camelToSnake(strategyRaw).toUpperCase() as STRATEGY_TYPES;
     }
 
-    protected getWhereOperatorByStrategy(strategy: WhereStrategy, not: boolean): WhereOperator {
+    protected getWhereOperatorByStrategy(strategy: STRATEGY_TYPES, not: boolean, propCount: number): WhereOperator {
         let operator;
         switch (strategy) {
             default:
@@ -94,27 +100,35 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                 operator = (not ? "NOT " : "") + "LIKE";
                 break;
 
+            case STRATEGY_TYPES.BETWEEN_STRICT:
+                if (propCount === 0) {
+                    operator = !not ? ">" : "<=";
+                } else {
+                    operator = !not ? "<" : ">=";
+                }
+                break;
+
             case STRATEGY_TYPES.LESS_THAN:
-                operator = "<";
+                operator = !not ? "<" : ">=";
                 break;
 
             case STRATEGY_TYPES.LESS_THAN_OR_EQUAL:
-                operator = "<=";
+                operator = !not ? "<=" : ">";
                 break;
 
             case STRATEGY_TYPES.GREATER_THAN:
-                operator = ">";
+                operator = !not ? ">" : "<=";
                 break;
 
             case STRATEGY_TYPES.GREATER_THAN_OR_EQUAL:
-                operator = ">=";
+                operator = !not ? ">=" : "<";
                 break;
         }
 
         return operator as WhereOperator;
     }
 
-    protected getWhereParamByStrategy(strategy: WhereStrategy, propName: string, value: string | boolean | Date) {
+    protected getWhereParamByStrategy(strategy: STRATEGY_TYPES, propName: string, value: string | boolean | Date) {
         switch (strategy) {
             default:
                 return { [propName]: value };
@@ -133,7 +147,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         }
     }
 
-    protected getWhereParamSlotByStrategy(strategy: WhereStrategy, paramName: string) {
+    protected getWhereParamSlotByStrategy(strategy: STRATEGY_TYPES, paramName: string) {
         if (strategy === STRATEGY_TYPES.IN) {
             return `(:...${paramName})`;
         } else if (strategy === STRATEGY_TYPES.EXISTS) {
@@ -144,7 +158,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }
 
     protected getWhereParamValueByStrategy(
-        strategy: WhereStrategy,
+        strategy: STRATEGY_TYPES,
         column: ColumnMetadata,
         value: string,
         not?: boolean
@@ -168,6 +182,12 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     /** Get the associated strategy of a comparison operator */
     protected getWhereStrategyByComparison(comparison: COMPARISON_OPERATOR) {
         switch (comparison) {
+            case COMPARISON_OPERATOR.BETWEEN:
+                return STRATEGY_TYPES.BETWEEN;
+
+            case COMPARISON_OPERATOR.BETWEEN_STRICT:
+                return STRATEGY_TYPES.BETWEEN_STRICT;
+
             case COMPARISON_OPERATOR.LESS_THAN:
                 return STRATEGY_TYPES.LESS_THAN;
 
@@ -192,7 +212,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         not,
         column,
     }: {
-        strategy: WhereStrategy;
+        strategy: STRATEGY_TYPES;
         entityAlias: string;
         propName: string;
         rawValue: string;
@@ -204,15 +224,26 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         const value = this.getWhereParamValueByStrategy(strategy, column, rawValue);
 
         if (STRATEGY_TYPES.EXISTS === strategy) {
+            // use not (if given) to reverse query param value
             not = not ? !parseStringAsBoolean(rawValue) : parseStringAsBoolean(rawValue);
         }
 
-        const whereOperator = this.getWhereOperatorByStrategy(strategy, not);
-        const whereParamSlot = this.getWhereParamSlotByStrategy(strategy, paramName);
-        const whereParam = this.getWhereParamByStrategy(strategy, paramName, value);
+        if (STRATEGY_TYPES.BETWEEN !== strategy) {
+            const whereOperator = this.getWhereOperatorByStrategy(strategy, not, propCount);
+            const whereParamSlot = this.getWhereParamSlotByStrategy(strategy, paramName);
+            const whereParam = this.getWhereParamByStrategy(strategy, paramName, value);
 
-        const whereCondition = `${entityAlias}.${propName} ${whereOperator} ${whereParamSlot}`;
-        return { whereOperator, whereCondition, whereParam };
+            const whereCondition = `${entityAlias}.${propName} ${whereOperator} ${whereParamSlot}`;
+            return { whereOperator, whereCondition, whereParam };
+        } else {
+            // Quite specific case for BETWEEN strategy
+            const whereOperator = (not ? "NOT " : "") + "BETWEEN";
+            const whereParamSlot = `:${paramName + "_1"} AND :${paramName + "_2"}`;
+            const whereParam = { [paramName + "_1"]: rawValue[0], [paramName + "_2"]: rawValue[1] };
+
+            const whereCondition = `${entityAlias}.${propName} ${whereOperator} ${whereParamSlot}`;
+            return { whereOperator, whereCondition, whereParam };
+        }
     }
 
     /** Add where condition by a given strategy type  */
@@ -231,7 +262,12 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }) {
         const mainMethod = (filter.type.toLowerCase() + "Where") as WhereMethod;
 
-        if (Array.isArray(filter.value) && filter.strategy !== STRATEGY_TYPES.IN) {
+        // Both IN and BETWEEN strategies use an array as value in a single condition
+        if (
+            Array.isArray(filter.value) &&
+            STRATEGY_TYPES.IN !== filter.strategy &&
+            STRATEGY_TYPES.BETWEEN !== filter.strategy
+        ) {
             whereExp[mainMethod](
                 new Brackets((qb) => {
                     for (let i = 0; i < filter.value.length; i++) {
@@ -245,8 +281,14 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                             column,
                         });
 
-                        // When a queryParam value is an array, check if any element pass the condition
-                        qb.orWhere(whereCondition, whereParam);
+                        let nestedMethod;
+                        if (!filter.not) {
+                            nestedMethod = STRATEGY_TYPES.BETWEEN_STRICT !== filter.strategy ? "orWhere" : "andWhere";
+                        } else {
+                            nestedMethod = STRATEGY_TYPES.BETWEEN_STRICT !== filter.strategy ? "andWhere" : "orWhere";
+                        }
+
+                        qb[nestedMethod as WhereMethod](whereCondition, whereParam);
                     }
                 })
             );
@@ -268,19 +310,19 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         strategyRaw: string,
         propPath: string,
         comparison: COMPARISON_OPERATOR
-    ): WhereStrategy {
-        let strategyIdentifier: WhereStrategy;
+    ): STRATEGY_TYPES {
+        let strategyIdentifier: STRATEGY_TYPES;
         if (strategyRaw) {
-            if (STRATEGY_TYPES[strategyRaw as WhereStrategy]) {
+            if (STRATEGY_TYPES[strategyRaw as STRATEGY_TYPES]) {
                 // Valid identifier was directly used in queryParamKey
-                return strategyRaw as WhereStrategy;
+                return strategyRaw as STRATEGY_TYPES;
             } else {
                 // Format strategy to a proper strategy identifier
                 strategyIdentifier = this.formatWhereStrategy(strategyRaw);
 
                 // Check that strategy identifier is a valid one
-                if (STRATEGY_TYPES[strategyIdentifier as WhereStrategy]) {
-                    return strategyIdentifier as WhereStrategy;
+                if (STRATEGY_TYPES[strategyIdentifier as STRATEGY_TYPES]) {
+                    return strategyIdentifier as STRATEGY_TYPES;
                 }
             }
         } else if (comparison) {
@@ -294,12 +336,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
 
     /** Returns a FilterParam from splitting a string query param key */
     protected getFilterParam(key: string, rawValue: QueryParamValue): FilterParam {
-        const complexFilterRegex = /(?:((?:(?:(and|or)|(?:\(\w+\))))*):)?/;
-        const propRegex = /((?:(?:\w)+\.?)+)/;
-        const strategyRegex = /(?:(?:(?:;(\w+))|(<=|>=|<|>|)?))?(!?)/;
-
-        const regex = new RegExp(complexFilterRegex.source + propRegex.source + strategyRegex.source, "i");
-        const matches = key.match(regex);
+        const matches = key.match(queryParamRegex);
 
         if (!matches) {
             return;
@@ -334,32 +371,6 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                 value,
                 comparison: comparison as COMPARISON_OPERATOR,
             };
-        }
-    }
-
-    /**
-     * Fix query params with "<=" or ">=" in key
-     * Koa transforms them into a queryParam with a wrong key and an array of duplicated value
-     * {
-     *      ...,
-     *      "queryParamKey<": [
-     *          ""=queryParamValue",
-     *          ""=queryParamValue"
-     *      ]
-     * }
-     * instead of { ..., "queryParamKey<=": queryParamValue }
-     *
-     * Note how the "=" should be in the key instead of value
-     */
-    protected fixQueryParamsWithComparisonEquals(queryParams: QueryParams) {
-        const comparisonOperators = Object.values(COMPARISON_OPERATOR);
-        let key, value;
-        for (key in queryParams) {
-            if (comparisonOperators.includes(key.slice(-1)) && Array.isArray(queryParams[key])) {
-                value = queryParams[key];
-                delete queryParams[key];
-                queryParams[key + "="] = value[0].slice(1);
-            }
         }
     }
 
@@ -500,7 +511,6 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }
 
     apply({ queryParams, qb, whereExp, aliases }: AbstractFilterApplyArgs) {
-        this.fixQueryParamsWithComparisonEquals(queryParams);
         const { filters, nestedConditionsFilters } = this.getFiltersLists(queryParams);
 
         filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, aliases, filter }));
@@ -516,7 +526,7 @@ export type FilterParam = {
     isNestedConditionFilter: boolean;
     nestedCondition?: string;
     propPath: string;
-    strategy: WhereStrategy;
+    strategy: STRATEGY_TYPES;
     not: boolean;
     value: QueryParamValue;
     comparison: COMPARISON_OPERATOR;

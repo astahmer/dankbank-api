@@ -1,14 +1,14 @@
 import { FilterProperty, IAbstractFilterConfig } from "@/services/EntityRoute/Filters/AbstractFilter";
-import { ISearchFilterOptions, SearchFilter, WhereStrategy } from "@/services/EntityRoute/Filters/SearchFilter";
+import { ISearchFilterOptions, SearchFilter, STRATEGY_TYPES } from "@/services/EntityRoute/Filters/SearchFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
 
-export function SearchFilterDecorator(strategy?: WhereStrategy): PropertyDecorator;
+export function SearchFilterDecorator(strategy?: STRATEGY_TYPES): PropertyDecorator;
 export function SearchFilterDecorator(
     properties: FilterProperty[],
     filterOptions?: ISearchFilterOptions
 ): ClassDecorator;
 export function SearchFilterDecorator(
-    propParamOrFilterProperties?: WhereStrategy | FilterProperty[],
+    propParamOrFilterProperties?: STRATEGY_TYPES | FilterProperty[],
     filterOptions?: ISearchFilterOptions
 ): ClassDecorator | PropertyDecorator {
     const defaultConfig: Partial<IAbstractFilterConfig<ISearchFilterOptions>> = {

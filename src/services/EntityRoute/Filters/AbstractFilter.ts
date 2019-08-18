@@ -163,10 +163,12 @@ export enum WhereType {
 
 export type WhereMethod = "where" | "andWhere" | "orWhere";
 export enum COMPARISON_OPERATOR {
+    BETWEEN = "<>",
+    BETWEEN_STRICT = "><",
     LESS_THAN = "<",
-    LESS_THAN_OR_EQUAL = "<=",
+    LESS_THAN_OR_EQUAL = "<|",
     GREATER_THAN = ">",
-    GREATER_THAN_OR_EQUAL = ">=",
+    GREATER_THAN_OR_EQUAL = ">|",
 }
 
 export enum SQL_OPERATOR {
