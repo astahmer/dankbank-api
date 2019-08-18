@@ -60,8 +60,9 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         // Flat primitive property
         if (column && !relation) {
             return {
-                entityPrefix: prevAlias,
+                entityAlias: prevAlias,
                 propName: column.databaseName,
+                columnMeta: column,
             };
         } else {
             // Relation
@@ -143,7 +144,7 @@ export type AbstractFilterConstructor = {
     normalizer: Normalizer;
 };
 
-export type QueryParamValue = string | string[] | boolean;
+export type QueryParamValue = string | string[];
 export type QueryParams = Record<string, QueryParamValue>;
 
 export type AbstractFilterApplyArgs = {
@@ -156,25 +157,30 @@ export type AbstractFilterApplyArgs = {
 export type FilterProperty = string | Record<string, string>;
 
 export enum WhereType {
-    AND = "AND",
-    OR = "OR",
+    AND = "and",
+    OR = "or",
 }
 
 export type WhereMethod = "where" | "andWhere" | "orWhere";
-// TODO make an enum out of this list and use it in SearchFilter whereByStrategy methods ?
-export type WhereOperator =
-    | "="
-    | "!="
-    | "LIKE"
-    | "NOT LIKE"
-    | "IN"
-    | "NOT IN"
-    | "IS"
-    | "IS NOT"
-    | "<"
-    | "<="
-    | ">"
-    | ">=";
+export enum COMPARISON_OPERATOR {
+    LESS_THAN = "<",
+    LESS_THAN_OR_EQUAL = "<=",
+    GREATER_THAN = ">",
+    GREATER_THAN_OR_EQUAL = ">=",
+}
+
+export enum SQL_OPERATOR {
+    LIKE = "LIKE",
+    NOT_LIKE = "NOT LIKE",
+    IN = "IN",
+    NOT_IN = "NOT IN",
+    IS = "IS",
+    IS_NOT = "IS_NOT",
+    IS_NULL = "IS NULL",
+    IS_NOT_NULL = "IS NOT NULL",
+}
+
+export type WhereOperator = "=" | "!=" | COMPARISON_OPERATOR | SQL_OPERATOR;
 
 export interface IDefaultFilterOptions {
     [key: string]: any;
@@ -183,7 +189,7 @@ export interface IDefaultFilterOptions {
 
 export interface IAbstractFilterConfig<Options = IDefaultFilterOptions> {
     class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;
-    whereType: keyof typeof WhereType;
+    whereType: WhereType;
     properties: FilterProperty[];
     usePropertyNamesAsQueryParams?: boolean;
     queryParamKey?: string;
