@@ -46,6 +46,11 @@ const propRegex = /((?:(?:\w)+\.?)+)/;
 const strategyRegex = /(?:(?:(?:;(\w+))|(<>|><|<\||>\||<|>|)?))?(!?)/;
 const queryParamRegex = new RegExp(complexFilterRegex.source + propRegex.source + strategyRegex.source, "i");
 
+enum DAY {
+    START = "00:00:00",
+    END = "23:59:59",
+}
+
 /**
  * Add a/multiple where clause on any (deep?) properties of the decorated entity
  */
@@ -161,15 +166,37 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         strategy: STRATEGY_TYPES,
         column: ColumnMetadata,
         value: string,
-        not?: boolean
+        not: boolean,
+        propCount: number
     ) {
         // If property is a datetime and the searched value only contains Date (=without time)
         if (column.type === "datetime" && value.indexOf(":") === -1) {
             // add start/end of day with time
-            if (STRATEGY_TYPES.LESS_THAN_OR_EQUAL === strategy || STRATEGY_TYPES.GREATER_THAN === strategy) {
-                return value + " 23:59:59";
-            } else if (STRATEGY_TYPES.GREATER_THAN_OR_EQUAL === strategy || STRATEGY_TYPES.LESS_THAN === strategy) {
-                return value + " 00:00:00";
+            switch (strategy) {
+                case STRATEGY_TYPES.LESS_THAN_OR_EQUAL:
+                case STRATEGY_TYPES.GREATER_THAN:
+                    return value + " " + DAY.END;
+
+                case STRATEGY_TYPES.GREATER_THAN_OR_EQUAL:
+                case STRATEGY_TYPES.LESS_THAN:
+                    return value + " " + DAY.START;
+
+                case STRATEGY_TYPES.BETWEEN:
+                    if (Array.isArray(value)) {
+                        value[0] = value[0] + " " + (!not ? DAY.END : DAY.START);
+                        value[1] = value[1] + " " + (!not ? DAY.START : DAY.END);
+                    }
+                    return value;
+
+                case STRATEGY_TYPES.BETWEEN_STRICT:
+                    if (propCount === 0) {
+                        return value + " " + (!not ? DAY.END : DAY.START);
+                    } else {
+                        return value + " " + (!not ? DAY.START : DAY.END);
+                    }
+
+                default:
+                    break;
             }
         } else if (typeof column.type === "function" && column.type.name === "Boolean") {
             // Returns string converted to boolean (inversed by not operator)
@@ -221,7 +248,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         column: ColumnMetadata;
     }) {
         const paramName = propCount ? propName + "_" + propCount : propName;
-        const value = this.getWhereParamValueByStrategy(strategy, column, rawValue);
+        const value = this.getWhereParamValueByStrategy(strategy, column, rawValue, not, propCount);
 
         if (STRATEGY_TYPES.EXISTS === strategy) {
             // use not (if given) to reverse query param value
