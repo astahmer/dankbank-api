@@ -103,7 +103,7 @@ export class Normalizer {
                 item[key as keyof Entity] = prop.map((nestedItem) =>
                     this.recursiveBrowseItem(nestedItem, operation)
                 ) as any;
-            } else if (prop instanceof Object && "id" in prop) {
+            } else if (prop.constructor.prototype instanceof AbstractEntity) {
                 item[key as keyof Entity] = this.recursiveBrowseItem(prop as any, operation);
             } else if (isPrimitive(prop)) {
                 // console.log(key + " : " + prop);
@@ -112,7 +112,12 @@ export class Normalizer {
             }
         }
 
-        if (this.options.shouldEntityWithOnlyIdBeFlattenedToIri && Object.keys(item).length === 1 && "id" in item) {
+        if (
+            this.options.shouldEntityWithOnlyIdBeFlattenedToIri &&
+            item.constructor.prototype instanceof AbstractEntity &&
+            Object.keys(item).length === 1 &&
+            "id" in item
+        ) {
             item = item.getIri() as any;
             return item;
         } else {
