@@ -1,11 +1,12 @@
 import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
-import { EntityRoute, Groups, SearchFilterDecorator as SearchFilter } from "../decorators";
+import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
 
+@PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
 @EntityRoute("/users", ["list", "details"])
 @Entity()

@@ -6,7 +6,7 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer, AliasList } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
-import { AbstractFilter, IAbstractFilterConfig } from "./Filters/AbstractFilter";
+import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -203,6 +203,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
 
             if (operation === "list") {
                 response["@context"].totalItems = result.totalItems;
+                response["@context"].retrievedItems = result.items.length;
                 response.items = result.items;
             } else {
                 response = { ...response, ...result.item };
@@ -239,22 +240,13 @@ export class EntityRouter<Entity extends AbstractEntity> {
         });
     }
 
-    private applyFilters(queryParams: any, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
+    private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
         if (!Object.keys(queryParams).length) {
             return;
         }
-        qb.where("");
 
         this.filters.forEach((filterOptions) => {
-            if (filterOptions.queryParamKey && filterOptions.queryParamKey in queryParams) {
-                // TODO
-            } else if (filterOptions.usePropertyNamesAsQueryParams) {
-                // qb.andWhere(
-                // new Brackets((nestedWhere) =>
-                this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb, aliases });
-                // )
-                // );
-            }
+            this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb, aliases });
         });
     }
 }
@@ -291,6 +283,7 @@ interface IRouteResponse {
         operation: string;
         entity: string;
         totalItems?: number;
+        retrievedItems?: number;
         sql?: string;
     };
     items?: any[];

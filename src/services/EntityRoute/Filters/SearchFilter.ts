@@ -8,6 +8,7 @@ import {
     WhereOperator,
     IDefaultFilterOptions,
     COMPARISON_OPERATOR,
+    FilterDefaultConfig,
 } from "./AbstractFilter";
 import { Brackets, WhereExpression } from "typeorm";
 import {
@@ -40,6 +41,11 @@ export enum STRATEGY_TYPES {
     GREATER_THAN = "GREATER_THAN",
     GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL",
 }
+
+export const getDefaultConfig = (options: ISearchFilterOptions): FilterDefaultConfig<ISearchFilterOptions> => ({
+    class: SearchFilter,
+    options: options || { all: false, defaultWhereStrategy: SearchFilter.STRATEGY_TYPES.EXACT },
+});
 
 const complexFilterRegex = /(?:((?:(?:(and|or)|(?:\(\w+\))))*):)?/;
 const propRegex = /((?:(?:\w)+\.?)+)/;

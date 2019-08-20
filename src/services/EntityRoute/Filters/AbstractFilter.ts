@@ -13,8 +13,6 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         this.config = config as IAbstractFilterConfig<FilterOptions>;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
-
-        if (!config.whereType) config.whereType = WhereType.AND;
     }
 
     /** Returns every properties of this route entity */
@@ -132,7 +130,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         }, []);
     }
 
-    protected getQueryParamsToFilter(queryParams: QueryParams) {
+    protected getPropertiesQueryParamsToFilter(queryParams: QueryParams) {
         const params = this.getPropertiesToFilter(queryParams);
         return pick(params, queryParams);
     }
@@ -191,9 +189,8 @@ export interface IDefaultFilterOptions {
 
 export interface IAbstractFilterConfig<Options = IDefaultFilterOptions> {
     class: new ({ entityMetadata, config }: AbstractFilterConstructor) => any;
-    whereType: WhereType;
     properties: FilterProperty[];
-    usePropertyNamesAsQueryParams?: boolean;
-    queryParamKey?: string;
     options: Options;
 }
+
+export type FilterDefaultConfig<Options = IDefaultFilterOptions> = Omit<IAbstractFilterConfig<Options>, "properties">;
