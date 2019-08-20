@@ -8,7 +8,16 @@
         "prod": "tsc && node ./build/app.js",
         "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/index.ts",
         "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run",
-        "prettier": "prettier --write \"./{src,tests}/**/*.ts\""
+        "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -n Yes",
+        "prettier": "prettier --write \"./{src,tests}/**/*.ts\"",
+        "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+        "typeorm:generate": "npm run typeorm -- migration:generate -n",
+        "t:mg": "npm run typeorm -- migration:generate -n",
+        "typeorm:run": "npm run typeorm -- migration:run",
+        "t:r": "npm run typeorm -- migration:run",
+        "typeorm:sync": "npm run typeorm schema:sync",
+        "typeorm:drop": "npm run typeorm schema:drop",
+        "typeorm:reset": "npm run typeorm:drop && npm run typeorm:sync"
     },
     "dependencies": {
         "dotenv": "^8.0.0",
@@ -37,7 +46,8 @@
         "husky": "^2.7.0",
         "prettier": "^1.18.2",
         "ts-node": "3.3.0",
-        "typescript": "3.3.3333"
+        "tsconfig-paths": "^3.8.0",
+        "typescript": "^3.5.3"
     },
     "_moduleAliases": {
         "@": "./src"

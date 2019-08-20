@@ -15,6 +15,8 @@ export class UserGenerator extends AbstractGenerator<User> {
             firstName: this.faker.name.firstName(),
             lastName: this.faker.name.lastName(),
             age: this.faker.random.number({ min: 15, max: 50 }),
+            isProfilePublic: this.faker.random.boolean(),
+            birthDate: this.faker.date.between("1990-01-01", "2003-12-31"),
         };
     }
 
