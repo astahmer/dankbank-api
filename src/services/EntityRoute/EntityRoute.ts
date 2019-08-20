@@ -19,22 +19,23 @@ export class EntityRouter<Entity extends AbstractEntity> {
     private connection: Connection;
     private repository: Repository<Entity>;
     private routeMetadata: RouteMetadata;
+    private filtersMeta: RouteFiltersMeta;
     private metadata: EntityMetadata;
     private actions: RouteActions;
-    private options: IEntityRouteOptions;
+    private globalOptions: IEntityRouteOptions;
     private normalizer: Normalizer;
     private mappingMaker: MappingMaker;
 
-    constructor(connection: Connection, entity: ObjectType<Entity>, options: IEntityRouteOptions = {}) {
+    constructor(connection: Connection, entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         this.connection = connection;
         this.routeMetadata = getRouteMetadata(entity);
+        this.filtersMeta = getRouteFiltersMeta(entity);
         this.repository = getRepository(entity);
         this.metadata = this.repository.metadata;
-        this.options = options;
+        this.globalOptions = globalOptions;
         this.normalizer = new Normalizer(this.connection, this.metadata, this.options);
         this.mappingMaker = new MappingMaker(this.metadata, this.normalizer);
 
-        this.mergeRouteOptionsWithMetaFilters(entity);
         this.actions = {
             create: {
                 path: "",
@@ -65,9 +66,11 @@ export class EntityRouter<Entity extends AbstractEntity> {
     }
 
     get filters() {
-        if (this.routeMetadata.options && this.routeMetadata.options.filters) {
-            return this.routeMetadata.options.filters;
-        }
+        return Object.values(this.filtersMeta);
+    }
+
+    get options() {
+        return { ...this.globalOptions, ...this.routeMetadata.options };
     }
 
     /**
@@ -93,20 +96,6 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return router;
     }
 
-    private mergeRouteOptionsWithMetaFilters(entity: ObjectType<Entity>) {
-        const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(entity);
-        if (filtersMeta) {
-            if (!this.routeMetadata.options.filters) {
-                this.routeMetadata.options.filters = [];
-            }
-
-            let key;
-            for (key in filtersMeta) {
-                this.routeMetadata.options.filters.push(filtersMeta[key]);
-            }
-        }
-    }
-
     private async create({ values }: IActionParams) {
         return this.repository
             .createQueryBuilder()
@@ -120,7 +109,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
         const aliases = {};
 
-        if (this.filters) {
+        if (this.filtersMeta) {
             this.applyFilters(queryParams, qb, aliases);
         }
 
@@ -254,9 +243,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
 export type RouteMetadata = {
     path: string;
     operations: Operation[];
-    options?: {
-        filters?: IAbstractFilterConfig[];
-    };
+    options?: IEntityRouteOptions;
 };
 
 export type RouteFiltersMeta = Record<string, IAbstractFilterConfig>;
@@ -295,5 +282,4 @@ type RouteAction = {
     verb: string;
     method: "create" | "getList" | "getDetails" | "update" | "delete";
 };
-
 type RouteActions = Omit<Record<Operation, RouteAction>, "all">;
