@@ -8,7 +8,7 @@ import { Category } from "./Category";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
-@EntityRoute("/users", ["list", "details"])
+@EntityRoute("/users", ["create", "list", "details"])
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
@@ -18,20 +18,22 @@ export class User extends AbstractEntity {
     firstName: string;
 
     @Groups({
-        user: ["list"],
+        user: ["list", "details"],
     })
     @Column()
     lastName: string;
 
     @Groups({
-        user: ["list"],
+        user: ["list", "details"],
     })
     @Column()
     age: number;
 
+    @Groups({ user: ["list", "details"] })
     @Column({ nullable: true })
     birthDate: Date;
 
+    @Groups({ user: ["list", "details"] })
     @Column({ default: true })
     isProfilePublic: boolean;
 
@@ -42,7 +44,7 @@ export class User extends AbstractEntity {
     memes: Meme[];
 
     @Groups({
-        user: [],
+        user: ["details"],
     })
     @OneToOne(() => Picture)
     @JoinColumn()
@@ -55,7 +57,7 @@ export class User extends AbstractEntity {
     teams: Team[];
 
     @Groups({
-        user: ["list"],
+        user: ["list", "details"],
     })
     @ManyToOne(() => Category, { cascade: ["insert"] })
     profileCategory: Category;

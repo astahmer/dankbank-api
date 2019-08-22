@@ -1,12 +1,14 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Connection, EntityMetadata, Repository, getRepository, ObjectType, SelectQueryBuilder } from "typeorm";
+import { Repository, getRepository, ObjectType, SelectQueryBuilder } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer, AliasList } from "./Normalizer";
 import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
+import { validate } from "class-validator";
+import { EntityMapper } from "./EntityMapper";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -15,26 +17,26 @@ export const ROUTE_FILTERS_METAKEY = Symbol("filters");
 export const getRouteFiltersMeta = (entity: Function): RouteFiltersMeta =>
     Reflect.getOwnMetadata(ROUTE_FILTERS_METAKEY, entity);
 
-export class EntityRouter<Entity extends AbstractEntity> {
-    private connection: Connection;
+export class EntityRoute<Entity extends AbstractEntity> {
     private repository: Repository<Entity>;
     private routeMetadata: RouteMetadata;
     private filtersMeta: RouteFiltersMeta;
-    private metadata: EntityMetadata;
     private actions: RouteActions;
     private globalOptions: IEntityRouteOptions;
-    private normalizer: Normalizer;
-    private mappingMaker: MappingMaker;
 
-    constructor(connection: Connection, entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
-        this.connection = connection;
+    private entityMapper: EntityMapper<Entity>;
+    private normalizer: Normalizer<Entity>;
+    private mappingMaker: MappingMaker<Entity>;
+
+    constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         this.routeMetadata = getRouteMetadata(entity);
         this.filtersMeta = getRouteFiltersMeta(entity);
         this.repository = getRepository(entity);
-        this.metadata = this.repository.metadata;
         this.globalOptions = globalOptions;
-        this.normalizer = new Normalizer(this.connection, this.metadata, this.options);
-        this.mappingMaker = new MappingMaker(this.metadata, this.normalizer);
+
+        this.entityMapper = new EntityMapper<Entity>(this);
+        this.normalizer = new Normalizer(this);
+        this.mappingMaker = new MappingMaker(this.entityMapper);
 
         this.actions = {
             create: {
@@ -63,6 +65,18 @@ export class EntityRouter<Entity extends AbstractEntity> {
                 method: "delete",
             },
         };
+    }
+
+    get routeRepository() {
+        return this.repository;
+    }
+
+    get metadata() {
+        return this.repository.metadata;
+    }
+
+    get mapper() {
+        return this.entityMapper;
     }
 
     get filters() {
@@ -96,16 +110,19 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return router;
     }
 
-    private async create({ values }: IActionParams) {
-        return this.repository
+    private async create({ values }: IActionParams<Entity>) {
+        const insertPromise = this.repository
             .createQueryBuilder()
             .insert()
             .into(this.repository.metadata.tableName)
             .values(values)
             .execute();
+
+        const insertResult = await insertPromise;
+        return this.getDetails({ operation: "details", entityId: insertResult.raw });
     }
 
-    private async getList({ dumpSql, operation, queryParams }: IActionParams) {
+    private async getList({ dumpSql, operation, queryParams }: IActionParams<Entity>) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
         const aliases = {};
 
@@ -129,20 +146,13 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return result;
     }
 
-    private async getDetails({ dumpSql, operation, entityId }: IActionParams) {
-        const selectProps = this.normalizer.getSelectProps(operation, this.metadata, true);
-        const qb: SelectQueryBuilder<any> = this.repository
-            .createQueryBuilder(this.metadata.tableName)
-            .select(selectProps)
-            .where(this.metadata.tableName + ".id = :id", { id: entityId });
-        const item = await this.normalizer.getItem(operation, qb);
-
-        const result = {
-            item,
-            sql: undefined as any,
-        };
+    private async getDetails({ dumpSql, entityId }: IActionParams<Entity>) {
+        const item = await this.normalizer.getItem("details", entityId);
+        const result: { item: AbstractEntity; sql?: any } = { item };
 
         if (dumpSql) {
+            const qb = this.normalizer.currentQb;
+
             if (dumpSql === "where") result.sql = qb.expressionMap.wheres;
             else if (dumpSql === "params") result.sql = qb.getParameters();
             else result.sql = qb.getQueryAndParameters();
@@ -151,17 +161,17 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return result;
     }
 
-    private async update({ values, entityId }: IActionParams) {
+    private async update({ values, entityId }: IActionParams<Entity>) {
         return this.repository
             .createQueryBuilder()
             .insert()
             .update(this.repository.metadata.tableName)
-            .set(values)
+            .set(values as any)
             .where(`${this.repository.metadata.tableName}.id = :id`, { id: entityId })
             .execute();
     }
 
-    private async delete({ entityId }: IActionParams) {
+    private async delete({ entityId }: IActionParams<Entity>) {
         return this.repository
             .createQueryBuilder()
             .delete()
@@ -174,7 +184,7 @@ export class EntityRouter<Entity extends AbstractEntity> {
         return async (ctx, next) => {
             const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
 
-            const params: IActionParams = { operation };
+            const params: IActionParams<Entity> = { operation };
             if (ctx.params.id) params.entityId = ctx.params.id;
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
@@ -255,12 +265,12 @@ export interface IEntityRouteOptions {
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
-interface IActionParams {
+interface IActionParams<Entity extends AbstractEntity> {
     operation: Operation;
     exposedProps?: string[];
     entityId?: number;
     isUpdateOrCreate?: boolean;
-    values?: any;
+    values?: Entity;
     queryParams?: any;
     dumpSql?: string;
 }
@@ -282,4 +292,4 @@ type RouteAction = {
     verb: string;
     method: "create" | "getList" | "getDetails" | "update" | "delete";
 };
-type RouteActions = Omit<Record<Operation, RouteAction>, "all">;
+type RouteActions = Omit<Record<Operation | "delete", RouteAction>, "all">;

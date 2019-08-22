@@ -24,7 +24,7 @@ createConnection()
         app.use(logRequest(logger));
 
         await makeFixtures(connection);
-        useEntitiesRoutes(connection, app, [Category, Meme, Picture, Team, User]);
+        useEntitiesRoutes(app, [Category, Meme, Picture, Team, User]);
         useCustomRoute(connection, app);
         useGroupsRoute(connection, app);
 

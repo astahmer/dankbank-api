@@ -1,68 +1,37 @@
-import { Connection, EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
-import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
+import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
-import { EntityGroupsMetadata } from "./GroupsMetadata/EntityGroupsMetadata";
-import { sortObjectByKeys, getComputedPropMethodAndKey, isPrimitive } from "./utils";
-import { GroupsMetaByRoutes, GroupsMetadata } from "./GroupsMetadata/GroupsMetadata";
-import { MaxDeptMetas } from "@/decorators/MaxDepth";
-import { IEntityRouteOptions } from "./EntityRoute";
+import { sortObjectByKeys, isPrimitive, lowerFirstLetter } from "./utils";
+import { EntityRoute } from "./EntityRoute";
+import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
 
-export class Normalizer {
-    private connection: Connection;
-    private metadata: EntityMetadata;
-    private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
-    private maxDepthMetas: MaxDeptMetas = {};
-    private options: IEntityRouteOptions;
+export class Normalizer<Entity extends AbstractEntity> {
+    private entityRoute: EntityRoute<Entity>;
+    private qb: SelectQueryBuilder<Entity>;
 
-    constructor(connection: Connection, metadata: EntityMetadata, options?: IEntityRouteOptions) {
-        this.connection = connection;
-        this.metadata = metadata;
-        this.options = options;
+    constructor(entityRoute: EntityRoute<Entity>) {
+        this.entityRoute = entityRoute;
     }
 
-    /** Get selects props (from groups) of a given entity for a specific operation */
-    public getSelectProps(operation: Operation, entityMetadata: EntityMetadata, withPrefix = true, prefix?: string) {
-        return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getSelectProps(
-            operation,
-            this.metadata,
-            withPrefix,
-            prefix
-        );
+    get repository() {
+        return this.entityRoute.routeRepository;
     }
 
-    /** Get relation props metas (from groups) of a given entity for a specific operation */
-    public getRelationPropsMetas(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor<EntityGroupsMetadata>(
-            entityMetadata,
-            EntityGroupsMetadata
-        ).getRelationPropsMetas(operation, this.metadata);
+    get metadata() {
+        return this.repository.metadata;
     }
 
-    /** Get computed props metas (from groups) of a given entity for a specific operation */
-    public getComputedProps(operation: Operation, entityMetadata: EntityMetadata) {
-        return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getComputedProps(
-            operation,
-            this.metadata
-        );
+    get mapper() {
+        return this.entityRoute.mapper;
     }
 
-    /** Get GroupsMetada of a given entity */
-    public getGroupsMetadataFor<G extends GroupsMetadata>(
-        entityMetadata: EntityMetadata,
-        metaClass: new (metaKey: string, entityOrMeta: EntityMetadata | Function) => G,
-        metaKey = "groups"
-    ): G {
-        if (!this.groupsMetas[metaKey]) {
-            this.groupsMetas[metaKey] = {};
-        }
+    get options() {
+        return this.entityRoute.options;
+    }
 
-        if (!this.groupsMetas[metaKey][entityMetadata.tableName]) {
-            this.groupsMetas[metaKey][entityMetadata.tableName] =
-                Reflect.getOwnMetadata(metaKey, entityMetadata.target) || new metaClass(metaKey, this.metadata);
-        }
-        return this.groupsMetas[metaKey][entityMetadata.tableName];
+    get currentQb() {
+        return this.qb;
     }
 
     /**
@@ -76,7 +45,7 @@ export class Normalizer {
         qb: SelectQueryBuilder<Entity>,
         aliases: AliasList
     ): Promise<[Entity[], number]> {
-        this.makeJoinFromGroups(operation, qb, this.metadata, aliases);
+        this.makeJoinFromGroups(operation, qb, this.metadata, aliases, "", this.metadata.tableName);
 
         const results = await qb.getManyAndCount();
         const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
@@ -84,12 +53,19 @@ export class Normalizer {
         return [items, results[1]];
     }
 
-    public async getItem<Entity extends AbstractEntity>(operation: Operation, qb: SelectQueryBuilder<Entity>) {
-        this.makeJoinFromGroups(operation, qb, this.metadata, {});
+    public async getItem<Entity extends AbstractEntity>(operation: Operation, entityId: number) {
+        const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
+        const qb: SelectQueryBuilder<any> = this.repository
+            .createQueryBuilder(this.metadata.tableName)
+            .select(selectProps)
+            .where(this.metadata.tableName + ".id = :id", { id: entityId });
 
-        // console.log(qb.getSql());
+        this.makeJoinFromGroups(operation, qb, this.metadata, {}, "", this.metadata.tableName);
+
+        this.qb = qb;
         const result = await qb.getOne();
         const item: Entity = this.recursiveBrowseItem(result, operation);
+
         return item;
     }
 
@@ -103,7 +79,7 @@ export class Normalizer {
                 item[key as keyof Entity] = prop.map((nestedItem) =>
                     this.recursiveBrowseItem(nestedItem, operation)
                 ) as any;
-            } else if (prop.constructor.prototype instanceof AbstractEntity) {
+            } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
                 item[key as keyof Entity] = this.recursiveBrowseItem(prop as any, operation);
             } else if (isPrimitive(prop)) {
                 // console.log(key + " : " + prop);
@@ -114,6 +90,7 @@ export class Normalizer {
 
         if (
             this.options.shouldEntityWithOnlyIdBeFlattenedToIri &&
+            item instanceof Object &&
             item.constructor.prototype instanceof AbstractEntity &&
             Object.keys(item).length === 1 &&
             "id" in item
@@ -143,16 +120,16 @@ export class Normalizer {
         currentPath?: string,
         prevProp?: string
     ) {
-        if (prevProp) {
-            const selectProps = this.getSelectProps(operation, entityMetadata, true, prevProp);
+        if (prevProp && prevProp !== entityMetadata.tableName) {
+            const selectProps = this.mapper.getSelectProps(operation, entityMetadata, true, prevProp);
             qb.addSelect(selectProps);
         }
 
         const newPath = (currentPath ? currentPath + "." : "") + entityMetadata.tableName;
-        const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
+        const relationProps = this.mapper.getRelationPropsMetas(operation, entityMetadata);
 
         relationProps.forEach((relation) => {
-            const circularProp = this.isRelationPropCircular(
+            const circularProp = this.mapper.isRelationPropCircular(
                 newPath + "." + relation.inverseEntityMetadata.tableName,
                 relation.inverseEntityMetadata,
                 relation
@@ -160,7 +137,7 @@ export class Normalizer {
 
             const alias = this.generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
             if (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId) {
-                qb.leftJoin((prevProp || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
+                qb.leftJoin(prevProp + "." + relation.propertyName, alias);
             }
 
             if (!circularProp) {
@@ -180,55 +157,12 @@ export class Normalizer {
     public generateAlias(aliases: AliasList, entityTableName: string, propName: string) {
         const key = entityTableName + "." + propName;
         aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
-        return propName + "_" + aliases[key];
+        return entityTableName + "_" + propName + "_" + aliases[key];
     }
 
     public getPropertyLastAlias(aliases: AliasList, entityTableName: string, propName: string) {
         const key = entityTableName + "." + propName;
-        return propName + "_" + aliases[key];
-    }
-
-    /**
-     * Checks if this prop/relation entity was already fetched
-     * Should stop if this prop/relation entity has a MaxDepth decorator or if it is enabled by default
-     *
-     * @param currentPath dot delimited path to keep track of the nesting max depth
-     * @param entityMetadata
-     * @param relation
-     */
-    public isRelationPropCircular(currentPath: string, entityMetadata: EntityMetadata, relation: RelationMetadata) {
-        const currentDepthLvl = currentPath.split(entityMetadata.tableName).length - 1;
-        if (currentDepthLvl > 1) {
-            // console.log("current: " + currentDepthLvl, entityMetadata.tableName + "." + relation.propertyName);
-            const maxDepthMeta = this.getMaxDepthMetaFor(entityMetadata);
-
-            // Most specific maxDepthLvl found (prop > class > global options)
-            const maxDepthLvl =
-                (maxDepthMeta && maxDepthMeta.fields[relation.inverseSidePropertyPath]) ||
-                (maxDepthMeta && maxDepthMeta.depthLvl) ||
-                this.options.defaultMaxDepthLvl;
-
-            // Checks for global option, class & prop decorator
-            const hasGlobalMaxDepth = this.options.isMaxDepthEnabledByDefault && currentDepthLvl >= maxDepthLvl;
-            const hasLocalClassMaxDepth = maxDepthMeta && (maxDepthMeta.enabled && currentDepthLvl >= maxDepthLvl);
-            const hasSpecificPropMaxDepth =
-                maxDepthMeta && maxDepthMeta.fields[relation.propertyName] && currentDepthLvl >= maxDepthLvl;
-
-            // Should stop getting nested relations ?
-            if (hasGlobalMaxDepth || hasLocalClassMaxDepth || hasSpecificPropMaxDepth) {
-                return { prop: relation.propertyName, value: "CIRCULAR lvl: " + currentDepthLvl };
-            }
-        }
-
-        return null;
-    }
-
-    /** Retrieve & store entity maxDepthMeta for each entity */
-    private getMaxDepthMetaFor(entityMetadata: EntityMetadata) {
-        if (!this.maxDepthMetas[entityMetadata.tableName]) {
-            this.maxDepthMetas[entityMetadata.tableName] = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
-        }
-        return this.maxDepthMetas[entityMetadata.tableName];
+        return entityTableName + "_" + propName + "_" + aliases[key];
     }
 
     private setComputedPropsOnItem<U extends AbstractEntity>(
@@ -236,7 +170,7 @@ export class Normalizer {
         operation: Operation,
         entityMetadata: EntityMetadata
     ) {
-        const computedProps = this.getComputedProps(operation, entityMetadata);
+        const computedProps = this.mapper.getComputedProps(operation, entityMetadata);
 
         computedProps.forEach((computed) => {
             const { computedPropMethod, propKey } = getComputedPropMethodAndKey(computed);
@@ -246,3 +180,31 @@ export class Normalizer {
 }
 
 export type AliasList = Record<string, number>;
+
+export const computedPropRegex = /^(get|is|has).+/;
+
+/**
+ * Returns a formatted version of the method name
+ *
+ * @param computed actual method name
+ */
+export const makeComputedPropNameFromMethod = (computed: string) => {
+    const regexResult = computed.match(computedPropRegex);
+    if (regexResult) {
+        return lowerFirstLetter(computed.replace(regexResult[1], ""));
+    }
+
+    throw new Error('A computed property method should start with either "get", "is", or "has".');
+};
+
+/**
+ * Returns actual method name without prefixes & computed prop alias for the response
+ *
+ * @param computed method name prefixed with COMPUTED_PREFIX & ALIAS_PREFIX/alias if there is one
+ */
+export const getComputedPropMethodAndKey = (computed: string) => {
+    const computedPropMethod = computed.replace(COMPUTED_PREFIX, "").split(ALIAS_PREFIX)[0];
+    const alias = computed.split(ALIAS_PREFIX)[1];
+    const propKey = alias || makeComputedPropNameFromMethod(computedPropMethod);
+    return { computedPropMethod, propKey };
+};

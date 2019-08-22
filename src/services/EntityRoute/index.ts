@@ -1,12 +1,10 @@
 import * as Koa from "koa";
-import { Connection } from "typeorm";
 
-import { EntityRouter, IEntityRouteOptions } from "./EntityRoute";
+import { EntityRoute, IEntityRouteOptions } from "./EntityRoute";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Entity } from "@/utils/globalTypes";
 
 export async function useEntitiesRoutes<T extends AbstractEntity>(
-    connection: Connection,
     app: Koa,
     entities: Entity<T>[],
     options: IEntityRouteOptions = {
@@ -17,7 +15,7 @@ export async function useEntitiesRoutes<T extends AbstractEntity>(
     }
 ) {
     for (let i = 0; i < entities.length; i++) {
-        const entityRouter = new EntityRouter<T>(connection, entities[i], options);
-        app.use(entityRouter.makeRouter().routes());
+        const entityRoute = new EntityRoute<T>(entities[i], options);
+        app.use(entityRoute.makeRouter().routes());
     }
 }

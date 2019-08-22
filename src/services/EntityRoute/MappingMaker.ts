@@ -2,24 +2,23 @@ import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { path, pluck } from "ramda";
 
-import { Normalizer } from "./Normalizer";
 import { Operation } from "@/decorators/Groups";
+import { EntityMapper } from "./EntityMapper";
+import { AbstractEntity } from "@/entity";
 
-export class MappingMaker {
-    private metadata: EntityMetadata;
-    private normalizer: Normalizer;
+export class MappingMaker<Entity extends AbstractEntity> {
+    private mapper: EntityMapper<Entity>;
 
-    constructor(metadata: EntityMetadata, normalizer: Normalizer) {
-        this.metadata = metadata;
-        this.normalizer = normalizer;
+    constructor(mapper: EntityMapper<Entity>) {
+        this.mapper = mapper;
     }
 
     public make(operation: Operation): MappingResponse {
-        const selectProps = this.normalizer.getSelectProps(operation, this.metadata, false);
-        const relationProps = this.normalizer.getRelationPropsMetas(operation, this.metadata);
+        const selectProps = this.mapper.getSelectProps(operation, this.mapper.metadata, false);
+        const relationProps = this.mapper.getRelationPropsMetas(operation, this.mapper.metadata);
 
         const mapping = {
-            [this.metadata.tableName]: {
+            [this.mapper.metadata.tableName]: {
                 selectProps,
                 relationProps: pluck("propertyName", relationProps),
                 mapping: {},
@@ -27,7 +26,7 @@ export class MappingMaker {
         };
 
         for (let i = 0; i < relationProps.length; i++) {
-            this.setMappingForRelation(mapping, operation, this.metadata.tableName, relationProps[i]);
+            this.setMappingForRelation(mapping, operation, this.mapper.metadata.tableName, relationProps[i]);
         }
 
         return mapping;
@@ -63,8 +62,8 @@ export class MappingMaker {
         const entityPropPath = this.getMappingAt(currentPath, mapping);
 
         if (!entityPropPath.mapping[relation.inverseEntityMetadata.tableName]) {
-            const selectProps = this.normalizer.getSelectProps(operation, relation.inverseEntityMetadata, false);
-            const relationProps = this.normalizer.getRelationPropsMetas(operation, relation.inverseEntityMetadata);
+            const selectProps = this.mapper.getSelectProps(operation, relation.inverseEntityMetadata, false);
+            const relationProps = this.mapper.getRelationPropsMetas(operation, relation.inverseEntityMetadata);
 
             entityPropPath.mapping[relation.inverseEntityMetadata.tableName] = {
                 selectProps,
@@ -73,7 +72,7 @@ export class MappingMaker {
             };
 
             for (let i = 0; i < relationProps.length; i++) {
-                const circularProp = this.normalizer.isRelationPropCircular(
+                const circularProp = this.mapper.isRelationPropCircular(
                     currentPath,
                     relationProps[i].entityMetadata,
                     relation

@@ -82,7 +82,7 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
     };
 }
 
-export type Operation = "create" | "list" | "details" | "update" | "delete";
+export type Operation = "create" | "list" | "details" | "update";
 
 // Types only used as params for @Groups decorator
 export type OperationsOrAll = Operation[] | "all";
@@ -97,6 +97,6 @@ export type OperationGroups<PropNameType = string> = PartialRecord<Operation, Pr
  */
 export type ContextOperations<PropName = string> = Record<string, OperationGroups<PropName>>;
 
-export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update", "delete"];
+export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update"];
 export const COMPUTED_PREFIX = "_COMPUTED_";
 export const ALIAS_PREFIX = "_ALIAS_";
