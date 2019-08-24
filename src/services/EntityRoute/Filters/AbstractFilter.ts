@@ -7,7 +7,7 @@ import { getObjectOnlyKey, isDefined } from "../utils";
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;
     protected entityMetadata: EntityMetadata;
-    protected normalizer: Normalizer;
+    protected normalizer: Normalizer<any>;
 
     constructor({ config, entityMetadata, normalizer }: AbstractFilterConstructor) {
         this.config = config as IAbstractFilterConfig<FilterOptions>;
@@ -139,7 +139,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
 export type AbstractFilterConstructor = {
     entityMetadata: EntityMetadata;
     config: IAbstractFilterConfig;
-    normalizer: Normalizer;
+    normalizer: Normalizer<any>;
 };
 
 export type QueryParamValue = string | string[];

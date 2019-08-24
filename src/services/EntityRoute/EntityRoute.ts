@@ -1,14 +1,15 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Repository, getRepository, ObjectType, SelectQueryBuilder } from "typeorm";
+import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeepPartial, DeleteResult } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer, AliasList } from "./Normalizer";
-import { MappingMaker } from "./MappingMaker";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
-import { validate } from "class-validator";
 import { EntityMapper } from "./EntityMapper";
+import { Denormalizer } from "./Denormalizer";
+import { isType } from "./utils";
+import { ValidationError } from "class-validator";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -26,7 +27,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     private entityMapper: EntityMapper<Entity>;
     private normalizer: Normalizer<Entity>;
-    private mappingMaker: MappingMaker<Entity>;
+    private denormalizer: Denormalizer<Entity>;
 
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         this.routeMetadata = getRouteMetadata(entity);
@@ -35,8 +36,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.globalOptions = globalOptions;
 
         this.entityMapper = new EntityMapper<Entity>(this);
-        this.normalizer = new Normalizer(this);
-        this.mappingMaker = new MappingMaker(this.entityMapper);
+        this.normalizer = new Normalizer<Entity>(this);
+        this.denormalizer = new Denormalizer(this);
 
         this.actions = {
             create: {
@@ -111,18 +112,17 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     private async create({ values }: IActionParams<Entity>) {
-        const insertPromise = this.repository
-            .createQueryBuilder()
-            .insert()
-            .into(this.repository.metadata.tableName)
-            .values(values)
-            .execute();
+        const insertResult = await this.denormalizer.insertItem(values);
 
-        const insertResult = await insertPromise;
-        return this.getDetails({ operation: "details", entityId: insertResult.raw });
+        // Has errors
+        if (Array.isArray(insertResult)) {
+            return insertResult;
+        }
+
+        return this.getDetails({ operation: "details", entityId: insertResult.id });
     }
 
-    private async getList({ dumpSql, operation, queryParams }: IActionParams<Entity>) {
+    private async getList({ operation, queryParams }: IActionParams<Entity>) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
         const aliases = {};
 
@@ -130,45 +130,27 @@ export class EntityRoute<Entity extends AbstractEntity> {
             this.applyFilters(queryParams, qb, aliases);
         }
 
-        const collectionResult = await this.normalizer.getCollection<Entity>(operation, qb, aliases);
-        const result = {
+        const collectionResult = await this.normalizer.getCollection(operation, qb, aliases);
+
+        return {
             items: collectionResult[0],
             totalItems: collectionResult[1],
-            sql: undefined as any,
-        };
-
-        if (dumpSql) {
-            if (dumpSql === "where") result.sql = qb.expressionMap.wheres;
-            else if (dumpSql === "params") result.sql = qb.getParameters();
-            else result.sql = qb.getQueryAndParameters();
-        }
-
-        return result;
+        } as CollectionResult<Entity>;
     }
 
-    private async getDetails({ dumpSql, entityId }: IActionParams<Entity>) {
-        const item = await this.normalizer.getItem("details", entityId);
-        const result: { item: AbstractEntity; sql?: any } = { item };
-
-        if (dumpSql) {
-            const qb = this.normalizer.currentQb;
-
-            if (dumpSql === "where") result.sql = qb.expressionMap.wheres;
-            else if (dumpSql === "params") result.sql = qb.getParameters();
-            else result.sql = qb.getQueryAndParameters();
-        }
-
-        return result;
+    private async getDetails({ entityId }: IActionParams<Entity>) {
+        return await this.normalizer.getItem<Entity>("details", entityId);
     }
 
-    private async update({ values, entityId }: IActionParams<Entity>) {
-        return this.repository
-            .createQueryBuilder()
-            .insert()
-            .update(this.repository.metadata.tableName)
-            .set(values as any)
-            .where(`${this.repository.metadata.tableName}.id = :id`, { id: entityId })
-            .execute();
+    private async update({ values }: IActionParams<Entity>) {
+        const insertResult = await this.denormalizer.insertItem(values);
+
+        // Has errors
+        if (Array.isArray(insertResult)) {
+            return insertResult;
+        }
+
+        return this.getDetails({ operation: "details", entityId: insertResult.id });
     }
 
     private async delete({ entityId }: IActionParams<Entity>) {
@@ -188,29 +170,28 @@ export class EntityRoute<Entity extends AbstractEntity> {
             if (ctx.params.id) params.entityId = ctx.params.id;
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
-            if ("dumpSql" in ctx.query) params.dumpSql = ctx.query.dumpSql;
 
             const method = this.actions[operation].method;
-            const result: any = await this[method](params);
+            const result = await this[method](params);
 
             let response: IRouteResponse = {
                 "@context": {
                     operation,
                     entity: this.metadata.tableName,
+                    errors: null,
                 },
             };
 
-            if (operation === "list") {
-                response["@context"].totalItems = result.totalItems;
+            if (isType<CollectionResult<Entity>>(result, operation === "list")) {
                 response["@context"].retrievedItems = result.items.length;
+                response["@context"].totalItems = result.totalItems;
                 response.items = result.items;
+            } else if (isType<DeleteResult>(result)) {
+                response.deleted = result;
+            } else if (Array.isArray(result)) {
+                response["@context"].errors = result;
             } else {
-                response = { ...response, ...result.item };
-            }
-
-            if ("dumpSql" in ctx.query) {
-                response["@context"].sql = result.sql;
-                console.log(result.sql);
+                response = { ...response, ...result };
             }
 
             ctx.body = response;
@@ -225,7 +206,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
                     operation: operation + ".mapping",
                     entity: this.metadata.tableName,
                 },
-                mapping: this.mappingMaker.make(operation),
+                routeMapping: this.mapper.make(operation),
             };
             next();
         };
@@ -270,7 +251,7 @@ interface IActionParams<Entity extends AbstractEntity> {
     exposedProps?: string[];
     entityId?: number;
     isUpdateOrCreate?: boolean;
-    values?: Entity;
+    values?: DeepPartial<Entity>;
     queryParams?: any;
     dumpSql?: string;
 }
@@ -281,9 +262,10 @@ interface IRouteResponse {
         entity: string;
         totalItems?: number;
         retrievedItems?: number;
-        sql?: string;
+        errors?: ValidationError[];
     };
     items?: any[];
+    deleted?: any;
     [k: string]: any;
 }
 
@@ -293,3 +275,8 @@ type RouteAction = {
     method: "create" | "getList" | "getDetails" | "update" | "delete";
 };
 type RouteActions = Omit<Record<Operation | "delete", RouteAction>, "all">;
+
+type CollectionResult<Entity extends AbstractEntity> = {
+    items: Entity[];
+    totalItems: number;
+};

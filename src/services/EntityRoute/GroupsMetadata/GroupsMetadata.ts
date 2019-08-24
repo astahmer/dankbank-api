@@ -5,7 +5,7 @@ import {
     OperationGroups,
     ContextOperations,
     RouteOperations,
-    OperationsOrAll,
+    GroupsOperationOrAll,
     ALL_OPERATIONS,
     Operation,
 } from "@/decorators/Groups";
@@ -55,7 +55,7 @@ export class GroupsMetadata<PropNameType = string> {
         }
     }
 
-    addPropToGlobalGroups(groups: OperationsOrAll, propName: PropNameType) {
+    addPropToGlobalGroups(groups: GroupsOperationOrAll, propName: PropNameType) {
         if (groups === "all") {
             groups = ALL_OPERATIONS;
         }
@@ -167,7 +167,7 @@ export class GroupsMetadata<PropNameType = string> {
             exposedProps = this.mergeGroupsWithParentEntities(routeContext);
         }
 
-        return exposedProps && exposedProps[operation];
+        return exposedProps && (exposedProps[operation] ? exposedProps[operation] : []);
     }
 }
 

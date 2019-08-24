@@ -1,10 +1,19 @@
 import { EntityMetadata } from "typeorm";
-import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { path, pluck } from "ramda";
 
 import { Operation } from "@/decorators/Groups";
 import { EntityMapper } from "./EntityMapper";
 import { AbstractEntity } from "@/entity";
+
+export type MappingItem = {
+    metadata?: EntityMetadata;
+    mapping: MappingResponse;
+    exposedProps?: any;
+    selectProps?: any;
+    relationProps?: any;
+};
+
+export type MappingResponse = Record<string, MappingItem>;
 
 export class MappingMaker<Entity extends AbstractEntity> {
     private mapper: EntityMapper<Entity>;
@@ -13,23 +22,8 @@ export class MappingMaker<Entity extends AbstractEntity> {
         this.mapper = mapper;
     }
 
-    public make(operation: Operation): MappingResponse {
-        const selectProps = this.mapper.getSelectProps(operation, this.mapper.metadata, false);
-        const relationProps = this.mapper.getRelationPropsMetas(operation, this.mapper.metadata);
-
-        const mapping = {
-            [this.mapper.metadata.tableName]: {
-                selectProps,
-                relationProps: pluck("propertyName", relationProps),
-                mapping: {},
-            },
-        };
-
-        for (let i = 0; i < relationProps.length; i++) {
-            this.setMappingForRelation(mapping, operation, this.mapper.metadata.tableName, relationProps[i]);
-        }
-
-        return mapping;
+    public make(operation: Operation): MappingItem {
+        return this.getMappingFor({}, operation, this.mapper.metadata, "", this.mapper.metadata.tableName);
     }
 
     /**
@@ -37,11 +31,9 @@ export class MappingMaker<Entity extends AbstractEntity> {
      *
      * @param currentPath dot delimited path to keep track of the properties select nesting
      */
-    private getMappingAt(currentPath: string, mapping: MappingResponse): MappingItem {
-        const currentPathArray = currentPath
-            .split(".")
-            .join(".mapping.")
-            .split(".");
+    public getNestedMappingAt(currentPath: string | string[], mapping: MappingItem): MappingItem {
+        currentPath = Array.isArray(currentPath) ? currentPath : currentPath.split(".");
+        const currentPathArray = ["mapping"].concat(currentPath.join(".mapping.").split("."));
         return path(currentPathArray, mapping);
     }
 
@@ -50,56 +42,45 @@ export class MappingMaker<Entity extends AbstractEntity> {
      *
      * @param mapping object that will be recursively written into
      * @param operation
-     * @param currentPath
-     * @param relation
+     * @param entityMetadata
+     * @param currentPath keep track of current mapping path
+     * @param currentTableNamePath used to check max depth
      */
-    private setMappingForRelation(
+    private getMappingFor(
         mapping: MappingResponse,
         operation: Operation,
+        entityMetadata: EntityMetadata,
         currentPath: string,
-        relation: RelationMetadata
+        currentTableNamePath: string
     ) {
-        const entityPropPath = this.getMappingAt(currentPath, mapping);
+        const selectProps = this.mapper.getSelectProps(operation, entityMetadata, false);
+        const relationProps = this.mapper.getRelationPropsMetas(operation, entityMetadata);
 
-        if (!entityPropPath.mapping[relation.inverseEntityMetadata.tableName]) {
-            const selectProps = this.mapper.getSelectProps(operation, relation.inverseEntityMetadata, false);
-            const relationProps = this.mapper.getRelationPropsMetas(operation, relation.inverseEntityMetadata);
+        const nestedMapping: MappingItem = {
+            selectProps,
+            relationProps: pluck("propertyName", relationProps),
+            mapping: {},
+        };
 
-            entityPropPath.mapping[relation.inverseEntityMetadata.tableName] = {
-                selectProps,
-                relationProps: pluck("propertyName", relationProps),
-                mapping: {},
-            };
-
-            for (let i = 0; i < relationProps.length; i++) {
-                const circularProp = this.mapper.isRelationPropCircular(
-                    currentPath,
-                    relationProps[i].entityMetadata,
-                    relation
-                );
-                if (circularProp) {
-                    continue;
-                }
-
-                this.setMappingForRelation(
-                    mapping,
-                    operation,
-                    currentPath + "." + relationProps[i].entityMetadata.tableName,
-                    relationProps[i]
-                );
+        for (let i = 0; i < relationProps.length; i++) {
+            const circularProp = this.mapper.isRelationPropCircular(
+                currentTableNamePath,
+                relationProps[i].entityMetadata,
+                relationProps[i]
+            );
+            if (circularProp) {
+                continue;
             }
+
+            nestedMapping.mapping[relationProps[i].propertyName] = this.getMappingFor(
+                mapping,
+                operation,
+                relationProps[i].inverseEntityMetadata,
+                currentPath + "." + relationProps[i].propertyName,
+                currentTableNamePath + "." + relationProps[i].inverseEntityMetadata.tableName
+            );
         }
 
-        return entityPropPath.mapping[relation.inverseEntityMetadata.tableName];
+        return nestedMapping;
     }
 }
-
-type MappingItem = {
-    metadata?: EntityMetadata;
-    mapping: MappingResponse;
-    exposedProps?: any;
-    selectProps?: any;
-    relationProps?: any;
-};
-
-type MappingResponse = Record<string, MappingItem>;

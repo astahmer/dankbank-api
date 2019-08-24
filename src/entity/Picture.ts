@@ -9,7 +9,7 @@ import { Category } from "./Category";
 export class Picture extends AbstractEntity {
     @Groups({
         picture: ["list", "details"],
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
         meme: ["list", "details"],
     })
     @Column()
@@ -24,7 +24,7 @@ export class Picture extends AbstractEntity {
 
     @Groups({
         picture: ["list", "details"],
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
         meme: ["list", "details"],
     })
     @Column()

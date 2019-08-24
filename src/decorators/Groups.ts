@@ -16,7 +16,7 @@ export function Groups(groups: RouteOperations): PropertyDecorator;
  *
  * @param operations An array containing a list of operation in which the decorated property will be exposed
  */
-export function Groups(operations: OperationsOrAll): PropertyDecorator;
+export function Groups(operations: GroupsOperationOrAll): PropertyDecorator;
 
 /**
  * Expose decorated computed property (method) for each operation for each listed EntityRoute context
@@ -25,9 +25,12 @@ export function Groups(operations: OperationsOrAll): PropertyDecorator;
  * @param groups.route Contains an array of Operation in which the decorated property will be exposed
  * @param alias Override default generated name for this computed property in response
  */
-export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string): MethodDecorator;
+export function Groups(groups: GroupsOperationOrAll | RouteOperations, alias?: string): MethodDecorator;
 
-export function Groups(groups: OperationsOrAll | RouteOperations, alias?: string): PropertyDecorator | MethodDecorator {
+export function Groups(
+    groups: GroupsOperationOrAll | RouteOperations,
+    alias?: string
+): PropertyDecorator | MethodDecorator {
     return AbstractGroupsDecorator<EntityGroupsMetadata>({
         metaKey: "groups",
         metaClass: EntityGroupsMetadata,
@@ -46,7 +49,7 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
 }: {
     metaKey: string;
     metaClass: new (metaKey: string, entityOrMeta: EntityMetadata | Function) => G;
-    groups: OperationsOrAll | RouteOperations;
+    groups: GroupsOperationOrAll | RouteOperations;
     alias?: string;
     propNameHook?: Function;
     groupsMetaHook?: Function;
@@ -82,11 +85,12 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
     };
 }
 
-export type Operation = "create" | "list" | "details" | "update";
+export type Operation = "create" | "list" | "details" | "update" | "delete";
 
 // Types only used as params for @Groups decorator
-export type OperationsOrAll = Operation[] | "all";
-export type RouteOperations = Record<string, OperationsOrAll>;
+export type GroupsOperation = "create" | "list" | "details" | "update";
+export type GroupsOperationOrAll = GroupsOperation[] | "all";
+export type RouteOperations = Record<string, GroupsOperationOrAll>;
 
 /** An object with Operation as keys and an array of entity props as values  */
 export type OperationGroups<PropNameType = string> = PartialRecord<Operation, PropNameType[]>;
@@ -97,6 +101,6 @@ export type OperationGroups<PropNameType = string> = PartialRecord<Operation, Pr
  */
 export type ContextOperations<PropName = string> = Record<string, OperationGroups<PropName>>;
 
-export const ALL_OPERATIONS: Operation[] = ["create", "list", "details", "update"];
+export const ALL_OPERATIONS: GroupsOperation[] = ["create", "list", "details", "update"];
 export const COMPUTED_PREFIX = "_COMPUTED_";
 export const ALIAS_PREFIX = "_ALIAS_";

@@ -5,6 +5,7 @@ import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
+import { ValidateNested, IsBoolean } from "class-validator";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
@@ -12,28 +13,29 @@ import { Category } from "./Category";
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
     })
     @Column()
     firstName: string;
 
     @Groups({
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
     })
-    @Column()
+    @Column({ nullable: true })
     lastName: string;
 
     @Groups({
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
     })
     @Column()
     age: number;
 
-    @Groups({ user: ["list", "details"] })
+    @Groups({ user: ["create", "list", "details"] })
     @Column({ nullable: true })
     birthDate: Date;
 
-    @Groups({ user: ["list", "details"] })
+    @Groups({ user: ["create", "list", "details"] })
+    @IsBoolean()
     @Column({ default: true })
     isProfilePublic: boolean;
 
@@ -44,7 +46,7 @@ export class User extends AbstractEntity {
     memes: Meme[];
 
     @Groups({
-        user: ["details"],
+        user: ["create", "details"],
     })
     @OneToOne(() => Picture)
     @JoinColumn()
@@ -57,8 +59,9 @@ export class User extends AbstractEntity {
     teams: Team[];
 
     @Groups({
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
     })
+    @ValidateNested()
     @ManyToOne(() => Category, { cascade: ["insert"] })
     profileCategory: Category;
 }

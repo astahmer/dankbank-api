@@ -3,6 +3,7 @@ import { Groups, EntityRoute } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Picture } from "./Picture";
 import { User } from "./User";
+import { IsDefined } from "class-validator";
 
 @EntityRoute("/categories", ["list", "details"])
 @Entity()

@@ -1,39 +1,11 @@
-import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
-
 export const lowerFirstLetter = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
-
-export const computedPropRegex = /^(get|is|has).+/;
-
-/**
- * Returns a formatted version of the method name
- *
- * @param computed actual method name
- */
-export const makeComputedPropNameFromMethod = (computed: string) => {
-    const regexResult = computed.match(computedPropRegex);
-    if (regexResult) {
-        return lowerFirstLetter(computed.replace(regexResult[1], ""));
-    }
-
-    throw new Error('A computed property method should start with either "get", "is", or "has".');
-};
-
-/**
- * Returns actual method name without prefixes & computed prop alias for the response
- *
- * @param computed method name prefixed with COMPUTED_PREFIX & ALIAS_PREFIX/alias if there is one
- */
-export const getComputedPropMethodAndKey = (computed: string) => {
-    const computedPropMethod = computed.replace(COMPUTED_PREFIX, "").split(ALIAS_PREFIX)[0];
-    const alias = computed.split(ALIAS_PREFIX)[1];
-    const propKey = alias || makeComputedPropNameFromMethod(computedPropMethod);
-    return { computedPropMethod, propKey };
-};
 
 export const sortObjectByKeys = (obj: any) =>
     Object.keys(obj)
         .sort()
         .reduce((acc, key) => ((acc[key] = obj[key]), acc), {} as any);
+
+export const isType = <T>(_value: any, condition?: boolean): _value is T => condition;
 
 export const isPrimitive = (value: any) => {
     if (typeof value === "object") {
@@ -42,8 +14,8 @@ export const isPrimitive = (value: any) => {
     return typeof value !== "function";
 };
 
+export const isObject = (item: any) => item && typeof item === "object" && !Array.isArray(item);
 export const getObjectOnlyKey = (obj: object) => Object.keys(obj)[0];
-
 export const isDefined = (value: any) =>
     value !== undefined && value !== null && (typeof value === "string" ? value.trim() !== "" : true);
 
@@ -54,7 +26,7 @@ export const camelToSnake = (str: string) =>
 export const setNestedKey = (obj: Record<string, any>, path: string[], value: any): Record<string, any> => {
     if (path.length === 1) {
         obj[path[0]] = value;
-        return;
+        return value;
     } else if (!(path[0] in obj)) {
         obj[path[0]] = {};
     }
@@ -62,14 +34,44 @@ export const setNestedKey = (obj: Record<string, any>, path: string[], value: an
     return setNestedKey(obj[path[0]], path.slice(1), value);
 };
 
-export type PropertyHook = (key: string, value: object) => any;
-export function recursiveBrowse(object: Record<string, any>, propHook: PropertyHook) {
-    for (let property in object) {
-        if (typeof object[property] === "object") {
-            propHook(property, object);
-            recursiveBrowse(object[property], propHook);
-        } else {
-            propHook(property, object[property]);
+export type PropertyHook = ({ item, key: parentProperty, prop: object, currentPath, index }: PropertyHookArgs) => any;
+
+export type PropertyHookArgs = { parentProperty: string } & Omit<RecursiveBrowseArgs, "propHook">;
+export type RecursiveBrowseArgs = {
+    item: any;
+    key?: string;
+    prop: any;
+    propHook: PropertyHook;
+    currentPath: string[];
+    index?: number;
+};
+export function recursiveBrowse({
+    item,
+    key: parentProperty,
+    currentPath,
+    index,
+    prop,
+    propHook,
+}: RecursiveBrowseArgs) {
+    if (parentProperty) {
+        if (parentProperty) {
+            currentPath.push(parentProperty);
+        }
+    }
+
+    for (let key in prop) {
+        if (Array.isArray(prop[key])) {
+            propHook({ item, key, parentProperty, currentPath, prop: prop[key] });
+
+            prop[key].forEach((element: any, index: number) => {
+                propHook({ item, key, parentProperty, index, currentPath, prop: element });
+                recursiveBrowse({ item, key, index, currentPath, prop: element, propHook });
+            });
+        } else if (typeof prop[key] === "object") {
+            propHook({ item, key, parentProperty, index, currentPath, prop: prop[key] });
+            recursiveBrowse({ item, key, currentPath, prop: prop[key], propHook });
+        } else if (isPrimitive(prop[key])) {
+            propHook({ item, key, parentProperty, index, currentPath, prop: prop[key] });
         }
     }
 }

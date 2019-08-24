@@ -7,14 +7,17 @@ import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { EntityRoute } from "./EntityRoute";
 import { AbstractEntity } from "@/entity";
 import { MaxDeptMetas } from "@/decorators/MaxDepth";
+import { MappingMaker, MappingItem } from "./MappingMaker";
 
 export class EntityMapper<Entity extends AbstractEntity> {
     private entityRoute: EntityRoute<Entity>;
     private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
+    private maker: MappingMaker<Entity>;
 
     constructor(entityRoute: EntityRoute<Entity>) {
         this.entityRoute = entityRoute;
+        this.maker = new MappingMaker(this);
     }
 
     get metadata() {
@@ -23,6 +26,30 @@ export class EntityMapper<Entity extends AbstractEntity> {
 
     get options() {
         return this.entityRoute.options;
+    }
+
+    public make(operation: Operation) {
+        return this.maker.make(operation);
+    }
+
+    public getNestedMappingAt(currentPath: string | string[], mapping: MappingItem) {
+        return this.maker.getNestedMappingAt(currentPath, mapping);
+    }
+
+    /** Get selects props (from groups) of a given entity for a specific operation */
+    public getExposedProps(operation: Operation, entityMetadata: EntityMetadata) {
+        return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getExposedProps(
+            operation,
+            this.metadata
+        );
+    }
+
+    /** Get selects props (from groups) of a given entity for a specific operation */
+    public getExposedPropsByTypes(operation: Operation, entityMetadata: EntityMetadata) {
+        return this.getGroupsMetadataFor<EntityGroupsMetadata>(
+            entityMetadata,
+            EntityGroupsMetadata
+        ).getExposedPropsByTypes(operation, this.metadata);
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
