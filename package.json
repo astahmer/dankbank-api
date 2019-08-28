@@ -4,9 +4,9 @@
     "description": "Awesome project developed with TypeORM.",
     "scripts": {
         "tsc": "tsc",
-        "start": "set DEBUG=* && ts-node-dev --respawn --transpileOnly ./src/index.ts",
+        "start": "set DEBUG=* && ts-node-dev --respawn --transpileOnly ./src/main.ts",
         "prod": "tsc && node ./build/app.js",
-        "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/index.ts",
+        "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/main.ts",
         "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run",
         "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -n Yes",
         "prettier": "prettier --write \"./{src,tests}/**/*.ts\"",
