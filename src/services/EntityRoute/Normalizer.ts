@@ -135,7 +135,7 @@ export class Normalizer<Entity extends AbstractEntity> {
                 relation
             );
 
-            const alias = this.generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
+            const alias = generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
             if (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.leftJoin(prevProp + "." + relation.propertyName, alias);
             }
@@ -146,23 +146,6 @@ export class Normalizer<Entity extends AbstractEntity> {
                 qb.addSelect(alias + ".id");
             }
         });
-    }
-
-    /**
-     * Appends a number (of occurences) to a propertName in order to avoid ambiguous sql names
-     * @param aliases current list of aliases
-     * @param entity add one to the counter on this property name
-     * @param propName add one to the counter on this property name
-     */
-    public generateAlias(aliases: AliasList, entityTableName: string, propName: string) {
-        const key = entityTableName + "." + propName;
-        aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
-        return entityTableName + "_" + propName + "_" + aliases[key];
-    }
-
-    public getPropertyLastAlias(aliases: AliasList, entityTableName: string, propName: string) {
-        const key = entityTableName + "." + propName;
-        return entityTableName + "_" + propName + "_" + aliases[key];
     }
 
     private setComputedPropsOnItem<U extends AbstractEntity>(
@@ -180,6 +163,23 @@ export class Normalizer<Entity extends AbstractEntity> {
 }
 
 export type AliasList = Record<string, number>;
+
+/**
+ * Appends a number (of occurences) to a propertName in order to avoid ambiguous sql names
+ * @param aliases current list of aliases
+ * @param entity add one to the counter on this property name
+ * @param propName add one to the counter on this property name
+ */
+export const generateAlias = (aliases: AliasList, entityTableName: string, propName: string) => {
+    const key = entityTableName + "." + propName;
+    aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
+    return entityTableName + "_" + propName + "_" + aliases[key];
+}
+
+export const getPropertyLastAlias = (aliases: AliasList, entityTableName: string, propName: string) => {
+    const key = entityTableName + "." + propName;
+    return entityTableName + "_" + propName + "_" + aliases[key];
+}
 
 export const computedPropRegex = /^(get|is|has).+/;
 

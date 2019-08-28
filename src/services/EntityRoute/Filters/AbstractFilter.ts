@@ -1,7 +1,7 @@
 import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
 import { pick } from "ramda";
 
-import { Normalizer, AliasList } from "../Normalizer";
+import { Normalizer, AliasList, getPropertyLastAlias, generateAlias } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
@@ -68,18 +68,10 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
             const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
                 (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
             );
-            let alias = this.normalizer.getPropertyLastAlias(
-                aliases,
-                relation.entityMetadata.tableName,
-                relation.propertyName
-            );
+            let alias = getPropertyLastAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
 
             if (!isJoinAlreadyMade) {
-                alias = this.normalizer.generateAlias(
-                    aliases,
-                    relation.entityMetadata.tableName,
-                    relation.propertyName
-                );
+                alias = generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
                 qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
             }
 
