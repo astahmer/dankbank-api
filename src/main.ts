@@ -3,36 +3,68 @@ import "reflect-metadata";
 
 import * as Koa from "koa";
 import * as bodyParser from "koa-bodyparser";
-import { createConnection } from "typeorm";
+import { createConnection, Connection } from "typeorm";
 import { createKoaServer } from "routing-controllers";
 
-import { logRequest } from "./middlewares";
-import { logger } from "./services/Logger";
+import { TypeORMConfig } from "./ormconfig";
+import { logRequest } from "@/middlewares";
+import { logger } from "@/services/Logger";
 
-import { useCustomRoute } from "./controllers/CustomController";
-import { useEntitiesRoutes } from "./services/EntityRoute";
+import { useCustomRoute } from "@/controllers/CustomController";
+import { useEntitiesRoutes } from "@/services/EntityRoute";
 
-import { getAppRoutes } from "./utils/getAppRoutes";
-import { Category, Meme, Picture, Team, User } from "./entity";
-import { makeFixtures } from "./fixtures";
-import { useGroupsRoute } from "./controllers/GroupsController";
+import { getAppRoutes } from "@/utils/getAppRoutes";
+import { makeFixtures } from "@/fixtures";
+import { useGroupsRoute } from "@/controllers/GroupsController";
 
-createConnection()
-    .then(async (connection) => {
-        const app: Koa = createKoaServer();
-        app.use(bodyParser());
-        app.use(logRequest(logger));
+declare const module: any;
 
-        await makeFixtures(connection);
-        useEntitiesRoutes(app, [Category, Meme, Picture, Team, User]);
-        useCustomRoute(connection, app);
-        useGroupsRoute(connection, app);
+if (module.hot && module.hot.data && module.hot.data.connection) {
+    onConnected(module.hot.data.connection);
+} else {
+    createConnection({ ...(TypeORMConfig as any), entities: getEntities() })
+        .then(onConnected)
+        .catch((error) => console.log(error));
+}
 
-        if (process.env.NODE_ENV === "development") {
-            logger.info(getAppRoutes(app.middleware));
+async function onConnected(connection: Connection) {
+    const app: Koa = createKoaServer();
+    app.use(bodyParser());
+    app.use(logRequest(logger));
+
+    await makeFixtures(connection);
+
+    const entities = getEntities();
+    useEntitiesRoutes(app, entities);
+    useCustomRoute(connection, app);
+    useGroupsRoute(connection, app);
+
+    if (process.env.NODE_ENV === "development") {
+        logger.info(getAppRoutes(app.middleware));
+    }
+
+    const server = app.listen(3000);
+    console.log("Listening on port 3000");
+
+    if (module.hot) {
+        module.hot.accept();
+        module.hot.dispose((data: any) => {
+            data.connection = connection;
+            server.close();
+        });
+    }
+}
+
+function getEntities() {
+    const context = require.context("./entity/", true, /\.ts$/);
+    return context.keys().reduce((acc, path) => {
+        const entityModule = context(path);
+        if (path.includes("AbstractEntity") || path.includes("index")) {
+            return acc;
         }
 
-        app.listen(3000);
-        console.log("Listening on port 3000");
-    })
-    .catch((error) => console.log(error));
+        const [entityName] = Object.keys(entityModule);
+        acc.push(entityModule[entityName]);
+        return acc;
+    }, []);
+}

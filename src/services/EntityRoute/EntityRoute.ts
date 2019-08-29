@@ -32,7 +32,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         this.routeMetadata = getRouteMetadata(entity);
         this.filtersMeta = getRouteFiltersMeta(entity);
-        this.repository = getRepository(entity);
+        this.repository = getRepository(entity.name);
         this.globalOptions = globalOptions;
 
         this.entityMapper = new EntityMapper<Entity>(this);

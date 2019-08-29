@@ -16,6 +16,7 @@ export async function useEntitiesRoutes<T extends AbstractEntity>(
 ) {
     for (let i = 0; i < entities.length; i++) {
         const entityRoute = new EntityRoute<T>(entities[i], options);
+        console.log(entities[i]);
         app.use(entityRoute.makeRouter().routes());
     }
 }
