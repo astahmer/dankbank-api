@@ -20,8 +20,12 @@ import { useGroupsRoute } from "@/controllers/GroupsController";
 declare const module: any;
 
 if (module.hot && module.hot.data && module.hot.data.connection) {
-    onConnected(module.hot.data.connection);
+    module.hot.data.connection.close().then(startApp);
 } else {
+    startApp();
+}
+
+function startApp() {
     createConnection({ ...(TypeORMConfig as any), entities: getEntities() })
         .then(onConnected)
         .catch((error) => console.log(error));
