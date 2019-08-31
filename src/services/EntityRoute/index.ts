@@ -14,9 +14,8 @@ export async function useEntitiesRoutes<T extends AbstractEntity>(
         shouldEntityWithOnlyIdBeFlattenedToIri: true,
     }
 ) {
-    for (let i = 0; i < entities.length; i++) {
-        const entityRoute = new EntityRoute<T>(entities[i], options);
-        console.log(entities[i]);
-        app.use(entityRoute.makeRouter().routes());
-    }
+    const entityRoutes = entities.map((entity) => new EntityRoute<T>(entity, options));
+    entityRoutes.forEach((entityRoute) => app.use(entityRoute.makeRouter().routes()));
 }
+
+export const entityRoutesContainer: Record<string, EntityRoute<any>> = {};

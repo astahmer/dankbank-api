@@ -100,6 +100,7 @@ export class Normalizer<Entity extends AbstractEntity> {
             return item;
         } else {
             this.setComputedPropsOnItem(item, operation, entityMetadata);
+            this.setSubresourcesIriOnItem(item, entityMetadata);
             return sortObjectByKeys(item);
         }
     }
@@ -159,6 +160,17 @@ export class Normalizer<Entity extends AbstractEntity> {
             const { computedPropMethod, propKey } = getComputedPropMethodAndKey(computed);
             item[propKey as keyof U] = (item[computedPropMethod as keyof U] as any)();
         });
+    }
+
+    private setSubresourcesIriOnItem<U extends AbstractEntity>(item: U, entityMetadata: EntityMetadata) {
+        const subresourceProps = this.mapper.getSubresourceProps(entityMetadata);
+
+        let key;
+        for (key in subresourceProps) {
+            if (!item[key as keyof U]) {
+                (item as any)[key as keyof U] = item.getIri() + "/" + key;
+            }
+        }
     }
 }
 

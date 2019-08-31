@@ -9,10 +9,21 @@ import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/Ab
 import { EntityMapper } from "./EntityMapper";
 import { Denormalizer, ErrorMappingItem } from "./Denormalizer";
 import { isType } from "./utils";
+import { entityRoutesContainer } from ".";
 import { QueryAliasManager } from "./QueryAliasManager";
+import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
+
+export const ROUTE_SUBRESOURCES = Symbol("route");
+export const getRouteSubresourcesMetadata = <Entity extends AbstractEntity>(
+    entity: Function
+): RouteSubresourcesMeta<Entity> =>
+    Reflect.getOwnMetadata(ROUTE_SUBRESOURCES, entity) || {
+        parent: entity,
+        properties: {},
+    };
 
 export const ROUTE_FILTERS_METAKEY = Symbol("filters");
 export const getRouteFiltersMeta = (entity: Function): RouteFiltersMeta =>
@@ -22,6 +33,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private repository: Repository<Entity>;
     private routeMetadata: RouteMetadata;
     private filtersMeta: RouteFiltersMeta;
+    private subresourcesMeta: RouteSubresourcesMeta<Entity>;
     private actions: RouteActions;
     private globalOptions: IEntityRouteOptions;
 
@@ -33,7 +45,9 @@ export class EntityRoute<Entity extends AbstractEntity> {
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         this.routeMetadata = getRouteMetadata(entity);
         this.filtersMeta = getRouteFiltersMeta(entity);
+        this.subresourcesMeta = getRouteSubresourcesMetadata(entity);
         this.repository = getRepository(entity);
+        this.actions = ACTIONS;
         this.globalOptions = globalOptions;
 
         this.entityMapper = new EntityMapper<Entity>(this);
@@ -41,33 +55,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.normalizer = new Normalizer<Entity>(this);
         this.denormalizer = new Denormalizer(this);
 
-        this.actions = {
-            create: {
-                path: "",
-                verb: "post",
-                method: "create",
-            },
-            list: {
-                path: "",
-                verb: "get",
-                method: "getList",
-            },
-            details: {
-                path: "/:id(\\d+)",
-                verb: "get",
-                method: "getDetails",
-            },
-            update: {
-                path: "/:id(\\d+)",
-                verb: "put",
-                method: "update",
-            },
-            delete: {
-                path: "/:id(\\d+)",
-                verb: "remove",
-                method: "delete",
-            },
-        };
+        entityRoutesContainer[entity.name] = this;
     }
 
     get routeRepository() {
@@ -99,7 +87,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
      *
      * @returns Koa.Router
      */
-    makeRouter() {
+    public makeRouter() {
         const router = new Router();
 
         for (let i = 0; i < this.routeMetadata.operations.length; i++) {
@@ -114,10 +102,73 @@ export class EntityRoute<Entity extends AbstractEntity> {
             (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
+        if (Object.keys(this.subresourcesMeta.properties).length) {
+            this.makeSubresourcesRoutes(router);
+        }
+
         return router;
     }
 
-    private async create({ values }: IActionParams<Entity>) {
+    private makeSubresourcesRoutes(
+        router: Router,
+        parentSubresource?: { currentPath: string[]; subresourcePath: string }
+    ) {
+        let key: string;
+        let subresourceProp: SubresourceProperty<any>;
+        let nestedEntityRoute: EntityRoute<any>;
+        let relationTableName: string;
+
+        // For each subresources of this entity
+        for (key in this.subresourcesMeta.properties) {
+            subresourceProp = this.subresourcesMeta.properties[key];
+            const subresourceRelation = this.getSubresourceRelation(key);
+            const subresourcePath = this.getSubresourceBasePath(
+                subresourceRelation.param,
+                subresourceProp,
+                parentSubresource && parentSubresource.subresourcePath
+            );
+
+            relationTableName = subresourceRelation.relation.inverseEntityMetadata.tableName;
+            nestedEntityRoute = entityRoutesContainer[subresourceProp.entityTarget.name];
+            // Ensures that it is not making circular subresources routes
+            if (!parentSubresource || !parentSubresource.currentPath.includes(relationTableName)) {
+                // Recursively make subresources
+                nestedEntityRoute.makeSubresourcesRoutes(router, {
+                    subresourcePath,
+                    currentPath: parentSubresource
+                        ? parentSubresource.currentPath.concat(relationTableName)
+                        : [relationTableName],
+                });
+            }
+
+            // Generates endpoint at subresourcePath for each operation
+            subresourceProp.operations.forEach((operation) => {
+                (<any>router)[this.actions[operation].verb](
+                    subresourcePath + this.actions[operation].path,
+                    nestedEntityRoute.makeResponseMethod(operation, subresourceRelation)
+                );
+            });
+        }
+    }
+
+    /** Retrieve informations on a subresource relation */
+    private getSubresourceRelation(key: string) {
+        const parentDetailsParam = ((this.subresourcesMeta.parent as any) as Function).name + "Id";
+        const relationMeta = this.metadata.findRelationWithPropertyPath(key);
+        return {
+            param: parentDetailsParam,
+            propertyName: key,
+            relation: relationMeta,
+        };
+    }
+
+    /** Returns a (nested?) subresource base path (= without operation suffix)  */
+    private getSubresourceBasePath(param: string, subresourceProp: SubresourceProperty<any>, parentPath?: string) {
+        const parentDetailsPath = this.actions.details.path.replace(":id", ":" + param);
+        return (parentPath || this.routeMetadata.path) + parentDetailsPath + "/" + subresourceProp.path;
+    }
+
+    private async create({ values, subresourceRelation }: IActionParams<Entity>) {
         const insertResult = await this.denormalizer.insertItem(values);
 
         // Has errors
@@ -128,9 +179,21 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return this.getDetails({ operation: "details", entityId: insertResult.id });
     }
 
-    private async getList({ operation, queryParams }: IActionParams<Entity>) {
+    private async getList({ operation, queryParams, subresourceRelation }: IActionParams<Entity>) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
-        const aliases = {};
+
+        if (subresourceRelation) {
+            const alias = this.aliasManager.generate(
+                this.metadata.tableName,
+                subresourceRelation.relation.inverseSidePropertyPath
+            );
+            qb.innerJoin(
+                this.metadata.tableName + "." + subresourceRelation.relation.inverseSidePropertyPath,
+                alias,
+                alias + ".id = :parentId",
+                { parentId: subresourceRelation.id }
+            );
+        }
 
         if (this.filtersMeta) {
             this.applyFilters(queryParams, qb);
@@ -169,11 +232,15 @@ export class EntityRoute<Entity extends AbstractEntity> {
             .execute();
     }
 
-    private makeResponseMethod(operation: Operation): Koa.Middleware {
+    public makeResponseMethod(operation: Operation, subresourceRelation?: SubresourceRelation): Koa.Middleware {
         return async (ctx, next) => {
             const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
 
-            const params: IActionParams<Entity> = { operation };
+            if (subresourceRelation) {
+                subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
+            }
+
+            const params: IActionParams<Entity> = { operation, subresourceRelation };
             if (ctx.params.id) params.entityId = parseInt(ctx.params.id);
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
@@ -247,6 +314,23 @@ export type RouteMetadata = {
 
 export type RouteFiltersMeta = Record<string, IAbstractFilterConfig>;
 
+export type SubresourceOperation = "create" | "list" | "details";
+export type SubresourceProperty<Entity extends AbstractEntity> = {
+    path: string;
+    operations: SubresourceOperation[];
+    entityTarget: Entity;
+};
+export type RouteSubresourcesMeta<ParentEntity extends AbstractEntity> = {
+    parent: ParentEntity;
+    properties: Record<string, SubresourceProperty<any>>;
+};
+export type SubresourceRelation = {
+    id?: number;
+    param: string;
+    propertyName: string;
+    relation: RelationMetadata;
+};
+
 export interface IEntityRouteOptions {
     isMaxDepthEnabledByDefault?: boolean;
     defaultMaxDepthLvl?: number;
@@ -254,10 +338,39 @@ export interface IEntityRouteOptions {
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
+const ACTIONS: RouteActions = {
+    create: {
+        path: "",
+        verb: "post",
+        method: "create",
+    },
+    list: {
+        path: "",
+        verb: "get",
+        method: "getList",
+    },
+    details: {
+        path: "/:id(\\d+)",
+        verb: "get",
+        method: "getDetails",
+    },
+    update: {
+        path: "/:id(\\d+)",
+        verb: "put",
+        method: "update",
+    },
+    delete: {
+        path: "/:id(\\d+)",
+        verb: "remove",
+        method: "delete",
+    },
+};
+
 interface IActionParams<Entity extends AbstractEntity> {
     operation: Operation;
     exposedProps?: string[];
     entityId?: number;
+    subresourceRelation?: SubresourceRelation;
     isUpdateOrCreate?: boolean;
     values?: DeepPartial<Entity>;
     queryParams?: any;

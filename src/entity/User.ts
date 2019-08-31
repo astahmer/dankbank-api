@@ -6,6 +6,7 @@ import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
 import { IsBoolean } from "class-validator";
+import { Subresource } from "@/decorators/Subresource";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
@@ -39,9 +40,7 @@ export class User extends AbstractEntity {
     @Column({ default: true })
     isProfilePublic: boolean;
 
-    @Groups({
-        user: [],
-    })
+    @Subresource(() => Meme)
     @OneToMany(() => Meme, (memes) => memes.user)
     memes: Meme[];
 

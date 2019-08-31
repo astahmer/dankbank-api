@@ -4,7 +4,7 @@ import { Operation } from "@/decorators/Groups";
 import { EntityGroupsMetadata } from "./GroupsMetadata/EntityGroupsMetadata";
 import { GroupsMetaByRoutes, GroupsMetadata } from "./GroupsMetadata/GroupsMetadata";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
-import { EntityRoute } from "./EntityRoute";
+import { EntityRoute, getRouteSubresourcesMetadata } from "./EntityRoute";
 import { AbstractEntity } from "@/entity";
 import { MaxDeptMetas } from "@/decorators/MaxDepth";
 import { MappingMaker, MappingItem } from "./MappingMaker";
@@ -93,6 +93,11 @@ export class EntityMapper<Entity extends AbstractEntity> {
                 Reflect.getOwnMetadata(metaKey, entityMetadata.target) || new metaClass(metaKey, this.metadata);
         }
         return this.groupsMetas[metaKey][entityMetadata.tableName];
+    }
+
+    /** Get subresources of a given entity */
+    public getSubresourceProps(entityMetadata: EntityMetadata) {
+        return getRouteSubresourcesMetadata(entityMetadata.target as Function).properties;
     }
 
     /**
