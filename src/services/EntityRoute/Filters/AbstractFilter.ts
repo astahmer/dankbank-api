@@ -1,7 +1,7 @@
 import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
 import { pick } from "ramda";
 
-import { Normalizer, AliasList, getPropertyLastAlias, generateAlias } from "../Normalizer";
+import { Normalizer } from "../Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
@@ -13,6 +13,10 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         this.config = config as IAbstractFilterConfig<FilterOptions>;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
+    }
+
+    get aliasManager() {
+        return this.normalizer.aliasManager;
     }
 
     /** Returns every properties of this route entity */
@@ -33,7 +37,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
-    abstract apply({ queryParams, qb, whereExp, aliases }: AbstractFilterApplyArgs): void;
+    abstract apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs): void;
 
     /**
      *Add left joins to get a nested property
@@ -48,7 +52,6 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
         propPath: string,
-        aliases: AliasList,
         currentProp: string,
         prevAlias?: string
     ): any {
@@ -68,24 +71,20 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
             const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
                 (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
             );
-            let alias = getPropertyLastAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
+            let alias = this.aliasManager.getPropertyLastAlias(
+                relation.entityMetadata.tableName,
+                relation.propertyName
+            );
 
             if (!isJoinAlreadyMade) {
-                alias = generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
+                alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
                 qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
             }
 
             const splitPath = propPath.split(".");
             const nextPropPath = splitPath.slice(1).join(".");
 
-            return this.makeJoinsFromPropPath(
-                qb,
-                relation.inverseEntityMetadata,
-                nextPropPath,
-                aliases,
-                splitPath[1],
-                alias
-            );
+            return this.makeJoinsFromPropPath(qb, relation.inverseEntityMetadata, nextPropPath, splitPath[1], alias);
         }
     }
 
@@ -141,7 +140,6 @@ export type AbstractFilterApplyArgs = {
     queryParams?: QueryParams;
     qb?: SelectQueryBuilder<any>;
     whereExp?: WhereExpression;
-    aliases?: AliasList;
 };
 
 export type FilterProperty = string | Record<string, string>;

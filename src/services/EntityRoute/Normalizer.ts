@@ -8,12 +8,9 @@ import { EntityRoute } from "./EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
 
 export class Normalizer<Entity extends AbstractEntity> {
-    private entityRoute: EntityRoute<Entity>;
     private qb: SelectQueryBuilder<Entity>;
 
-    constructor(entityRoute: EntityRoute<Entity>) {
-        this.entityRoute = entityRoute;
-    }
+    constructor(private entityRoute: EntityRoute<Entity>) {}
 
     get repository() {
         return this.entityRoute.routeRepository;
@@ -25,6 +22,10 @@ export class Normalizer<Entity extends AbstractEntity> {
 
     get mapper() {
         return this.entityRoute.mapper;
+    }
+
+    get aliasManager() {
+        return this.entityRoute.aliasManager;
     }
 
     get options() {
@@ -43,10 +44,9 @@ export class Normalizer<Entity extends AbstractEntity> {
      */
     public async getCollection<Entity extends AbstractEntity>(
         operation: Operation,
-        qb: SelectQueryBuilder<Entity>,
-        aliases: AliasList
+        qb: SelectQueryBuilder<Entity>
     ): Promise<[Entity[], number]> {
-        this.makeJoinFromGroups(operation, qb, this.metadata, aliases, "", this.metadata.tableName);
+        this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
 
         const results = await qb.getManyAndCount();
         const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
@@ -61,7 +61,7 @@ export class Normalizer<Entity extends AbstractEntity> {
             .select(selectProps)
             .where(this.metadata.tableName + ".id = :id", { id: entityId });
 
-        this.makeJoinFromGroups(operation, qb, this.metadata, {}, "", this.metadata.tableName);
+        this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
 
         this.qb = qb;
         const result = await qb.getOne();
@@ -117,7 +117,6 @@ export class Normalizer<Entity extends AbstractEntity> {
         operation: Operation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
-        aliases: AliasList,
         currentPath?: string,
         prevProp?: string
     ) {
@@ -136,13 +135,13 @@ export class Normalizer<Entity extends AbstractEntity> {
                 relation
             );
 
-            const alias = generateAlias(aliases, relation.entityMetadata.tableName, relation.propertyName);
+            const alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
             if (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.leftJoin(prevProp + "." + relation.propertyName, alias);
             }
 
             if (!circularProp) {
-                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, aliases, newPath, alias);
+                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, newPath, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.addSelect(alias + ".id");
             }
@@ -162,25 +161,6 @@ export class Normalizer<Entity extends AbstractEntity> {
         });
     }
 }
-
-export type AliasList = Record<string, number>;
-
-/**
- * Appends a number (of occurences) to a propertName in order to avoid ambiguous sql names
- * @param aliases current list of aliases
- * @param entity add one to the counter on this property name
- * @param propName add one to the counter on this property name
- */
-export const generateAlias = (aliases: AliasList, entityTableName: string, propName: string) => {
-    const key = entityTableName + "." + propName;
-    aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
-    return entityTableName + "_" + propName + "_" + aliases[key];
-};
-
-export const getPropertyLastAlias = (aliases: AliasList, entityTableName: string, propName: string) => {
-    const key = entityTableName + "." + propName;
-    return entityTableName + "_" + propName + "_" + aliases[key];
-};
 
 export const computedPropRegex = /^(get|is|has).+/;
 

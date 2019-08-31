@@ -3,12 +3,13 @@ import * as Router from "koa-router";
 import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeepPartial, DeleteResult } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Normalizer, AliasList } from "./Normalizer";
+import { Normalizer } from "./Normalizer";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./EntityMapper";
 import { Denormalizer, ErrorMappingItem } from "./Denormalizer";
 import { isType } from "./utils";
+import { QueryAliasManager } from "./QueryAliasManager";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -25,6 +26,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private globalOptions: IEntityRouteOptions;
 
     private entityMapper: EntityMapper<Entity>;
+    private queryAliasManager: QueryAliasManager;
     private normalizer: Normalizer<Entity>;
     private denormalizer: Denormalizer<Entity>;
 
@@ -35,6 +37,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.globalOptions = globalOptions;
 
         this.entityMapper = new EntityMapper<Entity>(this);
+        this.queryAliasManager = new QueryAliasManager();
         this.normalizer = new Normalizer<Entity>(this);
         this.denormalizer = new Denormalizer(this);
 
@@ -77,6 +80,10 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     get mapper() {
         return this.entityMapper;
+    }
+
+    get aliasManager() {
+        return this.queryAliasManager;
     }
 
     get filters() {
@@ -126,10 +133,10 @@ export class EntityRoute<Entity extends AbstractEntity> {
         const aliases = {};
 
         if (this.filtersMeta) {
-            this.applyFilters(queryParams, qb, aliases);
+            this.applyFilters(queryParams, qb);
         }
 
-        const collectionResult = await this.normalizer.getCollection(operation, qb, aliases);
+        const collectionResult = await this.normalizer.getCollection(operation, qb);
 
         return {
             items: collectionResult[0],
@@ -171,6 +178,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
 
+            this.aliasManager.resetList();
             const method = this.actions[operation].method;
             const result = await this[method](params);
 
@@ -220,13 +228,13 @@ export class EntityRoute<Entity extends AbstractEntity> {
         });
     }
 
-    private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>, aliases: AliasList) {
+    private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>) {
         if (!Object.keys(queryParams).length) {
             return;
         }
 
         this.filters.forEach((filterOptions) => {
-            this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb, aliases });
+            this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb });
         });
     }
 }
