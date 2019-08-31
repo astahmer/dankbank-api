@@ -1,8 +1,9 @@
 import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
+import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
-import { sortObjectByKeys, isPrimitive, lowerFirstLetter } from "./utils";
+import { sortObjectByKeys, lowerFirstLetter } from "./utils";
 import { EntityRoute } from "./EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
 
@@ -174,12 +175,12 @@ export const generateAlias = (aliases: AliasList, entityTableName: string, propN
     const key = entityTableName + "." + propName;
     aliases[key] = aliases[key] ? aliases[key] + 1 : 1;
     return entityTableName + "_" + propName + "_" + aliases[key];
-}
+};
 
 export const getPropertyLastAlias = (aliases: AliasList, entityTableName: string, propName: string) => {
     const key = entityTableName + "." + propName;
     return entityTableName + "_" + propName + "_" + aliases[key];
-}
+};
 
 export const computedPropRegex = /^(get|is|has).+/;
 

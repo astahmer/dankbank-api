@@ -61,7 +61,6 @@ export class User extends AbstractEntity {
     @Groups({
         user: ["create", "list", "details"],
     })
-    @ValidateNested()
     @ManyToOne(() => Category, { cascade: ["insert"] })
     profileCategory: Category;
 }

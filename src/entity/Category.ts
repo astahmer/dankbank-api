@@ -10,16 +10,18 @@ import { IsDefined } from "class-validator";
 export class Category extends AbstractEntity {
     @Groups({
         category: ["list", "details"],
-        user: ["list", "details"],
+        user: ["create", "list", "details"],
         picture: ["list", "details"],
     })
     @Column()
+    @IsDefined()
     name: string;
 
     @Groups({
         category: ["list", "details"],
-        user: ["details"],
+        user: ["create", "details"],
     })
+    @IsDefined()
     @Column()
     icon: string;
 

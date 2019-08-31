@@ -7,9 +7,8 @@ import { Normalizer, AliasList } from "./Normalizer";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./EntityMapper";
-import { Denormalizer } from "./Denormalizer";
+import { Denormalizer, ErrorMappingItem } from "./Denormalizer";
 import { isType } from "./utils";
-import { ValidationError } from "class-validator";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -115,7 +114,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         const insertResult = await this.denormalizer.insertItem(values);
 
         // Has errors
-        if (Array.isArray(insertResult)) {
+        if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
             return insertResult;
         }
 
@@ -182,14 +181,14 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 },
             };
 
-            if (isType<CollectionResult<Entity>>(result, operation === "list")) {
+            if (isType<ErrorMappingItem>(result, "errors" in result)) {
+                response["@context"].errors = result;
+            } else if (isType<CollectionResult<Entity>>(result, operation === "list")) {
                 response["@context"].retrievedItems = result.items.length;
                 response["@context"].totalItems = result.totalItems;
                 response.items = result.items;
             } else if (isType<DeleteResult>(result)) {
                 response.deleted = result;
-            } else if (Array.isArray(result)) {
-                response["@context"].errors = result;
             } else {
                 response = { ...response, ...result };
             }
@@ -262,7 +261,7 @@ interface IRouteResponse {
         entity: string;
         totalItems?: number;
         retrievedItems?: number;
-        errors?: ValidationError[];
+        errors?: ErrorMappingItem;
     };
     items?: any[];
     deleted?: any;
