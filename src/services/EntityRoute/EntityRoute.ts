@@ -141,11 +141,12 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return await this.normalizer.getItem<Entity>("details", entityId);
     }
 
-    private async update({ values }: IActionParams<Entity>) {
-        const insertResult = await this.denormalizer.insertItem(values);
+    private async update({ values, entityId }: IActionParams<Entity>) {
+        (values as any).id = entityId;
+        const insertResult = await this.denormalizer.updateItem(values);
 
         // Has errors
-        if (Array.isArray(insertResult)) {
+        if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
             return insertResult;
         }
 
@@ -166,7 +167,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
 
             const params: IActionParams<Entity> = { operation };
-            if (ctx.params.id) params.entityId = ctx.params.id;
+            if (ctx.params.id) params.entityId = parseInt(ctx.params.id);
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
 
@@ -177,9 +178,9 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 "@context": {
                     operation,
                     entity: this.metadata.tableName,
-                    errors: null,
                 },
             };
+            if (isUpdateOrCreate) response["@context"].errors = null;
 
             if (isType<ErrorMappingItem>(result, "errors" in result)) {
                 response["@context"].errors = result;

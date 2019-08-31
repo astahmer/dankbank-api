@@ -3,25 +3,25 @@ import { Groups, EntityRoute } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Picture } from "./Picture";
 import { User } from "./User";
-import { IsDefined } from "class-validator";
+import { IsNotEmpty } from "class-validator";
 
 @EntityRoute("/categories", ["list", "details"])
 @Entity()
 export class Category extends AbstractEntity {
     @Groups({
         category: ["list", "details"],
-        user: ["create", "list", "details"],
+        user: ["create", "list", "details", "update"],
         picture: ["list", "details"],
     })
     @Column()
-    @IsDefined()
+    @IsNotEmpty()
     name: string;
 
     @Groups({
         category: ["list", "details"],
         user: ["create", "details"],
     })
-    @IsDefined()
+    @IsNotEmpty()
     @Column()
     icon: string;
 

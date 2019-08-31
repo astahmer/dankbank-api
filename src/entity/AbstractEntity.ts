@@ -5,7 +5,7 @@ import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
 export abstract class AbstractEntity {
     private repository: Repository<AbstractEntity>;
 
-    @Groups(["create", "list", "details"])
+    @Groups(["create", "list", "details", "update"])
     @PrimaryGeneratedColumn()
     id: number;
 

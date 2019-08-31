@@ -5,36 +5,36 @@ import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
-import { ValidateNested, IsBoolean } from "class-validator";
+import { IsBoolean } from "class-validator";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
-@EntityRoute("/users", ["create", "list", "details"])
+@EntityRoute("/users", ["create", "list", "details", "update"])
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
-        user: ["create", "list", "details"],
+        user: ["create", "list", "details", "update"],
     })
     @Column()
     firstName: string;
 
     @Groups({
-        user: ["create", "list", "details"],
+        user: ["create", "list", "details", "update"],
     })
     @Column({ nullable: true })
     lastName: string;
 
     @Groups({
-        user: ["create", "list", "details"],
+        user: ["create", "list", "details", "update"],
     })
     @Column()
     age: number;
 
-    @Groups({ user: ["create", "list", "details"] })
+    @Groups({ user: ["create", "list", "details", "update"] })
     @Column({ nullable: true })
     birthDate: Date;
 
-    @Groups({ user: ["create", "list", "details"] })
+    @Groups({ user: ["create", "list", "details", "update"] })
     @IsBoolean()
     @Column({ default: true })
     isProfilePublic: boolean;
@@ -59,8 +59,8 @@ export class User extends AbstractEntity {
     teams: Team[];
 
     @Groups({
-        user: ["create", "list", "details"],
+        user: ["create", "list", "details", "update"],
     })
-    @ManyToOne(() => Category, { cascade: ["insert"] })
+    @ManyToOne(() => Category, { cascade: ["insert", "update"] })
     profileCategory: Category;
 }

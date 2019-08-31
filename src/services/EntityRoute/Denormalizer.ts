@@ -5,7 +5,7 @@ import { Operation } from "@/decorators/Groups";
 import { EntityRoute } from "./EntityRoute";
 import { isObject, isPrimitive } from "util";
 import { MappingItem } from "./MappingMaker";
-import { validate, ValidationError } from "class-validator";
+import { validate, ValidationError, ValidatorOptions } from "class-validator";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     private entityRoute: EntityRoute<Entity>;
@@ -43,7 +43,9 @@ export class Denormalizer<Entity extends AbstractEntity> {
     private async saveItem(operation: Operation, values: DeepPartial<Entity>) {
         const cleanedItem = this.cleanItem(operation, values);
         const item: DeepPartial<Entity> = this.repository.create(cleanedItem) as any;
-        const errorMapping = await this.recursiveValidate(item, []);
+
+        const validatorOptions = operation === "update" ? { skipMissingProperties: true } : undefined;
+        const errorMapping = await this.recursiveValidate(item, [], validatorOptions);
 
         if (hasAnyError(errorMapping)) {
             return errorMapping;
@@ -97,10 +99,14 @@ export class Denormalizer<Entity extends AbstractEntity> {
         return clone;
     }
 
-    private async recursiveValidate(item: any, currentPath: string[]): Promise<ErrorMappingItem> {
+    private async recursiveValidate(
+        item: any,
+        currentPath: string[],
+        options?: ValidatorOptions
+    ): Promise<ErrorMappingItem> {
         let key: string, prop;
 
-        const errors = await validate(item);
+        const errors = await validate(item, options);
         const errorMapping: ErrorMappingItem = {
             currentPath,
             errors,
@@ -115,13 +121,13 @@ export class Denormalizer<Entity extends AbstractEntity> {
                     errorMapping.nested = {};
                 }
                 errorMapping.nested[key] = await Promise.all(
-                    prop.map((nestedItem) => this.recursiveValidate(nestedItem, currentPath.concat(key)))
+                    prop.map((nestedItem) => this.recursiveValidate(nestedItem, currentPath.concat(key), options))
                 );
             } else if (isObject(prop)) {
                 if (!errorMapping.nested) {
                     errorMapping.nested = {};
                 }
-                errorMapping.nested[key] = [await this.recursiveValidate(prop, currentPath.concat(key))];
+                errorMapping.nested[key] = [await this.recursiveValidate(prop, currentPath.concat(key), options)];
             }
         }
 
