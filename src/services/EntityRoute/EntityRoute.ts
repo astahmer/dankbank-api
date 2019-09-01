@@ -3,14 +3,14 @@ import * as Router from "koa-router";
 import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeepPartial, DeleteResult } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Normalizer } from "./Normalizer";
+import { Normalizer } from "./Serializer/Normalizer";
 import { Operation } from "@/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
-import { EntityMapper } from "./EntityMapper";
-import { Denormalizer, ErrorMappingItem } from "./Denormalizer";
+import { EntityMapper } from "./Mapping/EntityMapper";
+import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
 import { isType } from "./utils";
 import { entityRoutesContainer } from ".";
-import { QueryAliasManager } from "./QueryAliasManager";
+import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 export const ROUTE_METAKEY = Symbol("route");

@@ -40,7 +40,7 @@ async function onConnected(connection: Connection) {
 
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
-    useCustomRoute(connection, app);
+    useCustomRoute(app);
     useGroupsRoute(connection, app);
 
     if (process.env.NODE_ENV === "development") {

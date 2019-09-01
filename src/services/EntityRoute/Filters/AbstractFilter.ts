@@ -1,7 +1,7 @@
 import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
 import { pick } from "ramda";
 
-import { Normalizer } from "../Normalizer";
+import { Normalizer } from "../Serializer/Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {

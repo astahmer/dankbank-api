@@ -2,9 +2,9 @@ import { DeepPartial } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
-import { EntityRoute } from "./EntityRoute";
+import { EntityRoute } from "../EntityRoute";
 import { isObject, isPrimitive } from "util";
-import { MappingItem } from "./MappingMaker";
+import { MappingItem } from "../Mapping/MappingMaker";
 import { validate, ValidationError, ValidatorOptions } from "class-validator";
 
 export class Denormalizer<Entity extends AbstractEntity> {

@@ -6,7 +6,6 @@ import {
     QueryParamValue,
     FilterDefaultConfig,
 } from "./AbstractFilter";
-import { AliasList } from "../Normalizer";
 import { SelectQueryBuilder } from "typeorm";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
@@ -38,7 +37,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
         };
     }
 
-    protected addOrderBy(qb: SelectQueryBuilder<any>, orderBy: QueryParamValue, aliases: AliasList) {
+    protected addOrderBy(qb: SelectQueryBuilder<any>, orderBy: QueryParamValue) {
         if (!Array.isArray(orderBy)) {
             orderBy = [orderBy];
         }
@@ -59,7 +58,6 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
                     qb,
                     this.entityMetadata,
                     orderBy[i].replace(":" + direction, ""),
-                    aliases,
                     props[0]
                 );
 
@@ -70,11 +68,11 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
         qb.orderBy(orderByProps);
     }
 
-    apply({ queryParams, qb, aliases }: AbstractFilterApplyArgs) {
+    apply({ queryParams, qb }: AbstractFilterApplyArgs) {
         const { orderBy, take, skip } = this.getFilterParamsByTypes(queryParams);
 
         if (orderBy) {
-            this.addOrderBy(qb, orderBy, aliases);
+            this.addOrderBy(qb, orderBy);
         }
 
         if (take && typeof take === "string" && parseInt(take)) {

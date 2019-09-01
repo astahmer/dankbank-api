@@ -3,8 +3,8 @@ import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
-import { sortObjectByKeys, lowerFirstLetter } from "./utils";
-import { EntityRoute } from "./EntityRoute";
+import { sortObjectByKeys, lowerFirstLetter } from "../utils";
+import { EntityRoute } from "../EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
 
 export class Normalizer<Entity extends AbstractEntity> {

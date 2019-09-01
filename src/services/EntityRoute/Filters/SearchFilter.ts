@@ -477,7 +477,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }
 
     /** Apply a filter param by adding a where clause to its property & add needed joins if the property is nested */
-    protected applyFilterParam({ qb, whereExp, aliases, filter }: ApplyFilterParamArgs) {
+    protected applyFilterParam({ qb, whereExp, filter }: ApplyFilterParamArgs) {
         const props = filter.propPath.split(".");
 
         if (props.length === 1) {
@@ -495,7 +495,6 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                 qb,
                 this.entityMetadata,
                 filter.propPath,
-                aliases,
                 props[0]
             );
 
@@ -504,12 +503,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }
 
     /** Recursively browse through every nested conditions object and add them */
-    protected applyNestedConditionsFilters({
-        qb,
-        whereExp,
-        aliases,
-        nestedConditionsFilters,
-    }: ApplyNestedConditionFiltersArgs) {
+    protected applyNestedConditionsFilters({ qb, whereExp, nestedConditionsFilters }: ApplyNestedConditionFiltersArgs) {
         const recursiveBrowseFilter = (
             object: Record<string, any>,
             whereExp: WhereExpression,
@@ -524,7 +518,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                     whereExp.andWhere(
                         new Brackets((nestedWhereExp) => {
                             sortedFilters.forEach((filter: FilterParam) => {
-                                this.applyFilterParam({ qb, whereExp: nestedWhereExp, aliases, filter });
+                                this.applyFilterParam({ qb, whereExp: nestedWhereExp, filter });
                             });
                         })
                     );
@@ -543,11 +537,11 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         recursiveBrowseFilter(nestedConditionsFilters, whereExp, true);
     }
 
-    apply({ queryParams, qb, whereExp, aliases }: AbstractFilterApplyArgs) {
+    apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs) {
         const { filters, nestedConditionsFilters } = this.getFiltersLists(queryParams);
 
-        filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, aliases, filter }));
-        this.applyNestedConditionsFilters({ qb, whereExp, aliases, nestedConditionsFilters });
+        filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, filter }));
+        this.applyNestedConditionsFilters({ qb, whereExp, nestedConditionsFilters });
 
         // Fix TypeORM queryBuilder bug where the first parsed "where" clause is of type "OR" > it would end up as a simple where clause, losing the OR
         qb.expressionMap.wheres = sortBy(prop("type"), qb.expressionMap.wheres);
