@@ -6,6 +6,8 @@ import { EntityRoute } from "../EntityRoute";
 import { isObject, isPrimitive } from "util";
 import { MappingItem } from "../Mapping/MappingMaker";
 import { validate, ValidationError, ValidatorOptions } from "class-validator";
+import { formatEntityId } from "../utils";
+import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     private entityRoute: EntityRoute<Entity>;
@@ -92,7 +94,13 @@ export class Denormalizer<Entity extends AbstractEntity> {
                     clone[key] = this.recursiveClean(prop, {}, currentPath.concat(key), routeMapping);
                 }
             } else if (isPrimitive(prop)) {
-                clone[key] = prop;
+                const isRelation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(key);
+                // Format IRI to id && string "id" to int id
+                if (typeof prop === "string" && (isRelation || key === "id")) {
+                    clone[key] = formatEntityId(prop);
+                } else {
+                    clone[key] = prop;
+                }
             }
         }
 
@@ -105,6 +113,20 @@ export class Denormalizer<Entity extends AbstractEntity> {
         options?: ValidatorOptions
     ): Promise<ErrorMappingItem> {
         let key: string, prop;
+
+        const keys = Object.keys(item);
+        // If user is updating entity and item is just an existing relation, no need to validate it since it's missing properties
+        if (
+            ((options && options.skipMissingProperties) || currentPath.length) &&
+            keys.length === 1 &&
+            keys[0] === "id"
+        ) {
+            return {
+                currentPath,
+                errors: [],
+                nested: null,
+            };
+        }
 
         const errors = await validate(item, options);
         const errorMapping: ErrorMappingItem = {

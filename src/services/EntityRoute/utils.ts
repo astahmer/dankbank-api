@@ -1,3 +1,6 @@
+import { EntityMetadata } from "typeorm";
+import { getRouteMetadata } from "./EntityRoute";
+
 export const lowerFirstLetter = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
 
 export const sortObjectByKeys = (obj: any) =>
@@ -37,3 +40,10 @@ export function parseStringAsBoolean(str: string) {
 
     return null;
 }
+
+export function idToIRI(entityMeta: EntityMetadata, id: number) {
+    const routeMetadata = getRouteMetadata(entityMeta.target as Function);
+    return routeMetadata && "/api" + routeMetadata.path + "/" + id;
+}
+export const iriToID = (iri: string) => parseInt(iri.split("/")[3]);
+export const formatEntityId = (id: string) => (parseInt(id) ? parseInt(id) : iriToID(id));
