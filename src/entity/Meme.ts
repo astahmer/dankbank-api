@@ -8,41 +8,41 @@ import { Picture } from "./Picture";
 @Entity()
 export class Meme extends AbstractEntity {
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
     })
     @ManyToOne(() => User, (user) => user.memes)
     user: User;
 
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
         user: ["details"],
     })
     @Column()
     title: string;
 
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
         user: ["details"],
     })
     @Column()
     description: string;
 
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
         user: ["details"],
     })
     @Column()
     upvoteCount: number;
 
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
         user: ["details"],
     })
     @Column()
     downvoteCount: number;
 
     @Groups({
-        meme: ["list", "details"],
+        meme: ["create", "list", "details"],
         user: ["details"],
     })
     @OneToOne(() => Picture, (picture) => picture.associatedMeme, { cascade: ["insert"] })

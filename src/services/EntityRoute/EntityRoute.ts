@@ -169,6 +169,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     private async create({ values, subresourceRelation }: IActionParams<Entity>) {
+        // Auto-join subresource parent on body values
+        if (subresourceRelation) {
+            (values as any)[subresourceRelation.relation.inverseSidePropertyPath] = { id: subresourceRelation.id };
+        }
+
         const insertResult = await this.denormalizer.insertItem(values);
 
         // Has errors

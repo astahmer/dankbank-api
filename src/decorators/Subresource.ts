@@ -9,16 +9,17 @@ import { AbstractEntity } from "@/entity";
 
 export function Subresource(
     entityTarget: Promise<EntityReference> | EntityReference,
-    path?: string,
-    operations: SubresourceOperation[] = ["list", "details"]
+    options: SubresourceOptions = {
+        operations: ["list", "details"],
+    }
 ): PropertyDecorator {
     return (target: Object, propName: string) => {
         // Wrap it in a promise to avoid circular-dependency problems where entityTarget would be undefined
         Promise.resolve(entityTarget).then((entityType) => {
             const subresourcesMeta: RouteSubresourcesMeta<any> = getRouteSubresourcesMetadata(target.constructor);
             subresourcesMeta.properties[propName] = {
-                path: path || propName,
-                operations,
+                path: options.path || propName,
+                operations: options.operations,
                 entityTarget: entityType(),
             };
 
@@ -28,3 +29,7 @@ export function Subresource(
 }
 
 type EntityReference = <Entity extends AbstractEntity>(type?: any) => ObjectType<Entity>;
+type SubresourceOptions = {
+    path?: string;
+    operations: SubresourceOperation[];
+};

@@ -5,7 +5,7 @@ import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
-import { IsBoolean } from "class-validator";
+import { IsBoolean, IsOptional } from "class-validator";
 import { Subresource } from "@/decorators/Subresource";
 
 @PaginationFilter([], { all: true })
@@ -37,10 +37,11 @@ export class User extends AbstractEntity {
 
     @Groups({ user: ["create", "list", "details", "update"] })
     @IsBoolean()
+    @IsOptional()
     @Column({ default: true })
     isProfilePublic: boolean;
 
-    @Subresource(() => Meme)
+    @Subresource(() => Meme, { operations: ["create", "list", "details"] })
     @OneToMany(() => Meme, (memes) => memes.user)
     memes: Meme[];
 
