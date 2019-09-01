@@ -4,6 +4,7 @@ import { path, pluck } from "ramda";
 import { Operation } from "@/decorators/Groups";
 import { EntityMapper } from "./EntityMapper";
 import { AbstractEntity } from "@/entity";
+import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 
 export type MappingItem = {
     metadata?: EntityMetadata;
@@ -11,6 +12,7 @@ export type MappingItem = {
     exposedProps?: any;
     selectProps?: any;
     relationProps?: any;
+    [ENTITY_META_SYMBOL]: EntityMetadata;
 };
 
 export type MappingResponse = Record<string, MappingItem>;
@@ -59,6 +61,7 @@ export class MappingMaker<Entity extends AbstractEntity> {
         const nestedMapping: MappingItem = {
             selectProps,
             relationProps: pluck("propertyName", relationProps),
+            [ENTITY_META_SYMBOL]: entityMetadata,
             mapping: {},
         };
 

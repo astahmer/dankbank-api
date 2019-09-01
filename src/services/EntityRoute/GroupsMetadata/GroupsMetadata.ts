@@ -11,7 +11,7 @@ import {
 } from "@/decorators/Groups";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
-const entityMetaSymbol = Symbol("entityMeta");
+export const ENTITY_META_SYMBOL = Symbol("entityMeta");
 
 export class GroupsMetadata<PropNameType = string> {
     /** The key under which the Reflect metadata will be store on the target entity */
@@ -21,7 +21,7 @@ export class GroupsMetadata<PropNameType = string> {
     protected entityTarget: Function;
 
     /** EntityMetadata associated with the class */
-    protected [entityMetaSymbol]: EntityMetadata;
+    protected [ENTITY_META_SYMBOL]: EntityMetadata;
 
     /** Every entity's props decorated with @Groups */
     protected decoratedProps: PropNameType[] = [];
@@ -38,11 +38,11 @@ export class GroupsMetadata<PropNameType = string> {
     protected exposedPropsByContexts: ContextOperations<PropNameType> = {};
 
     get entityMeta() {
-        return this[entityMetaSymbol];
+        return this[ENTITY_META_SYMBOL];
     }
 
     set entityMeta(newVal) {
-        this[entityMetaSymbol] = newVal;
+        this[ENTITY_META_SYMBOL] = newVal;
     }
 
     constructor(metaKey: string, entityOrMeta: EntityMetadata | Function) {
