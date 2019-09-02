@@ -1,13 +1,24 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
 import { Connection } from "typeorm";
+
+import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
 import { EntityGroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
 
 export function useGroupsRoute(connection: Connection, app: Koa) {
     const router = new Router();
-    router.get("/groups/:tableName", async (ctx) => {
+    const action = new GroupsAction(connection);
+
+    router.get("/groups/:tableName", action.onRequest);
+    app.use(router.routes());
+}
+
+class GroupsAction implements RouteAction {
+    constructor(private connection: Connection) {}
+
+    public onRequest(ctx: Koa.Context) {
         try {
-            const repository = connection.getRepository(ctx.params.tableName);
+            const repository = this.connection.getRepository(ctx.params.tableName);
             const entityMetadata = repository.metadata;
             const groupsMeta: EntityGroupsMetadata = Reflect.getOwnMetadata("groups", entityMetadata.target);
             ctx.body = { groupsMeta };
@@ -15,6 +26,5 @@ export function useGroupsRoute(connection: Connection, app: Koa) {
         } catch (error) {
             ctx.body = { error };
         }
-    });
-    app.use(router.routes());
+    }
 }

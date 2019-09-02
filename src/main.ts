@@ -3,7 +3,7 @@ import "reflect-metadata";
 
 import * as Koa from "koa";
 import * as bodyParser from "koa-bodyparser";
-import { createConnection, Connection } from "typeorm";
+import { createConnection, Connection, getConnectionOptions } from "typeorm";
 import { createKoaServer } from "routing-controllers";
 
 import { TypeORMConfig } from "./ormconfig";
@@ -12,10 +12,12 @@ import { logger } from "@/services/Logger";
 
 import { useCustomRoute } from "@/controllers/CustomController";
 import { useEntitiesRoutes } from "@/services/EntityRoute";
+import { useCustomRoute } from "@/actions/CustomAction";
+import { useGroupsRoute } from "@/actions/GroupsAction";
 
+import { useEntitiesRoutes } from "@/services/EntityRoute";
 import { getAppRoutes } from "@/utils/getAppRoutes";
 import { makeFixtures } from "@/fixtures";
-import { useGroupsRoute } from "@/controllers/GroupsController";
 
 declare const module: any;
 
@@ -25,8 +27,9 @@ if (module.hot && module.hot.data && module.hot.data.connection) {
     startApp();
 }
 
-function startApp() {
-    createConnection({ ...(TypeORMConfig as any), entities: getEntities() })
+async function startApp() {
+    const connectionOptions = await getConnectionOptions();
+    createConnection({ ...connectionOptions, ...(TypeORMConfig as any), entities: getEntities() })
         .then(onConnected)
         .catch((error) => console.log(error));
 }
@@ -40,6 +43,7 @@ async function onConnected(connection: Connection) {
 
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
+
     useCustomRoute(app);
     useGroupsRoute(connection, app);
 
