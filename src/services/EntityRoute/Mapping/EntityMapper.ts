@@ -90,7 +90,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
 
         if (!this.groupsMetas[metaKey][entityMetadata.tableName]) {
             this.groupsMetas[metaKey][entityMetadata.tableName] =
-                Reflect.getOwnMetadata(metaKey, entityMetadata.target) || new metaClass(metaKey, this.metadata);
+                Reflect.getOwnMetadata(metaKey, entityMetadata.target) || new metaClass(metaKey, entityMetadata);
         }
         return this.groupsMetas[metaKey][entityMetadata.tableName];
     }
