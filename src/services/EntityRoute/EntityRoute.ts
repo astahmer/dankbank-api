@@ -130,6 +130,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
             relationTableName = subresourceRelation.relation.inverseEntityMetadata.tableName;
             nestedEntityRoute = entityRoutesContainer[subresourceProp.entityTarget.name];
+
+            if (!nestedEntityRoute) {
+                continue;
+            }
+
             // Ensures that it is not making circular subresources routes
             if (!parentSubresource || !parentSubresource.currentPath.includes(relationTableName)) {
                 // Recursively make subresources

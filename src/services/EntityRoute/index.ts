@@ -1,6 +1,6 @@
 import * as Koa from "koa";
 
-import { EntityRoute, IEntityRouteOptions } from "./EntityRoute";
+import { EntityRoute, IEntityRouteOptions, getRouteMetadata } from "./EntityRoute";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Entity } from "@/utils/globalTypes";
 
@@ -14,7 +14,17 @@ export async function useEntitiesRoutes<T extends AbstractEntity>(
         shouldEntityWithOnlyIdBeFlattenedToIri: true,
     }
 ) {
-    const entityRoutes = entities.map((entity) => new EntityRoute<T>(entity, options));
+    // Instanciate every EntityRoute
+    const entityRoutes = entities.reduce((acc, entity) => {
+        const routeMeta = getRouteMetadata(entity);
+        if (routeMeta) {
+            acc.push(new EntityRoute<T>(entity, options));
+        }
+
+        return acc;
+    }, []);
+
+    // Make router for each of them
     entityRoutes.forEach((entityRoute) => app.use(entityRoute.makeRouter().routes()));
 }
 
