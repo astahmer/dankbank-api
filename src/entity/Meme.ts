@@ -1,9 +1,10 @@
 import { Entity, Column, ManyToOne, OneToOne, JoinColumn } from "typeorm";
-import { Groups, EntityRoute } from "../decorators";
+import { Groups, EntityRoute, SearchFilter } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { User } from "./User";
 import { Picture } from "./Picture";
 
+@SearchFilter([], { all: true })
 @EntityRoute("/memes", ["list", "details"])
 @Entity()
 export class Meme extends AbstractEntity {

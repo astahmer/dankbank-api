@@ -10,8 +10,7 @@ import { TypeORMConfig } from "./ormconfig";
 import { logRequest } from "@/middlewares";
 import { logger } from "@/services/Logger";
 
-import { useCustomRoute } from "@/controllers/CustomController";
-import { useEntitiesRoutes } from "@/services/EntityRoute";
+import { useImageUploadRoute } from "./services/EntityRoute/Actions/ImageUploadAction";
 import { useCustomRoute } from "@/actions/CustomAction";
 import { useGroupsRoute } from "@/actions/GroupsAction";
 
@@ -44,6 +43,7 @@ async function onConnected(connection: Connection) {
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
 
+    useImageUploadRoute(connection, app);
     useCustomRoute(app);
     useGroupsRoute(connection, app);
 

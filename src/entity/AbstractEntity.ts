@@ -22,7 +22,8 @@ export abstract class AbstractEntity {
 
     @Groups(["list", "details"], "@id")
     getIri() {
-        return this.getBaseRoute() + "/" + this.id;
+        const baseRoute = this.getBaseRoute();
+        return baseRoute ? baseRoute + "/" + this.id : this.id;
     }
 
     @Groups(["list", "details"], "@type")

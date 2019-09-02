@@ -1,10 +1,11 @@
-import { Entity, Column, OneToOne, OneToMany } from "typeorm";
+import { Entity, Column, OneToOne, OneToMany, JoinColumn } from "typeorm";
 import { Groups, EntityRoute } from "../decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Category } from "./Category";
+import { FileEntity } from "./FileEntity";
 
-@EntityRoute("/pictures", ["list", "details"])
+@EntityRoute("/pictures", ["list", "details", "update"])
 @Entity()
 export class Picture extends AbstractEntity {
     @Groups({
@@ -14,6 +15,13 @@ export class Picture extends AbstractEntity {
     })
     @Column()
     url: string;
+
+    @Groups({
+        picture: ["list", "details", "update"],
+    })
+    @OneToOne(() => FileEntity)
+    @JoinColumn()
+    file: FileEntity;
 
     @Groups({
         picture: ["details"],
