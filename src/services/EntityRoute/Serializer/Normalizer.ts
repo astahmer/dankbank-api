@@ -6,6 +6,7 @@ import { Operation } from "@/decorators/Groups";
 import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
+import { getDependsOnMetadata } from "@/decorators/DependsOn";
 
 export class Normalizer<Entity extends AbstractEntity> {
     private qb: SelectQueryBuilder<Entity>;
@@ -47,9 +48,10 @@ export class Normalizer<Entity extends AbstractEntity> {
         qb: SelectQueryBuilder<Entity>
     ): Promise<[Entity[], number]> {
         this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
+        this.makeJoinFromComputedPropsDependsOn(operation, qb, this.metadata);
 
         const results = await qb.getManyAndCount();
-        const items = results[0].map((item) => this.recursiveBrowseItem(item, operation));
+        const items = await Promise.all(results[0].map((item) => this.recursiveBrowseItem(item, operation)));
 
         return [items, results[1]];
     }
@@ -62,10 +64,11 @@ export class Normalizer<Entity extends AbstractEntity> {
             .where(this.metadata.tableName + ".id = :id", { id: entityId });
 
         this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
+        this.makeJoinFromComputedPropsDependsOn(operation, qb, this.metadata);
 
         this.qb = qb;
         const result = await qb.getOne();
-        const item: Entity = this.recursiveBrowseItem(result, operation);
+        const item: Entity = await this.recursiveBrowseItem(result, operation);
 
         return item;
     }
@@ -118,6 +121,10 @@ export class Normalizer<Entity extends AbstractEntity> {
         }
     }
 
+    private async recursiveBrowseItem<Entity extends AbstractEntity>(
+        item: Entity,
+        operation: Operation
+    ): Promise<Entity> {
         let key, prop, entityMetadata;
         entityMetadata = getRepository(item.constructor.name).metadata;
 
@@ -128,7 +135,7 @@ export class Normalizer<Entity extends AbstractEntity> {
                     this.recursiveBrowseItem(nestedItem, operation)
                 ) as any;
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
-                item[key as keyof Entity] = this.recursiveBrowseItem(prop as any, operation);
+                item[key as keyof Entity] = await this.recursiveBrowseItem(prop as any, operation);
             } else if (isPrimitive(prop)) {
                 // console.log(key + " : " + prop);
             } else if (typeof prop === "function") {
@@ -146,7 +153,7 @@ export class Normalizer<Entity extends AbstractEntity> {
             item = item.getIri() as any;
             return item;
         } else {
-            this.setComputedPropsOnItem(item, operation, entityMetadata);
+            await this.setComputedPropsOnItem(item, operation, entityMetadata);
             this.setSubresourcesIriOnItem(item, entityMetadata);
             return sortObjectByKeys(item);
         }
@@ -196,17 +203,41 @@ export class Normalizer<Entity extends AbstractEntity> {
         });
     }
 
-    private setComputedPropsOnItem<U extends AbstractEntity>(
+    private makeJoinFromComputedPropsDependsOn(
+        operation: Operation,
+        qb: SelectQueryBuilder<any>,
+        entityMetadata: EntityMetadata
+    ) {
+        const dependsOnMeta = getDependsOnMetadata(entityMetadata.target as Function);
+        const computedProps = this.mapper.getComputedProps(operation, entityMetadata).map(getComputedPropMethodAndKey);
+        computedProps.forEach((computed) => {
+            if (dependsOnMeta[computed.computedPropMethod]) {
+                dependsOnMeta[computed.computedPropMethod].forEach((propPath) => {
+                    const props = propPath.split(".");
+                    const { entityAlias, propName } = this.makeJoinsFromPropPath(
+                        qb,
+                        entityMetadata,
+                        propPath,
+                        props[0]
+                    );
+                    qb.addSelect([entityAlias + "." + propName]);
+                });
+            }
+        });
+    }
+
+    private async setComputedPropsOnItem<U extends AbstractEntity>(
         item: U,
         operation: Operation,
         entityMetadata: EntityMetadata
     ) {
-        const computedProps = this.mapper.getComputedProps(operation, entityMetadata);
-
-        computedProps.forEach((computed) => {
-            const { computedPropMethod, propKey } = getComputedPropMethodAndKey(computed);
-            item[propKey as keyof U] = (item[computedPropMethod as keyof U] as any)();
-        });
+        const computedProps = this.mapper
+            .getComputedProps(operation, entityMetadata)
+            .map((computed) => getComputedPropMethodAndKey(computed));
+        const propsPromises = await Promise.all(
+            computedProps.map((computed) => (item[computed.computedPropMethod as keyof U] as any)())
+        );
+        propsPromises.forEach((result, i) => (item[computedProps[i].propKey as keyof U] = result));
     }
 
     private setSubresourcesIriOnItem<U extends AbstractEntity>(item: U, entityMetadata: EntityMetadata) {
