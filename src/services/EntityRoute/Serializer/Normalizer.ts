@@ -136,10 +136,8 @@ export class Normalizer<Entity extends AbstractEntity> {
                 ) as any;
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
                 item[key as keyof Entity] = await this.recursiveBrowseItem(prop as any, operation);
-            } else if (isPrimitive(prop)) {
-                // console.log(key + " : " + prop);
-            } else if (typeof prop === "function") {
-                // console.log(key + " : " + prop);
+            } else if (!isPrimitive(prop) && !(prop instanceof Date)) {
+                item[key as keyof Entity] = undefined;
             }
         }
 

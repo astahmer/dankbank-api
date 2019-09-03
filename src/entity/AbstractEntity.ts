@@ -15,6 +15,10 @@ export abstract class AbstractEntity {
     @UpdateDateColumn()
     dateUpdated: string;
 
+    constructor() {
+        this.repository = this.getEntityRepository();
+    }
+
     getBaseRoute() {
         const routeMetadata = getRouteMetadata(this.constructor);
         return routeMetadata && "/api" + routeMetadata.path;
@@ -32,7 +36,7 @@ export abstract class AbstractEntity {
     }
 
     getEntityRepository() {
-        this.repository = getRepository(this.getClassName());
+        return getRepository<any>(this.getClassName());
     }
 
     getEntityMetadata() {

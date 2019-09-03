@@ -11,6 +11,7 @@ import { FileEntity } from "@/entity/FileEntity";
 import { EntityManager, Connection } from "typeorm";
 import { plainToClass } from "class-transformer";
 import { sortObjectByKeys } from "../utils";
+import { BASE_URL } from "@/main";
 
 export function useImageUploadRoute(connection: Connection, app: Koa) {
     const router = new Router();
@@ -20,8 +21,12 @@ export function useImageUploadRoute(connection: Connection, app: Koa) {
     app.use(router.routes());
 }
 
-export function getImageLink(name: string) {
+export function getImageLocalLink(name: string) {
     return path.resolve(PUBLIC_UPLOADS_DIR, name);
+}
+
+export function getImageURL(name: string) {
+    return BASE_URL + "/public/" + name;
 }
 
 class ImageUploadAction implements RouteAction {

@@ -1,11 +1,10 @@
 import { Entity, Column, OneToOne, OneToMany, JoinColumn } from "typeorm";
-import { Groups, EntityRoute } from "../decorators";
+import { Groups, EntityRoute, DependsOn } from "@/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Category } from "./Category";
 import { FileEntity } from "./FileEntity";
-import { getImageLink } from "@/services/EntityRoute/Actions/ImageUploadAction";
-import { DependsOn } from "@/decorators/DependsOn";
+import { getImageURL } from "@/services/EntityRoute/Actions/ImageUploadAction";
 
 @EntityRoute("/pictures", ["list", "details", "update"])
 @Entity()
@@ -59,6 +58,6 @@ export class Picture extends AbstractEntity {
     @Groups("all")
     @DependsOn(["file.name"])
     async getLink() {
-        return this.file.name && getImageLink(this.file.name);
+        return this.file && this.file.name && getImageURL(this.file.name);
     }
 }
