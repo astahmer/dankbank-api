@@ -70,7 +70,54 @@ export class Normalizer<Entity extends AbstractEntity> {
         return item;
     }
 
-    private recursiveBrowseItem<Entity extends AbstractEntity>(item: Entity, operation: Operation): Entity {
+    /**
+     *Add left joins to get a nested property
+
+     * @param qb current queryBuilder instance
+     * @param entityMetadata current meta to search column or relation in
+     * @param propPath dot delimited property path leading to a nested property
+     * @param currentProp current propPath part used, needed to find column or relation meta
+     * @param prevAlias previous alias used to joins on current entity props
+     */
+    public makeJoinsFromPropPath(
+        qb: SelectQueryBuilder<any>,
+        entityMetadata: EntityMetadata,
+        propPath: string,
+        currentProp: string,
+        prevAlias?: string
+    ): any {
+        const column = entityMetadata.findColumnWithPropertyName(currentProp);
+        const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(currentProp);
+
+        // Flat primitive property
+        if (column && !relation) {
+            return {
+                entityAlias: prevAlias,
+                propName: column.databaseName,
+                columnMeta: column,
+            };
+        } else {
+            // Relation
+            const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
+                (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
+            );
+            let alias = this.aliasManager.getPropertyLastAlias(
+                relation.entityMetadata.tableName,
+                relation.propertyName
+            );
+
+            if (!isJoinAlreadyMade) {
+                alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
+                qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
+            }
+
+            const splitPath = propPath.split(".");
+            const nextPropPath = splitPath.slice(1).join(".");
+
+            return this.makeJoinsFromPropPath(qb, relation.inverseEntityMetadata, nextPropPath, splitPath[1], alias);
+        }
+    }
+
         let key, prop, entityMetadata;
         entityMetadata = getRepository(item.constructor.name).metadata;
 

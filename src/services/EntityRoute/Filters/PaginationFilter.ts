@@ -54,7 +54,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
             if (props.length === 1) {
                 orderByProps[this.entityMetadata.tableName + "." + props] = direction;
             } else {
-                const { entityAlias, propName } = this.makeJoinsFromPropPath(
+                const { entityAlias, propName } = this.normalizer.makeJoinsFromPropPath(
                     qb,
                     this.entityMetadata,
                     orderBy[i].replace(":" + direction, ""),

@@ -39,55 +39,6 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
     /** This method should add conditions to the queryBuilder using queryParams  */
     abstract apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs): void;
 
-    /**
-     *Add left joins to get a nested property
-
-     * @param qb current queryBuilder instance
-     * @param entityMetadata current meta to search column or relation in
-     * @param propPath dot delimited property path leading to a nested property
-     * @param currentProp current propPath part used, needed to find column or relation meta
-     * @param prevAlias previous alias used to joins on current entity props
-     */
-    protected makeJoinsFromPropPath(
-        qb: SelectQueryBuilder<any>,
-        entityMetadata: EntityMetadata,
-        propPath: string,
-        currentProp: string,
-        prevAlias?: string
-    ): any {
-        const column = entityMetadata.findColumnWithPropertyName(currentProp);
-        const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(currentProp);
-
-        // Flat primitive property
-        if (column && !relation) {
-            return {
-                entityAlias: prevAlias,
-                propName: column.databaseName,
-                columnMeta: column,
-            };
-        } else {
-            // Relation
-
-            const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
-                (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
-            );
-            let alias = this.aliasManager.getPropertyLastAlias(
-                relation.entityMetadata.tableName,
-                relation.propertyName
-            );
-
-            if (!isJoinAlreadyMade) {
-                alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
-                qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
-            }
-
-            const splitPath = propPath.split(".");
-            const nextPropPath = splitPath.slice(1).join(".");
-
-            return this.makeJoinsFromPropPath(qb, relation.inverseEntityMetadata, nextPropPath, splitPath[1], alias);
-        }
-    }
-
     /** Return true if first part of propPath exists in this entity properties */
     protected isParamInEntityProps(param: string) {
         return param.indexOf(".") !== -1

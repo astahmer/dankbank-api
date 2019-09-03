@@ -491,7 +491,7 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
                 column,
             });
         } else {
-            const { entityAlias, propName, columnMeta: column } = this.makeJoinsFromPropPath(
+            const { entityAlias, propName, columnMeta: column } = this.normalizer.makeJoinsFromPropPath(
                 qb,
                 this.entityMetadata,
                 filter.propPath,
