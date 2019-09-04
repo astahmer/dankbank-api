@@ -11,7 +11,7 @@ export class Meme extends AbstractEntity {
     @Groups({
         meme: ["create", "list", "details"],
     })
-    @ManyToOne(() => User, (user) => user.memes)
+    @ManyToOne(() => User, (user) => user.memes, { onDelete: "CASCADE" })
     user: User;
 
     @Groups({

@@ -1,4 +1,5 @@
-import { DeepPartial } from "typeorm";
+import { InsertResult, UpdateResult } from "typeorm";
+import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { isObject, isPrimitive } from "util";
 
@@ -25,32 +26,36 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Method used when making a POST request */
-    public async insertItem(values: DeepPartial<Entity>) {
-        return this.saveItem("create", values);
+    public async insertItem(values: QueryDeepPartialEntity<Entity>) {
+        return this.saveItem("create", values) as Promise<InsertResult | ErrorMappingItem>;
     }
 
     /** Method used when making a PUT request on a specific id */
-    public async updateItem(values: DeepPartial<Entity>) {
-        return this.saveItem("update", values);
+    public async updateItem(values: QueryDeepPartialEntity<Entity>) {
+        return this.saveItem("update", values) as Promise<UpdateResult | ErrorMappingItem>;
     }
 
     /** Clean & validate item and then save it if there was no error */
-    private async saveItem(operation: Operation, values: DeepPartial<Entity>) {
-        const cleanedItem = this.cleanItem(operation, values);
-        const item: DeepPartial<Entity> = this.repository.create(cleanedItem) as any;
+    private async saveItem(operation: Operation, values: QueryDeepPartialEntity<Entity>) {
+        const item = this.repository.create(values as any);
+        const cleanedItem = this.cleanItem(operation, item as any);
 
         const validatorOptions = operation === "update" ? { skipMissingProperties: true } : undefined;
-        const errorMapping = await this.recursiveValidate(item, [], validatorOptions);
+        const errorMapping = await this.recursiveValidate(cleanedItem, [], validatorOptions);
 
         if (hasAnyError(errorMapping)) {
             return errorMapping;
         }
 
-        return this.repository.save(item);
+        if (operation === "update") {
+            return this.repository.update(cleanedItem.id as any, cleanedItem);
+        } else {
+            return this.repository.insert(cleanedItem);
+        }
     }
 
     /** Return a clone of this request body values with only mapped props */
-    private cleanItem(operation: Operation, values: DeepPartial<Entity>): DeepPartial<Entity> {
+    private cleanItem(operation: Operation, values: QueryDeepPartialEntity<Entity>): QueryDeepPartialEntity<Entity> {
         const routeMapping = this.mapper.make(operation);
         return this.recursiveClean(values, {}, [], routeMapping);
     }
@@ -61,7 +66,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         clone: any,
         currentPath: string[],
         routeMapping: MappingItem
-    ): DeepPartial<Entity> {
+    ): QueryDeepPartialEntity<Entity> {
         let key: string, prop, mapping, nestedMapping;
 
         for (key in item) {
@@ -134,7 +139,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
                 errorMapping.nested[key] = await Promise.all(
                     prop.map((nestedItem) => this.recursiveValidate(nestedItem, currentPath.concat(key), options))
                 );
-            } else if (isObject(prop)) {
+            } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
                 if (!errorMapping.nested) {
                     errorMapping.nested = {};
                 }

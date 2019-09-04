@@ -7,6 +7,7 @@ import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/decorators/Groups";
 import { getDependsOnMetadata } from "@/services/EntityRoute/decorators/DependsOn";
+import { NotFoundError } from "routing-controllers";
 
 export class Normalizer<Entity extends AbstractEntity> {
     private qb: SelectQueryBuilder<Entity>;
@@ -64,6 +65,12 @@ export class Normalizer<Entity extends AbstractEntity> {
 
         this.qb = qb;
         const result = await qb.getOne();
+
+        // Item doesn't exist
+        if (!result) {
+            throw new NotFoundError();
+        }
+
         const item: Entity = await this.recursiveFormatItem(result, operation);
 
         return item;

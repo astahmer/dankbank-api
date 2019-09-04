@@ -1,6 +1,7 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeepPartial, DeleteResult } from "typeorm";
+import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeleteResult } from "typeorm";
+import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Serializer/Normalizer";
@@ -190,7 +191,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             return insertResult;
         }
 
-        return this.getDetails({ entityId: insertResult.id });
+        return this.getDetails({ entityId: insertResult.raw.insertId });
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
@@ -236,7 +237,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             return insertResult;
         }
 
-        return this.getDetails({ entityId: insertResult.id });
+        return this.getDetails({ entityId: insertResult.raw.insertId });
     }
 
     private async delete({ entityId }: IActionParams<Entity>) {
@@ -280,8 +281,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 response["@context"].retrievedItems = result.items.length;
                 response["@context"].totalItems = result.totalItems;
                 response.items = result.items;
-            } else if (isType<DeleteResult>(result)) {
-                response.deleted = result;
+            } else if (isType<DeleteResult>(result, "raw" in result)) {
+                response.deleted = result.affected ? result.raw.insertId : null;
             } else {
                 response = { ...response, ...result };
             }
@@ -379,7 +380,7 @@ interface IActionParams<Entity extends AbstractEntity> {
     /** Is update or create operation ? To check if there is a body sent */
     isUpdateOrCreate?: boolean;
     /** Request body values sent */
-    values?: DeepPartial<Entity>;
+    values?: QueryDeepPartialEntity<Entity>;
     /** Request query params */
     queryParams?: any;
 }
@@ -435,7 +436,7 @@ const ACTIONS: RouteCrudActions = {
     },
     delete: {
         path: "/:id(\\d+)",
-        verb: "remove",
+        verb: "delete",
         method: "delete",
     },
 };

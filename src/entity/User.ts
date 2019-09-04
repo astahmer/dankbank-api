@@ -10,7 +10,7 @@ import { Subresource } from "@/services/EntityRoute/decorators/Subresource";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })
-@EntityRoute("/users", ["create", "list", "details", "update"])
+@EntityRoute("/users", ["create", "list", "details", "update", "delete"])
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
@@ -42,7 +42,7 @@ export class User extends AbstractEntity {
     isProfilePublic: boolean;
 
     @Subresource(() => Meme, { operations: ["create", "list", "details"] })
-    @OneToMany(() => Meme, (memes) => memes.user)
+    @OneToMany(() => Meme, (memes) => memes.user, { cascade: true })
     memes: Meme[];
 
     @Groups({
