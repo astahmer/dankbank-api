@@ -124,7 +124,9 @@ export enum SQL_OPERATOR {
 export type WhereOperator = "=" | "!=" | COMPARISON_OPERATOR | SQL_OPERATOR;
 
 export interface IDefaultFilterOptions {
+    /** Property or dot delimited property path to apply the filter on */
     [key: string]: any;
+    /** Make all (not nested) properties filterable by default */
     all: boolean;
 }
 

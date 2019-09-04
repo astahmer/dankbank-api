@@ -30,33 +30,44 @@ export const getRouteFiltersMeta = (entity: Function): RouteFiltersMeta =>
     Reflect.getOwnMetadata(ROUTE_FILTERS_METAKEY, entity);
 
 export class EntityRoute<Entity extends AbstractEntity> {
+    // Entity Route specifics
     private repository: Repository<Entity>;
+    private actions: RouteCrudActions;
+    private globalOptions: IEntityRouteOptions;
+
+    // Meta
     private routeMetadata: RouteMetadata;
     private filtersMeta: RouteFiltersMeta;
     private subresourcesMeta: RouteSubresourcesMeta<Entity>;
-    private actions: RouteActions;
-    private globalOptions: IEntityRouteOptions;
 
+    // Managers/services
     private entityMapper: EntityMapper<Entity>;
     private queryAliasManager: QueryAliasManager;
     private normalizer: Normalizer<Entity>;
     private denormalizer: Denormalizer<Entity>;
 
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
-        this.routeMetadata = getRouteMetadata(entity);
-        this.filtersMeta = getRouteFiltersMeta(entity);
-        this.subresourcesMeta = getRouteSubresourcesMetadata(entity);
+        // Entity Route specifics
         this.repository = getRepository(entity);
         this.actions = ACTIONS;
         this.globalOptions = globalOptions;
 
+        // Meta
+        this.routeMetadata = getRouteMetadata(entity);
+        this.filtersMeta = getRouteFiltersMeta(entity);
+        this.subresourcesMeta = getRouteSubresourcesMetadata(entity);
+
+        // Managers/services
         this.entityMapper = new EntityMapper<Entity>(this);
         this.queryAliasManager = new QueryAliasManager();
         this.normalizer = new Normalizer<Entity>(this);
         this.denormalizer = new Denormalizer(this);
 
+        // Add this EntityRoute to the list (used by subresources)
         entityRoutesContainer[entity.name] = this;
     }
+
+    // Computed getters
 
     get routeRepository() {
         return this.repository;
@@ -82,11 +93,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return { ...this.globalOptions, ...this.routeMetadata.options };
     }
 
-    /**
-     * Make a Koa Router with given operations for this entity and return it
-     *
-     * @returns Koa.Router
-     */
+    /** Make a Koa Router for each given operations (and their associated mapping route) for this entity and its subresources and return it */
     public makeRouter() {
         const router = new Router();
 
@@ -96,7 +103,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             const path = this.routeMetadata.path + this.actions[operation].path;
 
             const responseMethod = this.makeResponseMethod(operation);
-            const mappingMethod = this.makeMappingMethod(operation);
+            const mappingMethod = this.makeRouteMappingMethod(operation);
 
             (<any>router)[verb](path, responseMethod);
             (<any>router)[verb](path + "/mapping", mappingMethod);
@@ -109,18 +116,14 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return router;
     }
 
+    /** Recursively add subresources routes for this entity */
     private makeSubresourcesRoutes(
         router: Router,
         parentSubresource?: { currentPath: string[]; subresourcePath: string }
     ) {
-        let key: string;
-        let subresourceProp: SubresourceProperty<any>;
-        let nestedEntityRoute: EntityRoute<any>;
-        let relationTableName: string;
-
         // For each subresources of this entity
-        for (key in this.subresourcesMeta.properties) {
-            subresourceProp = this.subresourcesMeta.properties[key];
+        for (let key in this.subresourcesMeta.properties) {
+            const subresourceProp = this.subresourcesMeta.properties[key];
             const subresourceRelation = this.getSubresourceRelation(key);
             const subresourcePath = this.getSubresourceBasePath(
                 subresourceRelation.param,
@@ -128,9 +131,10 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 parentSubresource && parentSubresource.subresourcePath
             );
 
-            relationTableName = subresourceRelation.relation.inverseEntityMetadata.tableName;
-            nestedEntityRoute = entityRoutesContainer[subresourceProp.entityTarget.name];
+            const relationTableName = subresourceRelation.relation.inverseEntityMetadata.tableName;
+            const nestedEntityRoute = entityRoutesContainer[subresourceProp.entityTarget.name];
 
+            // If subresource entity has no EntityRoute, then it can't make a subresource out of it
             if (!nestedEntityRoute) {
                 continue;
             }
@@ -186,10 +190,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
             return insertResult;
         }
 
-        return this.getDetails({ operation: "details", entityId: insertResult.id });
+        return this.getDetails({ entityId: insertResult.id });
     }
 
-    private async getList({ operation, queryParams, subresourceRelation }: IActionParams<Entity>) {
+    /** Returns an entity with every mapped props (from groups) for a given id */
+    private async getList({ queryParams, subresourceRelation }: IActionParams<Entity>) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
 
         if (subresourceRelation) {
@@ -209,7 +214,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             this.applyFilters(queryParams, qb);
         }
 
-        const collectionResult = await this.normalizer.getCollection(operation, qb);
+        const collectionResult = await this.normalizer.getCollection("list", qb);
 
         return {
             items: collectionResult[0],
@@ -217,6 +222,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         } as CollectionResult<Entity>;
     }
 
+    /** Returns an entity with every mapped props (from groups) for a given id */
     private async getDetails({ entityId }: IActionParams<Entity>) {
         return await this.normalizer.getItem<Entity>("details", entityId);
     }
@@ -230,7 +236,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             return insertResult;
         }
 
-        return this.getDetails({ operation: "details", entityId: insertResult.id });
+        return this.getDetails({ entityId: insertResult.id });
     }
 
     private async delete({ entityId }: IActionParams<Entity>) {
@@ -242,6 +248,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             .execute();
     }
 
+    /** Returns the response method on a given operation for this entity */
     public makeResponseMethod(operation: Operation, subresourceRelation?: SubresourceRelation): Koa.Middleware {
         return async (ctx, next) => {
             const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
@@ -250,7 +257,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
             }
 
-            const params: IActionParams<Entity> = { operation, subresourceRelation };
+            const params: IActionParams<Entity> = { subresourceRelation };
             if (ctx.params.id) params.entityId = parseInt(ctx.params.id);
             if (isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
@@ -284,7 +291,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
         };
     }
 
-    private makeMappingMethod(operation: Operation): Koa.Middleware {
+    /** Returns the method of a mapping route on a given operation for this entity */
+    private makeRouteMappingMethod(operation: Operation): Koa.Middleware {
         return async (ctx, next) => {
             ctx.body = {
                 context: {
@@ -297,6 +305,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         };
     }
 
+    /** Creates a new instance of a given Filter */
     private getFilter<Filter extends AbstractFilter>(config: IAbstractFilterConfig): Filter {
         return new config.class({
             config,
@@ -305,6 +314,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         });
     }
 
+    /** Apply every registered filters on this request */
     private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>) {
         if (!Object.keys(queryParams).length) {
             return;
@@ -317,8 +327,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
 }
 
 export type RouteMetadata = {
+    /** The path prefix for every action of this route */
     path: string;
+    /** List of operations to create a route for */
     operations: Operation[];
+    /** Specific options to be used on this EntityRoute, if none specified, will default to global options */
     options?: IEntityRouteOptions;
 };
 
@@ -326,29 +339,84 @@ export type RouteFiltersMeta = Record<string, IAbstractFilterConfig>;
 
 export type SubresourceOperation = "create" | "list" | "details";
 export type SubresourceProperty<Entity extends AbstractEntity> = {
+    /** The route path for this action */
     path: string;
+    /** List of operations to create a subresource route for */
     operations: SubresourceOperation[];
+    /** Subresource entity, used to retrieve its EntityRoute */
     entityTarget: Entity;
 };
 export type RouteSubresourcesMeta<ParentEntity extends AbstractEntity> = {
     parent: ParentEntity;
     properties: Record<string, SubresourceProperty<any>>;
 };
+/** Subresource relation with parent, used to auto-join on this entity's relation inverse side */
 export type SubresourceRelation = {
+    /** Subresource parent's entity id */
     id?: number;
+    /** Route path parameter key, for example "userId" where the route path is "/users/:userId" */
     param: string;
+    /** Subresource parent relation property name */
     propertyName: string;
+    /** Subresource parent relationMeta */
     relation: RelationMetadata;
 };
 
 export interface IEntityRouteOptions {
     isMaxDepthEnabledByDefault?: boolean;
+    /** Level of depth at which the nesting should stop */
     defaultMaxDepthLvl?: number;
+    /** In case of max depth reached on a relation, should it at retrieve its id and then stop instead of just stopping ? */
     shouldMaxDepthReturnRelationPropsId?: boolean;
+    /** In case of a relation with no other mapped props (from groups) for a request: should it unwrap "relation { id }" to relation = id ? */
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
-const ACTIONS: RouteActions = {
+/**
+ * @property operation - le oui mais oui
+ */
+interface IActionParams<Entity extends AbstractEntity> {
+    /** Current route entity id */
+    entityId?: number;
+    /** Subresource relation with parent, used to auto-join on this entity's relation inverse side */
+    subresourceRelation?: SubresourceRelation;
+    /** Is update or create operation ? To check if there is a body sent */
+    isUpdateOrCreate?: boolean;
+    /** Request body values sent */
+    values?: DeepPartial<Entity>;
+    /** Request query params */
+    queryParams?: any;
+}
+
+interface IRouteResponse {
+    "@context": {
+        /** Current route operation */
+        operation: string;
+        /** Current entity's route */
+        entity: string;
+        /** Total number of items found for this request */
+        totalItems?: number;
+        /** Number of items retrieved for this request */
+        retrievedItems?: number;
+        errors?: ErrorMappingItem;
+    };
+    items?: any[];
+    deleted?: any;
+    [k: string]: any;
+}
+
+type RouteCrudActionItem = {
+    /** The route path for this action */
+    path: string;
+    /** HTTP verb for this action */
+    verb: string;
+    /** EntityRoute's method associated to this action */
+    method: "create" | "getList" | "getDetails" | "update" | "delete";
+};
+/** A list of CRUD Actions or "all" */
+type RouteCrudActions = Omit<Record<Operation | "delete", RouteCrudActionItem>, "all">;
+
+const ACTIONS: RouteCrudActions = {
     create: {
         path: "",
         verb: "post",
@@ -376,37 +444,7 @@ const ACTIONS: RouteActions = {
     },
 };
 
-interface IActionParams<Entity extends AbstractEntity> {
-    operation: Operation;
-    exposedProps?: string[];
-    entityId?: number;
-    subresourceRelation?: SubresourceRelation;
-    isUpdateOrCreate?: boolean;
-    values?: DeepPartial<Entity>;
-    queryParams?: any;
-    dumpSql?: string;
-}
-
-interface IRouteResponse {
-    "@context": {
-        operation: string;
-        entity: string;
-        totalItems?: number;
-        retrievedItems?: number;
-        errors?: ErrorMappingItem;
-    };
-    items?: any[];
-    deleted?: any;
-    [k: string]: any;
-}
-
-type RouteAction = {
-    path: string;
-    verb: string;
-    method: "create" | "getList" | "getDetails" | "update" | "delete";
-};
-type RouteActions = Omit<Record<Operation | "delete", RouteAction>, "all">;
-
+/** Return type of EntityRoute.getList */
 type CollectionResult<Entity extends AbstractEntity> = {
     items: Entity[];
     totalItems: number;

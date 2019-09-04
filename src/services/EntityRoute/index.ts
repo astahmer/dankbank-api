@@ -4,6 +4,7 @@ import { EntityRoute, IEntityRouteOptions, getRouteMetadata } from "./EntityRout
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Entity } from "@/utils/globalTypes";
 
+/** Make an EntityRoute out of each given entities and assign them a global options object (overridable with @EntityRoute) */
 export async function useEntitiesRoutes<T extends AbstractEntity>(
     app: Koa,
     entities: Entity<T>[],

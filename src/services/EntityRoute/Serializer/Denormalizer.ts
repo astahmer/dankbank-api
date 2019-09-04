@@ -1,20 +1,16 @@
 import { DeepPartial } from "typeorm";
+import { validate, ValidationError, ValidatorOptions } from "class-validator";
+import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Operation } from "@/decorators/Groups";
 import { EntityRoute } from "../EntityRoute";
-import { isObject, isPrimitive } from "util";
 import { MappingItem } from "../Mapping/MappingMaker";
-import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { formatEntityId } from "../utils";
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 
 export class Denormalizer<Entity extends AbstractEntity> {
-    private entityRoute: EntityRoute<Entity>;
-
-    constructor(entityRoute: EntityRoute<Entity>) {
-        this.entityRoute = entityRoute;
-    }
+    constructor(private entityRoute: EntityRoute<Entity>) {}
 
     get repository() {
         return this.entityRoute.routeRepository;
@@ -28,20 +24,17 @@ export class Denormalizer<Entity extends AbstractEntity> {
         return this.entityRoute.mapper;
     }
 
+    /** Method used when making a POST request */
     public async insertItem(values: DeepPartial<Entity>) {
         return this.saveItem("create", values);
     }
 
+    /** Method used when making a PUT request on a specific id */
     public async updateItem(values: DeepPartial<Entity>) {
         return this.saveItem("update", values);
     }
 
-    /**
-     * Clean & validate item and then save it if there was no error
-     *
-     * @param operation
-     * @param values
-     */
+    /** Clean & validate item and then save it if there was no error */
     private async saveItem(operation: Operation, values: DeepPartial<Entity>) {
         const cleanedItem = this.cleanItem(operation, values);
         const item: DeepPartial<Entity> = this.repository.create(cleanedItem) as any;
@@ -56,18 +49,13 @@ export class Denormalizer<Entity extends AbstractEntity> {
         return this.repository.save(item);
     }
 
-    /**
-     * Removes non-mapped (deep?) properties from sent values
-     *
-     * @param operation
-     * @param values
-     */
+    /** Return a clone of this request body values with only mapped props */
     private cleanItem(operation: Operation, values: DeepPartial<Entity>): DeepPartial<Entity> {
         const routeMapping = this.mapper.make(operation);
-        const item = this.recursiveClean(values, {}, [], routeMapping);
-        return item;
+        return this.recursiveClean(values, {}, [], routeMapping);
     }
 
+    /** Removes non-mapped (deep?) properties from sent values & format entity.id */
     private recursiveClean(
         item: any,
         clone: any,
@@ -107,6 +95,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         return clone;
     }
 
+    /** Recursively validate sent values & returns errors for each entity not passing validation */
     private async recursiveValidate(
         item: any,
         currentPath: string[],
@@ -193,7 +182,10 @@ function hasAnyError(errorMapping: ErrorMappingItem): boolean {
 }
 
 export type ErrorMappingItem = {
+    /** Path to arrive at this entity's errors from the requested route base entity  */
     currentPath: string[];
+    /** Errors at this path */
     errors: ValidationError[];
+    /** Entity's nested relation errors */
     nested: Record<string, ErrorMappingItem | ErrorMappingItem[]>;
 };

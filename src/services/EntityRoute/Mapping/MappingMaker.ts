@@ -24,6 +24,7 @@ export class MappingMaker<Entity extends AbstractEntity> {
         this.mapper = mapper;
     }
 
+    /** Make the mapping object for this entity on a given operation */
     public make(operation: Operation): MappingItem {
         return this.getMappingFor({}, operation, this.mapper.metadata, "", this.mapper.metadata.tableName);
     }

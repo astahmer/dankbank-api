@@ -18,7 +18,7 @@ export function AbstractFilterDecorator({
         const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(target as Function) || {};
         const filter: IAbstractFilterConfig = filtersMeta[defaultConfig.class.name];
 
-        // If all entity properties are authorized as filter, ignore this decorator
+        // If all entity properties are authorized as filter, ignore this property decorator
         if (filter && filter.options.all) {
             return;
         }

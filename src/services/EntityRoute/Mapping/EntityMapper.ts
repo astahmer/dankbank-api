@@ -10,13 +10,11 @@ import { MaxDeptMetas } from "@/decorators/MaxDepth";
 import { MappingMaker, MappingItem } from "./MappingMaker";
 
 export class EntityMapper<Entity extends AbstractEntity> {
-    private entityRoute: EntityRoute<Entity>;
     private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
     private maker: MappingMaker<Entity>;
 
-    constructor(entityRoute: EntityRoute<Entity>) {
-        this.entityRoute = entityRoute;
+    constructor(private entityRoute: EntityRoute<Entity>) {
         this.maker = new MappingMaker(this);
     }
 

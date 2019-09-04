@@ -37,25 +37,21 @@ export class Normalizer<Entity extends AbstractEntity> {
         return this.qb;
     }
 
-    /**
-     * Retrieve collection of entities with only exposed props (from groups)
-     *
-     * @param operation used to get exposed props for this operation
-     * @param qb
-     */
+    /** Retrieve collection of entities with only exposed props (from groups) */
     public async getCollection<Entity extends AbstractEntity>(
         operation: Operation,
         qb: SelectQueryBuilder<Entity>
     ): Promise<[Entity[], number]> {
-        this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
-        this.makeJoinFromComputedPropsDependsOn(operation, qb, this.metadata);
+        this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
+        this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
         const results = await qb.getManyAndCount();
-        const items = await Promise.all(results[0].map((item) => this.recursiveBrowseItem(item, operation)));
+        const items = await Promise.all(results[0].map((item) => this.recursiveFormatItem(item, operation)));
 
         return [items, results[1]];
     }
 
+    /** Retrieve a specific entity with only exposed props (from groups) */
     public async getItem<Entity extends AbstractEntity>(operation: Operation, entityId: number) {
         const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
         const qb: SelectQueryBuilder<any> = this.repository
@@ -63,12 +59,12 @@ export class Normalizer<Entity extends AbstractEntity> {
             .select(selectProps)
             .where(this.metadata.tableName + ".id = :id", { id: entityId });
 
-        this.makeJoinFromGroups(operation, qb, this.metadata, "", this.metadata.tableName);
-        this.makeJoinFromComputedPropsDependsOn(operation, qb, this.metadata);
+        this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
+        this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
         this.qb = qb;
         const result = await qb.getOne();
-        const item: Entity = await this.recursiveBrowseItem(result, operation);
+        const item: Entity = await this.recursiveFormatItem(result, operation);
 
         return item;
     }
@@ -121,7 +117,15 @@ export class Normalizer<Entity extends AbstractEntity> {
         }
     }
 
-    private async recursiveBrowseItem<Entity extends AbstractEntity>(
+    /**
+     * Recursively :
+     * - Remove any object that is not another Entity or is not a Date
+     * - Flatten item with only id if needed
+     * - Set subresources IRI if item has any
+     * - Add computed props to this item
+     * - Sort item's property keys
+     * */
+    private async recursiveFormatItem<Entity extends AbstractEntity>(
         item: Entity,
         operation: Operation
     ): Promise<Entity> {
@@ -132,10 +136,10 @@ export class Normalizer<Entity extends AbstractEntity> {
             prop = item[key as keyof Entity];
             if (Array.isArray(prop)) {
                 item[key as keyof Entity] = prop.map((nestedItem) =>
-                    this.recursiveBrowseItem(nestedItem, operation)
+                    this.recursiveFormatItem(nestedItem, operation)
                 ) as any;
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
-                item[key as keyof Entity] = await this.recursiveBrowseItem(prop as any, operation);
+                item[key as keyof Entity] = await this.recursiveFormatItem(prop as any, operation);
             } else if (!isPrimitive(prop) && !(prop instanceof Date)) {
                 item[key as keyof Entity] = undefined;
             }
@@ -158,7 +162,7 @@ export class Normalizer<Entity extends AbstractEntity> {
     }
 
     /**
-     * Add recursive left joins to QueryBuilder on exposed props for a given operation with a given entityMetadata
+     * Add recursive left joins & selects to QueryBuilder on exposed props for a given operation with a given entityMetadata
      *
      * @param operation used to get exposed props for this operation
      * @param qb current QueryBuilder
@@ -166,7 +170,7 @@ export class Normalizer<Entity extends AbstractEntity> {
      * @param currentPath dot delimited path to keep track of the nesting max depth
      * @param prevProp used to left join further
      */
-    private makeJoinFromGroups(
+    private joinAndSelectExposedProps(
         operation: Operation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
@@ -194,14 +198,15 @@ export class Normalizer<Entity extends AbstractEntity> {
             }
 
             if (!circularProp) {
-                this.makeJoinFromGroups(operation, qb, relation.inverseEntityMetadata, newPath, alias);
+                this.joinAndSelectExposedProps(operation, qb, relation.inverseEntityMetadata, newPath, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.addSelect(alias + ".id");
             }
         });
     }
 
-    private makeJoinFromComputedPropsDependsOn(
+    /** Join and select any props marked as needed for each computed prop (with @DependsOn) in order to be able to retrieve them later */
+    private joinAndSelectPropsThatComputedPropsDependsOn(
         operation: Operation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata
@@ -238,6 +243,7 @@ export class Normalizer<Entity extends AbstractEntity> {
         propsPromises.forEach((result, i) => (item[computedProps[i].propKey as keyof U] = result));
     }
 
+    /** For each item's subresources, add their corresponding IRIs to this item */
     private setSubresourcesIriOnItem<U extends AbstractEntity>(item: U, entityMetadata: EntityMetadata) {
         const subresourceProps = this.mapper.getSubresourceProps(entityMetadata);
 
