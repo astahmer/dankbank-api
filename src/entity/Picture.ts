@@ -1,11 +1,12 @@
 import { Entity, Column, OneToOne, OneToMany, JoinColumn } from "typeorm";
-import { Groups, EntityRoute, DependsOn } from "@/decorators";
+import { Groups, EntityRoute, DependsOn, PaginationFilter } from "@/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Category } from "./Category";
 import { FileEntity } from "./FileEntity";
 import { getImageURL } from "@/services/EntityRoute/Actions/ImageUploadAction";
 
+@PaginationFilter([], { all: true })
 @EntityRoute("/pictures", ["list", "details", "update"])
 @Entity()
 export class Picture extends AbstractEntity {

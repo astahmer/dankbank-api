@@ -9,7 +9,9 @@ import {
 import { SelectQueryBuilder } from "typeorm";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
+    defaultOrderBys?: string | string[];
     defaultOrderDirection?: ORDER_DIRECTIONS;
+    defaultRetrievedItemsLimit?: number;
 }
 
 export enum ORDER_DIRECTIONS {
@@ -25,18 +27,32 @@ export enum PAGINATION_TYPES {
 
 export const getDefaultConfig = (options: IPaginationFilterOptions): FilterDefaultConfig<IPaginationFilterOptions> => ({
     class: PaginationFilter,
-    options: options || { all: false, defautOrderDirection: ORDER_DIRECTIONS.ASC },
+    options: {
+        all: false,
+        defaultOrderBys: "id",
+        defaultOrderDirection: ORDER_DIRECTIONS.ASC,
+        defaultRetrievedItemsLimit: 100,
+        ...options,
+    },
 });
 
 export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
     protected getFilterParamsByTypes(queryParams: QueryParams) {
         return {
             orderBy: queryParams[PAGINATION_TYPES.ORDER_BY],
-            take: queryParams[PAGINATION_TYPES.TAKE],
-            skip: queryParams[PAGINATION_TYPES.SKIP],
+            take: parseInt(queryParams[PAGINATION_TYPES.TAKE] as string),
+            skip: parseInt(queryParams[PAGINATION_TYPES.SKIP] as string),
         };
     }
 
+    /**
+     * Add orderBys statements for each orderBy entry in queryParam array
+     * @param qb
+     * @param orderBy
+     *
+     * @example req = /pictures/?orderBy=title:desc&orderBy=downloads:desc
+     * will generate this SQL: ORDER BY `picture`.`title` DESC, `picture`.`downloads` DESC
+     */
     protected addOrderBy(qb: SelectQueryBuilder<any>, orderBy: QueryParamValue) {
         if (!Array.isArray(orderBy)) {
             orderBy = [orderBy];
@@ -73,14 +89,16 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
 
         if (orderBy) {
             this.addOrderBy(qb, orderBy);
+        } else {
+            this.addOrderBy(qb, this.config.options.defaultOrderBys);
         }
 
-        if (take && typeof take === "string" && parseInt(take)) {
-            qb.take(parseInt(take));
+        if (take || this.config.options.defaultRetrievedItemsLimit) {
+            qb.take(take || this.config.options.defaultRetrievedItemsLimit);
         }
 
-        if (skip && typeof skip === "string" && parseInt(skip)) {
-            qb.skip(parseInt(skip));
+        if (skip) {
+            qb.skip(skip);
         }
     }
 }

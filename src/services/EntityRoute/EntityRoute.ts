@@ -316,10 +316,6 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     /** Apply every registered filters on this request */
     private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>) {
-        if (!Object.keys(queryParams).length) {
-            return;
-        }
-
         this.filters.forEach((filterOptions) => {
             this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb });
         });

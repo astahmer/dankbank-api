@@ -44,7 +44,11 @@ export enum STRATEGY_TYPES {
 
 export const getDefaultConfig = (options: ISearchFilterOptions): FilterDefaultConfig<ISearchFilterOptions> => ({
     class: SearchFilter,
-    options: options || { all: false, defaultWhereStrategy: SearchFilter.STRATEGY_TYPES.EXACT },
+    options: {
+        all: false,
+        defaultWhereStrategy: SearchFilter.STRATEGY_TYPES.EXACT,
+        ...options,
+    },
 });
 
 const complexFilterRegex = /(?:((?:(?:(and|or)|(?:\(\w+\))))*):)?/;
@@ -538,6 +542,10 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     }
 
     apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs) {
+        if (!queryParams) {
+            return;
+        }
+
         const { filters, nestedConditionsFilters } = this.getFiltersLists(queryParams);
 
         filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, filter }));
