@@ -1,4 +1,4 @@
-import { EntityGroupsMetadata } from "../services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
+import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 import { PartialRecord } from "@/utils/globalTypes";
 import { GroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/GroupsMetadata";
 import { EntityMetadata } from "typeorm";

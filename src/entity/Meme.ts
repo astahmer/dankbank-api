@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne, OneToOne, JoinColumn } from "typeorm";
-import { Groups, EntityRoute, SearchFilter } from "../decorators";
+import { Groups, EntityRoute, SearchFilter } from "@/services/EntityRoute/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { User } from "./User";
 import { Picture } from "./Picture";

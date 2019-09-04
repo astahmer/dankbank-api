@@ -2,11 +2,11 @@ import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
 import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Operation } from "@/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/decorators/Groups";
 import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
-import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/decorators/Groups";
-import { getDependsOnMetadata } from "@/decorators/DependsOn";
+import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/decorators/Groups";
+import { getDependsOnMetadata } from "@/services/EntityRoute/decorators/DependsOn";
 
 export class Normalizer<Entity extends AbstractEntity> {
     private qb: SelectQueryBuilder<Entity>;

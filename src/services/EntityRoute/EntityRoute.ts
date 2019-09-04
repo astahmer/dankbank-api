@@ -4,7 +4,7 @@ import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeepPartial,
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Serializer/Normalizer";
-import { Operation } from "@/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
 import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";

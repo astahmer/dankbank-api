@@ -8,7 +8,7 @@ import {
     GroupsOperationOrAll,
     ALL_OPERATIONS,
     Operation,
-} from "@/decorators/Groups";
+} from "@/services/EntityRoute/decorators/Groups";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
 export const ENTITY_META_SYMBOL = Symbol("entityMeta");

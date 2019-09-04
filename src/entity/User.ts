@@ -1,12 +1,12 @@
 import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
-import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "../decorators";
+import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "@/services/EntityRoute/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Picture } from "./Picture";
 import { Team } from "./Team";
 import { Category } from "./Category";
 import { IsBoolean, IsOptional } from "class-validator";
-import { Subresource } from "@/decorators/Subresource";
+import { Subresource } from "@/services/EntityRoute/decorators/Subresource";
 
 @PaginationFilter([], { all: true })
 @SearchFilter(["profileCategory.picture.id"], { all: true })

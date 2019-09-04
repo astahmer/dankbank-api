@@ -1,5 +1,5 @@
 import { Entity, Column, OneToOne, OneToMany, JoinColumn } from "typeorm";
-import { Groups, EntityRoute, DependsOn, PaginationFilter } from "@/decorators";
+import { Groups, EntityRoute, DependsOn, PaginationFilter } from "@/services/EntityRoute/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Category } from "./Category";

@@ -1,5 +1,5 @@
 import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, getRepository, Repository } from "typeorm";
-import { Groups } from "../decorators";
+import { Groups } from "@/services/EntityRoute/decorators";
 import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
 
 export abstract class AbstractEntity {

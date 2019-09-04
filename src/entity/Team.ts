@@ -1,8 +1,7 @@
 import { Entity, Column, ManyToMany, JoinTable } from "typeorm";
-import { EntityRoute, Groups } from "../decorators";
+import { EntityRoute, Groups, Subresource } from "@/services/EntityRoute/decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { User } from "./User";
-import { Subresource } from "@/decorators/Subresource";
 
 @EntityRoute("/teams", ["list", "details"])
 @Entity()
