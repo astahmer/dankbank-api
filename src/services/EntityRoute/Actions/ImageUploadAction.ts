@@ -9,7 +9,6 @@ import { IncomingMessage } from "http";
 import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
 import { FileEntity } from "@/entity/FileEntity";
 import { EntityManager, Connection } from "typeorm";
-import { plainToClass } from "class-transformer";
 import { sortObjectByKeys } from "../utils";
 import { BASE_URL } from "@/main";
 
@@ -35,7 +34,7 @@ class ImageUploadAction implements RouteAction {
     public async onRequest(ctx: Koa.Context) {
         const req = <multer.MulterIncomingMessage>ctx.req;
         const filePath = path.parse(req.file.filename);
-        const fileName = filePath.name + "_" + Date.now() + filePath.ext;
+        const fileName = filePath.name.replace(/\s/g, "_") + "_" + Date.now() + filePath.ext;
 
         // Resize uploaded file
         const resized = await sharp(req.file.path)
@@ -48,13 +47,11 @@ class ImageUploadAction implements RouteAction {
             if (err) console.log(err);
         });
 
-        const fileEntity = plainToClass(FileEntity, {
+        const result = await this.entityManager.getRepository(FileEntity).save({
             originalName: req.file.originalname,
             name: fileName,
-            size: resized.size,
+            size: "" + resized.size,
         });
-
-        const result = await this.entityManager.save(fileEntity);
         ctx.body = sortObjectByKeys(result);
     }
 }
