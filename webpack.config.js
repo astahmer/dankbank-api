@@ -4,7 +4,7 @@ const nodeExternals = require("webpack-node-externals");
 const { loader } = require("webpack-loader-helper");
 const TsconfigPathsPlugin = require("tsconfig-paths-webpack-plugin");
 
-const pollInterval = 1000;
+const pollInterval = 500;
 
 module.exports = {
     entry: [`webpack/hot/poll?${pollInterval}`, "./src/main.ts"],
@@ -21,7 +21,10 @@ module.exports = {
         extensions: [".tsx", ".ts", ".js"],
         plugins: [new TsconfigPathsPlugin({})],
     },
-    plugins: [new webpack.HotModuleReplacementPlugin(), new webpack.EnvironmentPlugin({ NODE_ENV: "development" })],
+    plugins: [
+        new webpack.HotModuleReplacementPlugin(),
+        new webpack.EnvironmentPlugin({ NODE_ENV: "development" })
+    ],
     module: {
         rules: [
             {

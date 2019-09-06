@@ -32,17 +32,17 @@ export class UserGenerator extends AbstractGenerator<User> {
             new PictureGenerator(this.connection).generate(),
             new CategoryGenerator(this.connection).generateBundle(),
         ]);
-        const user = await this.generate({ profilePicture: picture.raw });
+        const user = await this.generate({ profilePicture: picture.raw.insertId });
 
         const memeRelationsPromises = [];
         let i;
         let relation;
         for (i = 0; i < memes.length; i++) {
-            relation = memes[i].raw;
+            relation = memes[i].raw.insertId;
             memeRelationsPromises.push(
                 this.addRelation({
                     relationProp: "memes",
-                    entity: user.raw,
+                    entity: user.raw.insertId,
                     relation,
                 })
             );
@@ -50,8 +50,8 @@ export class UserGenerator extends AbstractGenerator<User> {
 
         const profileCatPromise = this.addRelation({
             relationProp: "profileCategory",
-            entity: user.raw,
-            relation: category.raw,
+            entity: user.raw.insertId,
+            relation: category.raw.insertId,
         });
 
         const promises = Promise.all([memeRelationsPromises, profileCatPromise]);
@@ -59,6 +59,6 @@ export class UserGenerator extends AbstractGenerator<User> {
         await promises;
 
         console.log("✔️ UserGenerator.generateBundle");
-        return user.raw;
+        return user.raw.insertId;
     }
 }

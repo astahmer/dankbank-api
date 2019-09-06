@@ -19,7 +19,7 @@ export class MemeGenerator extends AbstractGenerator<Meme> {
 
     async generateBundle() {
         const picture = await new PictureGenerator(this.connection).generate();
-        const meme = await this.generate({ picture: picture.raw });
+        const meme = await this.generate({ picture: picture.raw.insertId });
 
         console.log("✔️ MemeGenerator.generateBundle");
         return meme;

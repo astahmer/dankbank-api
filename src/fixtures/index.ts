@@ -5,13 +5,13 @@ export async function makeFixtures(connection: Connection) {
     connection;
     // await connection.synchronize(true);
     // await makeTeamBundles(connection);
-    console.log("Fixtures done");
+    // console.log("Fixtures done");
 }
 
 async function makeTeamBundles(connection: Connection) {
     console.time("makeTeamBundles");
     const teamResults = await Promise.all(
-        Array(5)
+        Array(50)
             .fill(null)
             .map(() => new TeamGenerator(connection).generateBundle())
     );

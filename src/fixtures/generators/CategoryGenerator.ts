@@ -17,7 +17,7 @@ export class CategoryGenerator extends AbstractGenerator<Category> {
 
     async generateBundle() {
         const picture = await new PictureGenerator(this.connection).generate();
-        const category = await this.generate({ picture: picture.raw });
+        const category = await this.generate({ picture: picture.raw.insertId });
 
         console.log("✔️ CategoryGenerator.generateBundle");
         return category;

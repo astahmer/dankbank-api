@@ -20,20 +20,31 @@ import { makeFixtures } from "@/fixtures";
 
 declare const module: any;
 
-if (module.hot && module.hot.data && module.hot.data.connection) {
-    module.hot.data.connection.close().then(startApp);
-} else {
-    startApp();
+init();
+
+/** If there is an existing connection, close it and then restart app, else just start app */
+function init() {
+    console.log('reload');
+    if (module.hot && module.hot.data && module.hot.data.connection) {
+        module.hot.data.connection.close().then(connectToDatabase);
+    } else {
+        connectToDatabase();
+    }
 }
 
-async function startApp() {
+/** Creates connection */
+async function connectToDatabase() {
     const connectionOptions = await getConnectionOptions();
     createConnection({ ...connectionOptions, ...(TypeORMConfig as any), entities: getEntities() })
-        .then(onConnected)
-        .catch((error) => console.log(error));
+        .then(startApp)
+        .catch((error) => {
+            logger.error(error)
+            setTimeout(connectToDatabase, 1000);
+        });
 }
 
-async function onConnected(connection: Connection) {
+async function startApp(connection: Connection) {
+    logger.info('Starting Koa server...');
     const app: Koa = createKoaServer();
     app.use(bodyParser());
     app.use(logRequest(logger));
@@ -51,12 +62,15 @@ async function onConnected(connection: Connection) {
         logger.info(getAppRoutes(app.middleware));
     }
 
-    const server = app.listen(3000);
-    console.log("Listening on port 3000");
+    const server = app.listen(3000, '0.0.0.0');
+    logger.info("Listening on port 3000");
 
+    // TODO restart if not hot if .env.USE_HMR === true
     if (module.hot) {
+        console.log('YES accept');
         module.hot.accept();
         module.hot.dispose((data: any) => {
+            console.log('dispose');
             data.connection = connection;
             server.close();
         });

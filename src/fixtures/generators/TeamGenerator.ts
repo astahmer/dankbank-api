@@ -25,7 +25,7 @@ export class TeamGenerator extends AbstractGenerator<Team> {
 
         const membersPromise = this.addRelation({
             relationProp: "members",
-            entity: team.raw,
+            entity: team.raw.insertId,
             relation: users,
         });
         const promises = Promise.all([membersPromise]);
@@ -33,6 +33,6 @@ export class TeamGenerator extends AbstractGenerator<Team> {
         await promises;
 
         console.log("✔️ TeamGenerator.generateBundle");
-        return team.raw;
+        return team.raw.insertId;
     }
 }

@@ -8,3 +8,4 @@ temp/
 *.sqlite
 *.log
 public
+var
