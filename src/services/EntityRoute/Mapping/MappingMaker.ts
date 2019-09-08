@@ -1,7 +1,7 @@
 import { EntityMetadata } from "typeorm";
 import { path, pluck } from "ramda";
 
-import { Operation } from "@/services/EntityRoute/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityMapper } from "./EntityMapper";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";

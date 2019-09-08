@@ -15,5 +15,6 @@
         "paths": {
             "@/*": ["*"]
         }
-    }
+    },
+    "exclude": ["./node_modules", "./build"]
 }

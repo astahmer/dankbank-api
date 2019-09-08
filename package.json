@@ -1,9 +1,9 @@
 {
     "name": "meme-api",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "description": "Awesome project developed with TypeORM.",
     "scripts": {
-        "tsc": "tsc",
+        "tsc": "tsc --skipLibCheck",
         "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/main.ts",
         "prod": "tsc && node ./build/app.js",
         "webpack": "webpack",
@@ -21,12 +21,12 @@
         "typeorm:reset": "npm run typeorm:drop && npm run typeorm:sync"
     },
     "dependencies": {
+        "@koa/multer": "^2.0.0",
         "dotenv": "^8.0.0",
         "koa": "^2.7.0",
         "koa-bodyparser": "^4.2.1",
-        "koa-multer": "^1.0.2",
         "koa-router": "^7.4.0",
-        "module-alias": "^2.2.1",
+        "multer": "^1.4.2",
         "mysql": "^2.17.1",
         "pino": "^5.12.6",
         "pino-pretty": "^3.2.0",
@@ -40,8 +40,8 @@
         "@types/faker": "^4.1.5",
         "@types/koa": "^2.0.48",
         "@types/koa-bodyparser": "^4.3.0",
-        "@types/koa-multer": "^1.0.0",
         "@types/koa-router": "^7.0.42",
+        "@types/koa__multer": "^2.0.0",
         "@types/node": "^8.10.49",
         "@types/pino": "^5.8.8",
         "@types/ramda": "^0.26.12",
@@ -59,8 +59,5 @@
         "webpack-cli": "^3.3.7",
         "webpack-loader-helper": "^1.0.0",
         "webpack-node-externals": "^1.7.2"
-    },
-    "_moduleAliases": {
-        "@": "./src"
     }
 }

@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
 
-import { Groups, Subresource, EntityRoute } from "@/services/EntityRoute/decorators";
+import { Groups, Subresource, EntityRoute } from "@/services/EntityRoute/Decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { User } from "./User";

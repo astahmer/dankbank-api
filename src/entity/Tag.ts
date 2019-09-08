@@ -1,7 +1,7 @@
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 import { Column, ManyToOne, Entity } from "typeorm";
-import { Groups } from "@/services/EntityRoute/decorators";
+import { Groups } from "@/services/EntityRoute/Decorators";
 
 @Entity()
 export class Tag extends AbstractEntity {

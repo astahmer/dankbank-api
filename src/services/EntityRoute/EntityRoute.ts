@@ -5,7 +5,7 @@ import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Serializer/Normalizer";
-import { Operation } from "@/services/EntityRoute/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
 import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
@@ -49,7 +49,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         // Entity Route specifics
-        this.repository = getRepository(entity);
+        this.repository = getRepository(entity) as any;
         this.actions = ACTIONS;
         this.globalOptions = globalOptions;
 
@@ -62,10 +62,10 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.mapper = new EntityMapper<Entity>(this);
         this.aliasManager = new QueryAliasManager();
         this.normalizer = new Normalizer<Entity>(this);
-        this.denormalizer = new Denormalizer(this);
+        this.denormalizer = new Denormalizer(this as any) as any;
 
         // Add this EntityRoute to the list (used by subresources)
-        entityRoutesContainer[entity.name] = this;
+        entityRoutesContainer[entity.name] = this as any;
     }
 
     // Computed getters
@@ -325,8 +325,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private getFilter<Filter extends AbstractFilter>(config: IAbstractFilterConfig): Filter {
         return new config.class({
             config,
-            entityMetadata: this.metadata,
-            normalizer: this.normalizer,
+            entityMetadata: this.metadata as any,
+            normalizer: this.normalizer as any,
         });
     }
 

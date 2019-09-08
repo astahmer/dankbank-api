@@ -1,5 +1,5 @@
 import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, getRepository, Repository } from "typeorm";
-import { Groups } from "@/services/EntityRoute/decorators";
+import { Groups } from "@/services/EntityRoute/Decorators";
 import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
 
 export abstract class AbstractEntity {
@@ -16,7 +16,7 @@ export abstract class AbstractEntity {
     dateUpdated: string;
 
     constructor() {
-        this.repository = this.getEntityRepository();
+        this.repository = this.getEntityRepository() as any;
     }
 
     getBaseRoute() {

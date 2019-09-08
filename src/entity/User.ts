@@ -1,7 +1,7 @@
 import { Entity, Column, OneToMany, OneToOne, JoinColumn } from "typeorm";
 
-import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "@/services/EntityRoute/decorators";
-import { Subresource } from "@/services/EntityRoute/decorators/Subresource";
+import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "@/services/EntityRoute/Decorators";
+import { Subresource } from "@/services/EntityRoute/Decorators/Subresource";
 import { Visibility } from "./Visibility";
 import { AbstractEntity } from "./AbstractEntity";
 import { MemeBank } from "./MemeBank";

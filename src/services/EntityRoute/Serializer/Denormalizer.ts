@@ -4,7 +4,7 @@ import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Operation } from "@/services/EntityRoute/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityRoute } from "../EntityRoute";
 import { MappingItem } from "../Mapping/MappingMaker";
 import { formatEntityId } from "../utils";

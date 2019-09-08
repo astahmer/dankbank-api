@@ -1,6 +1,6 @@
 import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
-import { COMPUTED_PREFIX, Operation } from "@/services/EntityRoute/decorators/Groups";
+import { COMPUTED_PREFIX, Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { GroupsMetadata } from "./GroupsMetadata";
 
 export class EntityGroupsMetadata extends GroupsMetadata {

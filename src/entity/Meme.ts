@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, ManyToMany, JoinTable, OneToMany } from "typeorm";
 
-import { Groups, EntityRoute, SearchFilter, Subresource } from "@/services/EntityRoute/decorators";
+import { Groups, EntityRoute, SearchFilter, Subresource } from "@/services/EntityRoute/Decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Tag } from "./Tag";
 import { File } from "./File";

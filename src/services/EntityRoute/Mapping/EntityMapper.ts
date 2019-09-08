@@ -1,12 +1,12 @@
 import { EntityMetadata } from "typeorm";
 
-import { Operation } from "@/services/EntityRoute/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 import { GroupsMetaByRoutes, GroupsMetadata } from "../GroupsMetadata/GroupsMetadata";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { EntityRoute, getRouteSubresourcesMetadata } from "../EntityRoute";
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { MaxDeptMetas } from "@/services/EntityRoute/decorators/MaxDepth";
+import { MaxDeptMetas } from "@/services/EntityRoute/Decorators/MaxDepth";
 import { MappingMaker, MappingItem } from "./MappingMaker";
 
 export class EntityMapper<Entity extends AbstractEntity> {
@@ -15,7 +15,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
     private maker: MappingMaker<Entity>;
 
     constructor(private entityRoute: EntityRoute<Entity>) {
-        this.maker = new MappingMaker(this);
+        this.maker = new MappingMaker(this as any) as any;
     }
 
     get metadata() {

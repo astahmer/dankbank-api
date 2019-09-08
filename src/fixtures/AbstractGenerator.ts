@@ -14,7 +14,7 @@ export abstract class AbstractGenerator<T extends AbstractEntity> {
 
     constructor(protected entityClass: Entity<T>) {
         this.entityClass = entityClass;
-        this.repository = getRepository(entityClass);
+        this.repository = getRepository(entityClass) as any;
     }
 
     abstract getDefaultValues(): DeepPartial<T>;

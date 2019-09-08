@@ -2,11 +2,11 @@ import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
 import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Operation } from "@/services/EntityRoute/decorators/Groups";
+import { Operation } from "@/services/EntityRoute/Decorators/Groups";
 import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
-import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/decorators/Groups";
-import { getDependsOnMetadata } from "@/services/EntityRoute/decorators/DependsOn";
+import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/Decorators/Groups";
+import { getDependsOnMetadata } from "@/services/EntityRoute/Decorators/DependsOn";
 import { NotFoundError } from "routing-controllers";
 
 export class Normalizer<Entity extends AbstractEntity> {
@@ -32,15 +32,11 @@ export class Normalizer<Entity extends AbstractEntity> {
         return this.entityRoute.options;
     }
 
-    get currentQb() {
-        return this.qb;
-    }
-
     /** Retrieve collection of entities with only exposed props (from groups) */
     public async getCollection<Entity extends AbstractEntity>(
-        operation: Operation,
         qb: SelectQueryBuilder<Entity>
     ): Promise<[Entity[], number]> {
+        const operation = "list";
         this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
         this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
@@ -51,17 +47,20 @@ export class Normalizer<Entity extends AbstractEntity> {
     }
 
     /** Retrieve a specific entity with only exposed props (from groups) */
-    public async getItem<Entity extends AbstractEntity>(operation: Operation, entityId: number) {
+    public async getItem<Entity extends AbstractEntity>(qb: SelectQueryBuilder<Entity>, entityId: number) {
+        const operation = "details";
         const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
-        const qb: SelectQueryBuilder<any> = this.repository
-            .createQueryBuilder(this.metadata.tableName)
-            .select(selectProps)
-            .where(this.metadata.tableName + ".id = :id", { id: entityId });
+
+        qb.select(selectProps);
+
+        // If item is a subresource, there is no entityId since the entity was joined on its parent using inverse side prop
+        if (entityId) {
+            qb.where(this.metadata.tableName + ".id = :id", { id: entityId });
+        }
 
         this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
         this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
-        this.qb = qb;
         const result = await qb.getOne();
 
         // Item doesn't exist
