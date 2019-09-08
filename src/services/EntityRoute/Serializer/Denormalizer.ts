@@ -14,7 +14,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private entityRoute: EntityRoute<Entity>) {}
 
     get repository() {
-        return this.entityRoute.routeRepository;
+        return this.entityRoute.repository;
     }
 
     get metadata() {
@@ -152,19 +152,17 @@ export class Denormalizer<Entity extends AbstractEntity> {
 }
 
 /** Checks that given prop is mapped in either select or relation props of a MappingItem */
-const isPropMapped = (prop: string, mapping: MappingItem) =>
-    mapping && mapping.selectProps.concat(mapping.relationProps).includes(prop);
+export const isPropMapped = (prop: string, mapping: MappingItem) => mapping && mapping.exposedProps.includes(prop);
 
 /** Checks that given item contains any nested mapped prop */
 const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
     if (mapping) {
-        const nestedProps = mapping.selectProps.concat(mapping.relationProps);
+        const nestedProps = mapping.exposedProps;
         return nestedProps.length && Object.keys(item).some((prop) => nestedProps.includes(prop));
     }
 };
 /** Checks that a MappingItem contains further nested props  */
-const hasAnyNestedPropMapped = (mapping: MappingItem) =>
-    mapping && mapping.selectProps.concat(mapping.relationProps).length;
+export const hasAnyNestedPropMapped = (mapping: MappingItem) => mapping && mapping.exposedProps.length;
 
 /** Recursively checks if there was a ValidationError on some property */
 function hasAnyError(errorMapping: ErrorMappingItem): boolean {

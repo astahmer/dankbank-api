@@ -10,12 +10,10 @@ import { getDependsOnMetadata } from "@/services/EntityRoute/decorators/DependsO
 import { NotFoundError } from "routing-controllers";
 
 export class Normalizer<Entity extends AbstractEntity> {
-    private qb: SelectQueryBuilder<Entity>;
-
     constructor(private entityRoute: EntityRoute<Entity>) {}
 
     get repository() {
-        return this.entityRoute.routeRepository;
+        return this.entityRoute.repository;
     }
 
     get metadata() {

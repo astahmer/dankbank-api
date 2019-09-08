@@ -32,7 +32,7 @@ export const getRouteFiltersMeta = (entity: Function): RouteFiltersMeta =>
 
 export class EntityRoute<Entity extends AbstractEntity> {
     // Entity Route specifics
-    private repository: Repository<Entity>;
+    public readonly repository: Repository<Entity>;
     private actions: RouteCrudActions;
     private globalOptions: IEntityRouteOptions;
 
@@ -42,10 +42,10 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private subresourcesMeta: RouteSubresourcesMeta<Entity>;
 
     // Managers/services
-    private entityMapper: EntityMapper<Entity>;
-    private queryAliasManager: QueryAliasManager;
-    private normalizer: Normalizer<Entity>;
-    private denormalizer: Denormalizer<Entity>;
+    public readonly mapper: EntityMapper<Entity>;
+    public readonly aliasManager: QueryAliasManager;
+    public readonly normalizer: Normalizer<Entity>;
+    public readonly denormalizer: Denormalizer<Entity>;
 
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         // Entity Route specifics
@@ -59,8 +59,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.subresourcesMeta = getRouteSubresourcesMetadata(entity);
 
         // Managers/services
-        this.entityMapper = new EntityMapper<Entity>(this);
-        this.queryAliasManager = new QueryAliasManager();
+        this.mapper = new EntityMapper<Entity>(this);
+        this.aliasManager = new QueryAliasManager();
         this.normalizer = new Normalizer<Entity>(this);
         this.denormalizer = new Denormalizer(this);
 
@@ -70,20 +70,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     // Computed getters
 
-    get routeRepository() {
-        return this.repository;
-    }
-
     get metadata() {
         return this.repository.metadata;
-    }
-
-    get mapper() {
-        return this.entityMapper;
-    }
-
-    get aliasManager() {
-        return this.queryAliasManager;
     }
 
     get filters() {
@@ -151,6 +139,21 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 });
             }
 
+            const isSubresourceSingle =
+                subresourceRelation.relation.isOneToOne || subresourceRelation.relation.isManyToOne;
+
+            // Generates details endpoint at subresourcePath
+            if (isSubresourceSingle && subresourceProp.operations.includes("details")) {
+                subresourceProp.operations.forEach((operation) => {
+                    (<any>router)[this.actions[operation].verb](
+                        subresourcePath,
+                        nestedEntityRoute.makeResponseMethod(operation, subresourceRelation)
+                    );
+                });
+
+                return;
+            }
+
             // Generates endpoint at subresourcePath for each operation
             subresourceProp.operations.forEach((operation) => {
                 (<any>router)[this.actions[operation].verb](
@@ -178,6 +181,21 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return (parentPath || this.routeMetadata.path) + parentDetailsPath + "/" + subresourceProp.path;
     }
 
+    /** Joins a subresource on its inverse side property */
+    private joinSubresourceOnInverseSide(qb: SelectQueryBuilder<Entity>, subresourceRelation: SubresourceRelation) {
+        const alias = this.aliasManager.generate(
+            this.metadata.tableName,
+            subresourceRelation.relation.inverseSidePropertyPath
+        );
+
+        qb.innerJoin(
+            this.metadata.tableName + "." + subresourceRelation.relation.inverseSidePropertyPath,
+            alias,
+            alias + ".id = :parentId",
+            { parentId: subresourceRelation.id }
+        );
+    }
+
     private async create({ values, subresourceRelation }: IActionParams<Entity>) {
         // Auto-join subresource parent on body values
         if (subresourceRelation) {
@@ -199,23 +217,14 @@ export class EntityRoute<Entity extends AbstractEntity> {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
 
         if (subresourceRelation) {
-            const alias = this.aliasManager.generate(
-                this.metadata.tableName,
-                subresourceRelation.relation.inverseSidePropertyPath
-            );
-            qb.innerJoin(
-                this.metadata.tableName + "." + subresourceRelation.relation.inverseSidePropertyPath,
-                alias,
-                alias + ".id = :parentId",
-                { parentId: subresourceRelation.id }
-            );
+            this.joinSubresourceOnInverseSide(qb, subresourceRelation);
         }
 
         if (this.filtersMeta) {
             this.applyFilters(queryParams, qb);
         }
 
-        const collectionResult = await this.normalizer.getCollection("list", qb);
+        const collectionResult = await this.normalizer.getCollection(qb);
 
         return {
             items: collectionResult[0],
@@ -224,8 +233,14 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
-    private async getDetails({ entityId }: IActionParams<Entity>) {
-        return await this.normalizer.getItem<Entity>("details", entityId);
+    private async getDetails({ entityId, subresourceRelation }: IActionParams<Entity>) {
+        const qb = this.repository.createQueryBuilder(this.metadata.tableName);
+
+        if (subresourceRelation) {
+            this.joinSubresourceOnInverseSide(qb, subresourceRelation);
+        }
+
+        return await this.normalizer.getItem<Entity>(qb, entityId);
     }
 
     private async update({ values, entityId }: IActionParams<Entity>) {
