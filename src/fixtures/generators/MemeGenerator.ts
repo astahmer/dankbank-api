@@ -1,11 +1,12 @@
-import { Connection } from "typeorm";
 import { AbstractGenerator } from "../AbstractGenerator";
 import { Meme } from "@/entity/Meme";
-import { PictureGenerator } from "./PictureGenerator";
+import { TagGenerator } from "./TagGenerator";
+import { FileGenerator } from "./FileGenerator";
+import { User } from "@/entity/User";
 
 export class MemeGenerator extends AbstractGenerator<Meme> {
-    constructor(connection: Connection) {
-        super(connection, Meme);
+    constructor() {
+        super(Meme);
     }
 
     getDefaultValues() {
@@ -14,14 +15,22 @@ export class MemeGenerator extends AbstractGenerator<Meme> {
             description: this.faker.company.catchPhrase(),
             upvoteCount: this.faker.random.number({ min: 0, max: 1000 }),
             downvoteCount: this.faker.random.number({ min: 0, max: 1000 }),
+            views: this.faker.random.number({ min: 0, max: 10000 }),
         };
     }
 
-    async generateBundle() {
-        const picture = await new PictureGenerator(this.connection).generate();
-        const meme = await this.generate({ picture: picture.raw.insertId });
+    async generateBundle({ ownerId }: { ownerId?: number }) {
+        const fileGen = new FileGenerator();
+        const tagGen = new TagGenerator();
 
-        console.log("✔️ MemeGenerator.generateBundle");
+        const pictures = await fileGen.generate({}, 3);
+        const meme = await this.generate({
+            owner: (ownerId as any) as User,
+            pictures,
+            tags: Array.from(Array(5)).map(() => tagGen.getDefaultValues()),
+            isMultipartMeme: pictures.length > 1,
+        });
+
         return meme;
     }
 }

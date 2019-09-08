@@ -1,21 +1,16 @@
 import { Connection } from "typeorm";
-import { TeamGenerator } from "./generators/TeamGenerator";
+import { UserGenerator } from "./generators/UserGenerator";
 
-export async function makeFixtures(connection: Connection) {
-    connection;
+export async function makeFixtures(_connection: Connection) {
     // await connection.synchronize(true);
-    // await makeTeamBundles(connection);
+    // await makeUserBundles();
     // console.log("Fixtures done");
 }
 
-async function makeTeamBundles(connection: Connection) {
-    console.time("makeTeamBundles");
-    const teamResults = await Promise.all(
-        Array(50)
-            .fill(null)
-            .map(() => new TeamGenerator(connection).generateBundle())
-    );
-    console.timeEnd("makeTeamBundles");
+async function makeUserBundles() {
+    console.time("makeUserBundles");
+    const userResults = await new UserGenerator().makeBundles({}, 10);
+    console.timeEnd("makeUserBundles");
 
-    return teamResults;
+    return userResults;
 }

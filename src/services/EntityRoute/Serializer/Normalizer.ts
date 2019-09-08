@@ -142,13 +142,12 @@ export class Normalizer<Entity extends AbstractEntity> {
         for (key in item) {
             prop = item[key as keyof Entity];
             if (Array.isArray(prop)) {
-                item[key as keyof Entity] = prop.map((nestedItem) =>
-                    this.recursiveFormatItem(nestedItem, operation)
-                ) as any;
+                const propArray = prop.map((nestedItem) => this.recursiveFormatItem(nestedItem, operation));
+                item[key as keyof Entity] = (await Promise.all(propArray)) as any;
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
                 item[key as keyof Entity] = await this.recursiveFormatItem(prop as any, operation);
             } else if (!isPrimitive(prop) && !(prop instanceof Date)) {
-                item[key as keyof Entity] = undefined;
+                delete item[key as keyof Entity];
             }
         }
 

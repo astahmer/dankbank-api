@@ -1,9 +1,11 @@
 import { Entity, Column } from "typeorm";
 
 import { AbstractEntity } from "./AbstractEntity";
+import { EntityRoute } from "@/services/EntityRoute/decorators";
 
+@EntityRoute("/files")
 @Entity()
-export class FileEntity extends AbstractEntity {
+export class File extends AbstractEntity {
     @Column()
     originalName: string;
 
@@ -11,5 +13,5 @@ export class FileEntity extends AbstractEntity {
     name: string;
 
     @Column()
-    size: string;
+    size: number;
 }

@@ -7,7 +7,7 @@ import * as sharp from "sharp";
 import { IncomingMessage } from "http";
 
 import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
-import { FileEntity } from "@/entity/FileEntity";
+import { File } from "@/entity/File";
 import { EntityManager, Connection } from "typeorm";
 import { sortObjectByKeys } from "../utils";
 import { BASE_URL } from "@/main";
@@ -47,10 +47,10 @@ class ImageUploadAction implements RouteAction {
             if (err) console.log(err);
         });
 
-        const result = await this.entityManager.getRepository(FileEntity).save({
+        const result = await this.entityManager.getRepository(File).save({
             originalName: req.file.originalname,
             name: fileName,
-            size: "" + resized.size,
+            size: resized.size,
         });
         ctx.body = sortObjectByKeys(result);
     }
@@ -60,13 +60,13 @@ const PUBLIC_UPLOADS_DIR = path.resolve(__dirname, "../public/", "uploads");
 const TEMP_UPLOADS_DIR = path.resolve(__dirname, "../tmp/", "uploads");
 const storage = multer.diskStorage({
     destination: TEMP_UPLOADS_DIR,
-    filename: function(req, file, callback) {
+    filename: function(_req, file, callback) {
         callback(null, file.originalname);
     },
 });
 
 const imageFilter = function(
-    req: IncomingMessage,
+    _req: IncomingMessage,
     file: multer.File,
     callback: (error: Error, acceptFile: boolean) => void
 ) {

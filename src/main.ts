@@ -17,6 +17,7 @@ import { useGroupsRoute } from "@/actions/GroupsAction";
 import { useEntitiesRoutes } from "@/services/EntityRoute";
 import { getAppRoutes } from "@/utils/getAppRoutes";
 import { makeFixtures } from "@/fixtures";
+import { AbstractEntity } from "./entity/AbstractEntity";
 
 declare const module: any;
 
@@ -81,12 +82,12 @@ function getEntities() {
     const context = require.context("./entity/", true, /\.ts$/);
     return context.keys().reduce((acc, path) => {
         const entityModule = context(path);
-        if (path.includes("AbstractEntity") || path.includes("index")) {
-            return acc;
+        const [entityName] = Object.keys(entityModule);
+
+        if (entityModule[entityName] && entityModule[entityName].prototype instanceof AbstractEntity) {
+            acc.push(entityModule[entityName]);
         }
 
-        const [entityName] = Object.keys(entityModule);
-        acc.push(entityModule[entityName]);
         return acc;
     }, []);
 }

@@ -1,15 +1,14 @@
-import { Entity, Column, OneToMany, OneToOne, JoinColumn, ManyToMany, ManyToOne } from "typeorm";
+import { Entity, Column, OneToMany, OneToOne, JoinColumn } from "typeorm";
+
 import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "@/services/EntityRoute/decorators";
-import { AbstractEntity } from "./AbstractEntity";
-import { Meme } from "./Meme";
-import { Picture } from "./Picture";
-import { Team } from "./Team";
-import { Category } from "./Category";
-import { IsBoolean, IsOptional } from "class-validator";
 import { Subresource } from "@/services/EntityRoute/decorators/Subresource";
+import { Visibility } from "./Visibility";
+import { AbstractEntity } from "./AbstractEntity";
+import { MemeBank } from "./MemeBank";
+import { File } from "./File";
 
 @PaginationFilter([], { all: true })
-@SearchFilter(["profileCategory.picture.id"], { all: true })
+@SearchFilter(["id", { name: "startsWith" }])
 @EntityRoute("/users", ["create", "list", "details", "update", "delete"])
 @Entity()
 export class User extends AbstractEntity {
@@ -17,50 +16,36 @@ export class User extends AbstractEntity {
         user: ["create", "list", "details", "update"],
     })
     @Column()
-    firstName: string;
-
-    @Groups({
-        user: ["create", "list", "details", "update"],
-    })
-    @Column({ nullable: true })
-    lastName: string;
+    name: string;
 
     @Groups({
         user: ["create", "list", "details", "update"],
     })
     @Column()
-    age: number;
-
-    @Groups({ user: ["create", "list", "details", "update"] })
-    @Column({ nullable: true })
-    birthDate: Date;
-
-    @Groups({ user: ["create", "list", "details", "update"] })
-    @IsBoolean()
-    @IsOptional()
-    @Column({ default: true })
-    isProfilePublic: boolean;
-
-    @Subresource(() => Meme, { operations: ["create", "list", "details"] })
-    @OneToMany(() => Meme, (memes) => memes.user, { cascade: true })
-    memes: Meme[];
+    email: string;
 
     @Groups({
-        user: ["create", "details"],
+        user: ["details", "update"],
     })
-    @OneToOne(() => Picture)
+    @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
+    visibility: Visibility;
+
+    @Subresource(() => MemeBank, { operations: ["details"] })
+    @OneToOne(() => MemeBank, (bank) => bank.owner)
     @JoinColumn()
-    profilePicture: Picture;
+    favorites: MemeBank;
 
     @Groups({
-        user: ["details"],
+        user: ["list", "details"],
     })
-    @ManyToMany(() => Team, (team) => team.members)
-    teams: Team[];
+    @Subresource(() => MemeBank)
+    @OneToMany(() => MemeBank, (bank) => bank.owner)
+    banks: MemeBank[];
 
     @Groups({
-        user: ["create", "list", "details", "update"],
+        user: ["create", "details", "update"],
     })
-    @ManyToOne(() => Category, { cascade: ["insert", "update"] })
-    profileCategory: Category;
+    @OneToOne(() => File)
+    @JoinColumn()
+    profilePicture: File;
 }

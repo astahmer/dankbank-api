@@ -5,12 +5,12 @@ import {
     getRouteSubresourcesMetadata,
 } from "@/services/EntityRoute/EntityRoute";
 import { ObjectType } from "typeorm";
-import { AbstractEntity } from "@/entity";
+import { AbstractEntity } from "@/entity/AbstractEntity";
 
 export function Subresource(
     entityTarget: Promise<EntityReference> | EntityReference,
     options: SubresourceOptions = {
-        operations: ["list", "details"],
+        operations: ["create", "list", "details"],
     }
 ): PropertyDecorator {
     return (target: Object, propName: string) => {

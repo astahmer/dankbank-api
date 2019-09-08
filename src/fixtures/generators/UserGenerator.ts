@@ -1,64 +1,45 @@
-import { Connection } from "typeorm";
 import { AbstractGenerator } from "../AbstractGenerator";
+import { MemeBankGenerator } from "./MemeBankGenerator";
 import { User } from "@/entity/User";
-import { CategoryGenerator } from "./CategoryGenerator";
-import { PictureGenerator } from "./PictureGenerator";
-import { MemeGenerator } from "./MemeGenerator";
+import { Visibility } from "@/entity/Visibility";
+import { FileGenerator } from "./FileGenerator";
 
 export class UserGenerator extends AbstractGenerator<User> {
-    constructor(connection: Connection) {
-        super(connection, User);
+    constructor() {
+        super(User);
     }
 
     getDefaultValues() {
         return {
-            firstName: this.faker.name.firstName(),
-            lastName: this.faker.name.lastName(),
-            age: this.faker.random.number({ min: 15, max: 50 }),
-            isProfilePublic: this.faker.random.boolean(),
-            birthDate: this.faker.date.between("1990-01-01", "2003-12-31"),
+            name: this.faker.internet.userName(),
+            email: this.faker.internet.email(),
+            visibility: Visibility.PUBLIC,
         };
     }
 
     async generateBundle() {
-        const memeGenerator = new MemeGenerator(this.connection);
-        const memePromises = Promise.all(
-            Array(2)
-                .fill(null)
-                .map(() => memeGenerator.generateBundle())
-        );
-        const [memes, picture, category] = await Promise.all([
-            memePromises,
-            new PictureGenerator(this.connection).generate(),
-            new CategoryGenerator(this.connection).generateBundle(),
-        ]);
-        const user = await this.generate({ profilePicture: picture.raw.insertId });
+        const bankGen = new MemeBankGenerator();
+        const fileGen = new FileGenerator();
 
-        const memeRelationsPromises = [];
-        let i;
-        let relation;
-        for (i = 0; i < memes.length; i++) {
-            relation = memes[i].raw.insertId;
-            memeRelationsPromises.push(
-                this.addRelation({
-                    relationProp: "memes",
-                    entity: user.raw.insertId,
-                    relation,
-                })
-            );
-        }
+        const user = await this.generate();
+        const profilePicture = fileGen.generate();
 
-        const profileCatPromise = this.addRelation({
-            relationProp: "profileCategory",
-            entity: user.raw.insertId,
-            relation: category.raw.insertId,
+        const favorites = bankGen.generate({
+            owner: user,
+            title: "Favorites",
+            description: "Memes marked as favorites.",
+            visibility: Visibility.PRIVATE,
         });
 
-        const promises = Promise.all([memeRelationsPromises, profileCatPromise]);
+        const banks = bankGen.makeBundles({ ownerId: user.id }, 3);
 
-        await promises;
+        user.profilePicture = await profilePicture;
+        user.favorites = await favorites;
+
+        // Waiting for MemeBanks to be generated & user to save relations
+        await Promise.all([banks, this.repository.save(user)]);
 
         console.log("✔️ UserGenerator.generateBundle");
-        return user.raw.insertId;
+        return user;
     }
 }

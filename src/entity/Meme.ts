@@ -1,52 +1,79 @@
-import { Entity, Column, ManyToOne, OneToOne, JoinColumn } from "typeorm";
-import { Groups, EntityRoute, SearchFilter } from "@/services/EntityRoute/decorators";
+import { Entity, Column, ManyToOne, ManyToMany, JoinTable, OneToMany } from "typeorm";
+
+import { Groups, EntityRoute, SearchFilter, Subresource } from "@/services/EntityRoute/decorators";
 import { AbstractEntity } from "./AbstractEntity";
+import { Tag } from "./Tag";
+import { File } from "./File";
+import { MemeBank } from "./MemeBank";
+import { Comment } from "./Comment";
 import { User } from "./User";
-import { Picture } from "./Picture";
 
 @SearchFilter([], { all: true })
-@EntityRoute("/memes", ["list", "details"])
+@EntityRoute("/memes", ["create", "list", "details", "update", "delete"])
 @Entity()
 export class Meme extends AbstractEntity {
     @Groups({
-        meme: ["create", "list", "details"],
-    })
-    @ManyToOne(() => User, (user) => user.memes, { onDelete: "CASCADE" })
-    user: User;
-
-    @Groups({
-        meme: ["create", "list", "details"],
-        user: ["details"],
+        meme: "all",
     })
     @Column()
     title: string;
 
     @Groups({
-        meme: ["create", "list", "details"],
-        user: ["details"],
+        meme: ["create", "details", "update"],
     })
     @Column()
     description: string;
 
     @Groups({
-        meme: ["create", "list", "details"],
-        user: ["details"],
+        meme: ["create", "list", "details", "update"],
+    })
+    @OneToMany(() => Tag, (tag) => tag.meme, { cascade: true })
+    tags: Tag[];
+
+    @Groups({
+        meme: ["list", "details", "update"],
     })
     @Column()
     upvoteCount: number;
 
     @Groups({
-        meme: ["create", "list", "details"],
-        user: ["details"],
+        meme: ["list", "details", "update"],
     })
     @Column()
     downvoteCount: number;
 
     @Groups({
-        meme: ["create", "list", "details"],
-        user: ["details"],
+        meme: ["details", "update"],
     })
-    @OneToOne(() => Picture, (picture) => picture.associatedMeme, { cascade: ["insert"] })
-    @JoinColumn()
-    picture: Picture;
+    @Column()
+    views: number;
+
+    @Groups({
+        meme: ["create", "list", "details", "update"],
+    })
+    @Column()
+    isMultipartMeme: boolean;
+
+    @Groups({
+        meme: ["create", "list", "details", "update"],
+    })
+    @ManyToMany(() => File, { cascade: true })
+    @JoinTable()
+    pictures: File[];
+
+    @Groups({
+        meme: ["create", "list", "details", "update"],
+    })
+    @ManyToMany(() => MemeBank, (bank) => bank.memes)
+    banks: MemeBank[];
+
+    @Subresource(() => Comment)
+    @OneToMany(() => Comment, (comment) => comment.meme)
+    comments: Comment[];
+
+    @Groups({
+        meme: ["create", "details"],
+    })
+    @ManyToOne(() => User)
+    owner: User;
 }

@@ -5,7 +5,7 @@ import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 import { GroupsMetaByRoutes, GroupsMetadata } from "../GroupsMetadata/GroupsMetadata";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { EntityRoute, getRouteSubresourcesMetadata } from "../EntityRoute";
-import { AbstractEntity } from "@/entity";
+import { AbstractEntity } from "@/entity/AbstractEntity";
 import { MaxDeptMetas } from "@/services/EntityRoute/decorators/MaxDepth";
 import { MappingMaker, MappingItem } from "./MappingMaker";
 

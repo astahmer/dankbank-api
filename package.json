@@ -9,7 +9,7 @@
         "webpack": "webpack",
         "start": "node --inspect=0.0.0.0 -r ts-node/register build/server",
         "hmr": "npm run webpack && npm run start",
-        "watch": "nodemon --inspect ",
+        "watch": "nodemon --inspect",
         "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run",
         "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -n Yes",
         "prettier": "prettier --write \"./{src,tests}/**/*.ts\"",

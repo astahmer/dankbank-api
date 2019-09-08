@@ -1,7 +1,7 @@
 import { Context } from "koa";
 import { EntityMetadata } from "typeorm";
 
-import { AbstractEntity } from "@/entity";
+import { AbstractEntity } from "@/entity/AbstractEntity";
 import { EntityRoute, RouteMetadata } from "../EntityRoute";
 
 export type RouteActionContext<Entity extends AbstractEntity> = {
