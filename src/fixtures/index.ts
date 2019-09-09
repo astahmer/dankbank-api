@@ -2,7 +2,7 @@ import { Connection } from "typeorm";
 import { UserGenerator } from "./generators/UserGenerator";
 
 export async function makeFixtures(_connection: Connection) {
-    // await connection.synchronize(true);
+    // await _connection.synchronize(true);
     // await makeUserBundles();
     // console.log("Fixtures done");
 }
