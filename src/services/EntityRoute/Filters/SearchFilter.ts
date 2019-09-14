@@ -380,35 +380,42 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         }
 
         const [, nestedConditionRaw, typeRaw, propPath, strategyRaw, comparison, not] = matches;
-        if (this.isFilterEnabledForProperty(propPath) && this.isParamInEntityProps(propPath) && isDefined(rawValue)) {
-            const isNestedConditionFilter = nestedConditionRaw !== typeRaw;
-            // Use type/strategy from key or defaults
-            const type = typeRaw ? (typeRaw as WhereType) : WhereType.AND;
-            const strategy = this.getWhereStrategyIdentifier(strategyRaw, propPath, comparison as COMPARISON_OPERATOR);
-
-            // Remove actual filter WhereType from nested condition
-            const nestedCondition = typeRaw ? nestedConditionRaw.slice(0, -typeRaw.length) : nestedConditionRaw;
-
-            // If query param value is a string and contains comma-separated values, make an array from it
-            const value =
-                typeof rawValue === "string"
-                    ? rawValue
-                          .split(",")
-                          .map((val) => val.trim())
-                          .filter(Boolean)
-                    : rawValue;
-
-            return {
-                type,
-                strategy,
-                isNestedConditionFilter,
-                nestedCondition,
-                propPath,
-                not: Boolean(not),
-                value,
-                comparison: comparison as COMPARISON_OPERATOR,
-            };
+        // Checks that propPath is enabled/valid && has a search value
+        if (
+            !this.isFilterEnabledForProperty(propPath) ||
+            !this.isParamInEntityProps(propPath) ||
+            !isDefined(rawValue)
+        ) {
+            return;
         }
+
+        const isNestedConditionFilter = nestedConditionRaw !== typeRaw;
+        // Use type/strategy from key or defaults
+        const type = typeRaw ? (typeRaw as WhereType) : WhereType.AND;
+        const strategy = this.getWhereStrategyIdentifier(strategyRaw, propPath, comparison as COMPARISON_OPERATOR);
+
+        // Remove actual filter WhereType from nested condition
+        const nestedCondition = typeRaw ? nestedConditionRaw.slice(0, -typeRaw.length) : nestedConditionRaw;
+
+        // If query param value is a string and contains comma-separated values, make an array from it
+        const value =
+            typeof rawValue === "string"
+                ? rawValue
+                    .split(",")
+                    .map((val) => val.trim())
+                    .filter(Boolean)
+                : rawValue;
+
+        return {
+            type,
+            strategy,
+            isNestedConditionFilter,
+            nestedCondition,
+            propPath,
+            not: Boolean(not),
+            value,
+            comparison: comparison as COMPARISON_OPERATOR,
+        };
     }
 
     /** Returns filters & complex filters using nested conditions */

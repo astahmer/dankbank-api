@@ -18,7 +18,7 @@ export function AbstractFilterDecorator({
         const filtersMeta: RouteFiltersMeta = getRouteFiltersMeta(target as Function) || {};
         const filter: IAbstractFilterConfig = filtersMeta[defaultConfig.class.name];
 
-        // If all entity properties are authorized as filter, ignore this property decorator
+        // If all entity properties are enabled as filter, ignore this property decorator
         if (filter && filter.options.all) {
             return;
         }
@@ -34,14 +34,13 @@ export function AbstractFilterDecorator({
             }
         } else {
             // Class Decorator
-            defaultConfig.properties = propParamOrFilterProperties;
+            defaultConfig.properties = filter
+                ? filter.properties.concat(propParamOrFilterProperties)
+                : propParamOrFilterProperties;
         }
 
-        // If not filter of this kind is defined on this entity yet, add it
-        if (!filter) {
-            filtersMeta[defaultConfig.class.name] = defaultConfig as IAbstractFilterConfig;
-        }
-
+        // Update filter
+        filtersMeta[defaultConfig.class.name] = defaultConfig as IAbstractFilterConfig;
         Reflect.defineMetadata(ROUTE_FILTERS_METAKEY, filtersMeta, target);
     };
 }
