@@ -3,6 +3,7 @@ import { pick } from "ramda";
 
 import { Normalizer } from "../Serializer/Normalizer";
 import { getObjectOnlyKey, isDefined } from "../utils";
+import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;
@@ -39,16 +40,27 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
     /** This method should add conditions to the queryBuilder using queryParams  */
     abstract apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs): void;
 
-    /** Return true if first part of propPath exists in this entity properties */
+    /** Return true if param exists in this entity properties or is a valid propPath from this entity */
     protected isParamInEntityProps(param: string) {
-        return param.indexOf(".") !== -1
-            ? this.entityProperties.indexOf(param.split(".")[0]) !== -1
-            : this.entityProperties.indexOf(param) !== -1;
+        const propPath = param.indexOf(".") !== -1 ? param.split(".") : [param];
+        return this.isPropPathValid(propPath, this.entityMetadata);
+    }
+
+    protected isPropPathValid (propPath: string[], entityMetadata: EntityMetadata): ColumnMetadata {
+        const column = entityMetadata.findColumnWithPropertyName(propPath[0]);
+        const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(propPath[0]);
+        const nextProp = propPath.length > 1 ? propPath.slice(1) : ["id"];
+
+        if (!column && !relation) {
+            return null;
+        }
+
+        return column || this.isPropPathValid(nextProp, relation.inverseEntityMetadata)
     }
 
     /**
      * Returns true if given propPath filter is enabled or property was decorated
-     * Nested properties using a path require being explicitly passed in properties array of @SearchFilter ClassDecorator
+     * Nested properties using a path require being explicitly passed in properties array of this @ClassDecorator
      */
     protected isFilterEnabledForProperty(propPath: string) {
         if (this.config.options.all && propPath.split(".").length === 1) {
@@ -127,7 +139,7 @@ export interface IDefaultFilterOptions {
     /** Property or dot delimited property path to apply the filter on */
     [key: string]: any;
     /** Make all (not nested) properties filterable by default */
-    all: boolean;
+    all?: boolean;
 }
 
 export interface IAbstractFilterConfig<Options = IDefaultFilterOptions> {

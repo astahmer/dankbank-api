@@ -1,30 +1,34 @@
 import { FilterProperty, IAbstractFilterConfig } from "@/services/EntityRoute/Filters/AbstractFilter";
 import {
     IPaginationFilterOptions,
-    ORDER_DIRECTIONS,
     getDefaultConfig,
+    ORDER_DIRECTIONS,
 } from "@/services/EntityRoute/Filters/PaginationFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
 
-export function PaginationFilter(direction?: ORDER_DIRECTIONS): PropertyDecorator;
 export function PaginationFilter(
     properties: FilterProperty[],
     filterOptions?: IPaginationFilterOptions
-): ClassDecorator;
-export function PaginationFilter(
-    propParamOrFilterProperties?: ORDER_DIRECTIONS | FilterProperty[],
-    filterOptions?: IPaginationFilterOptions
-): ClassDecorator | PropertyDecorator {
+): ClassDecorator {
     const defaultConfig = getDefaultConfig(filterOptions);
 
-    // Property Decorator
-    const propFilterHook = (propName: string, filterConfig: IAbstractFilterConfig) => {
-        return { [propName]: propParamOrFilterProperties || filterConfig.options.defautOrderDirection };
+    return AbstractFilterDecorator({
+        defaultConfig,
+        propParamOrFilterProperties: properties,
+    }) as ClassDecorator;
+}
+
+export function OrderFilter(direction?: ORDER_DIRECTIONS, relationPropName?: string): PropertyDecorator {
+    const defaultConfig = getDefaultConfig();
+
+    const withRelationPropName = relationPropName ? '.' + relationPropName : '';
+    const propFilterHook = (propName: string, filterConfig: IAbstractFilterConfig<IPaginationFilterOptions>) => {
+        return propName + withRelationPropName + ':' + (direction || filterConfig.options.defautOrderDirection);
     };
 
     return AbstractFilterDecorator({
         defaultConfig,
-        propParamOrFilterProperties,
+        propParamOrFilterProperties: { direction, relationPropName },
         propFilterHook,
     });
 }

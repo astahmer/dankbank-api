@@ -7,6 +7,7 @@ import {
     FilterDefaultConfig,
 } from "./AbstractFilter";
 import { SelectQueryBuilder } from "typeorm";
+import { isType, getObjectOnlyKey } from "../utils";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
     defaultOrderBys?: string | string[];
@@ -25,7 +26,7 @@ export enum PAGINATION_TYPES {
     SKIP = "skip",
 }
 
-export const getDefaultConfig = (options: IPaginationFilterOptions): FilterDefaultConfig<IPaginationFilterOptions> => ({
+export const getDefaultConfig = (options?: IPaginationFilterOptions): FilterDefaultConfig<IPaginationFilterOptions> => ({
     class: PaginationFilter,
     options: {
         all: false,
@@ -37,6 +38,13 @@ export const getDefaultConfig = (options: IPaginationFilterOptions): FilterDefau
 });
 
 export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
+    /** Returns every filterable properties  */
+    get filterProperties() {
+        return this.config.properties.map(
+            (prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)).split(":")[0]
+        );
+    }
+
     protected getFilterParamsByTypes(queryParams: QueryParams) {
         return {
             orderBy: queryParams[PAGINATION_TYPES.ORDER_BY],
@@ -58,33 +66,55 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
             orderBy = [orderBy];
         }
 
-        const orderByProps: Record<string, ORDER_DIRECTIONS> = {};
         let [i, length] = [0, orderBy.length];
         for (i; i < length; i++) {
-            const [propPath, directionRaw] = orderBy[i].split(":");
+            let [propPath, directionRaw] = orderBy[i].split(":");
             const props = propPath.split(".");
             const direction = directionRaw
-                ? (directionRaw.toUpperCase() as ORDER_DIRECTIONS)
+                ? (directionRaw.toUpperCase())
                 : this.config.options.defaultOrderDirection;
 
+            // Checks that given direction is valid & that filter is both enabled & valid
+            const isValidParam = this.isParamInEntityProps(propPath);
+            if (
+                !isType<ORDER_DIRECTIONS>(direction, direction in ORDER_DIRECTIONS) ||
+                !this.isFilterEnabledForProperty(propPath) ||
+                !isValidParam
+            ) {
+                continue;
+            }
+
+            // If last part of propPath is a relation (instead of a column), append ".id" to it
+            if (
+                isValidParam.propertyName === "id" &&
+                !propPath.endsWith(".id")
+            ) {
+                propPath += ".id";
+                props.push("id");
+            }
+
             if (props.length === 1) {
-                orderByProps[this.entityMetadata.tableName + "." + props] = direction;
+                qb.addOrderBy(this.entityMetadata.tableName + "." + props, direction);
             } else {
                 const { entityAlias, propName } = this.normalizer.makeJoinsFromPropPath(
                     qb,
                     this.entityMetadata,
-                    orderBy[i].replace(":" + direction, ""),
+                    propPath,
                     props[0]
                 );
 
-                orderByProps[entityAlias + "." + propName] = direction;
+                qb.addOrderBy(entityAlias + "." + propName, direction);
             }
         }
-
-        qb.orderBy(orderByProps);
     }
 
     apply({ queryParams, qb }: AbstractFilterApplyArgs) {
+        // Apply filter for each property decorator
+        this.filterProperties.forEach((orderBy) => {
+            this.addOrderBy(qb, orderBy);
+        })
+
+        // Apply filter for each query params
         const { orderBy, take, skip } = this.getFilterParamsByTypes(queryParams);
 
         if (orderBy) {

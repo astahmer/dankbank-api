@@ -101,16 +101,9 @@ export class Normalizer<Entity extends AbstractEntity> {
             };
         } else {
             // Relation
-            const isJoinAlreadyMade = qb.expressionMap.joinAttributes.find(
-                (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
-            );
-            let alias = this.aliasManager.getPropertyLastAlias(
-                relation.entityMetadata.tableName,
-                relation.propertyName
-            );
+            const { isJoinAlreadyMade, alias } = this.aliasManager.getAliasForRelation(qb, relation);
 
             if (!isJoinAlreadyMade) {
-                alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
                 qb.leftJoin((prevAlias || relation.entityMetadata.tableName) + "." + relation.propertyName, alias);
             }
 
@@ -195,8 +188,9 @@ export class Normalizer<Entity extends AbstractEntity> {
                 relation
             );
 
-            const alias = this.aliasManager.generate(relation.entityMetadata.tableName, relation.propertyName);
-            if (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId) {
+            const { isJoinAlreadyMade, alias } = this.aliasManager.getAliasForRelation(qb, relation);
+
+            if (!isJoinAlreadyMade && (!circularProp || this.options.shouldMaxDepthReturnRelationPropsId)) {
                 qb.leftJoin(prevProp + "." + relation.propertyName, alias);
             }
 

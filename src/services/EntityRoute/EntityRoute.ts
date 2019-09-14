@@ -216,6 +216,9 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private async getList({ queryParams, subresourceRelation }: IActionParams<Entity>) {
         const qb = this.repository.createQueryBuilder(this.metadata.tableName);
 
+        // Apply a max item to retrieve
+        qb.take(500);
+
         if (subresourceRelation) {
             this.joinSubresourceOnInverseSide(qb, subresourceRelation);
         }
