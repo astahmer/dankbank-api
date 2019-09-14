@@ -30,7 +30,7 @@ export class User extends AbstractEntity {
     @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
     visibility: Visibility;
 
-    @Subresource(() => MemeBank, { operations: ["details"] })
+    @Subresource(() => MemeBank, { operations: ["details"], maxDepth: 1 })
     @OneToOne(() => MemeBank, (bank) => bank.owner)
     @JoinColumn()
     favorites: MemeBank;

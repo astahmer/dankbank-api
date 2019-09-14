@@ -74,13 +74,18 @@ async function startApp(connection: Connection) {
     }
 }
 
-function getEntities() {
+function getEntities(included?: string[]) {
     const context = require.context("./entity/", true, /\.ts$/);
     return context.keys().reduce((acc, path) => {
         const entityModule = context(path);
         const [entityName] = Object.keys(entityModule);
 
         if (entityModule[entityName] && entityModule[entityName].prototype instanceof AbstractEntity) {
+            // Skip not explicitly included entities
+            if (included && !included.includes(entityName)) {
+                return acc;
+            }
+
             acc.push(entityModule[entityName]);
         }
 

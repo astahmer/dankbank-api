@@ -108,7 +108,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     /** Recursively add subresources routes for this entity */
     private makeSubresourcesRoutes(
         router: Router,
-        parentSubresource?: { currentPath: string[]; subresourcePath: string }
+        nestedPath?: { current: string[]; parent: string, maxDepths?: number[] }
     ) {
         // For each subresources of this entity
         for (let key in this.subresourcesMeta.properties) {
@@ -117,7 +117,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
             const subresourcePath = this.getSubresourceBasePath(
                 subresourceRelation.param,
                 subresourceProp,
-                parentSubresource && parentSubresource.subresourcePath
+                nestedPath && nestedPath.parent
             );
 
             const relationTableName = subresourceRelation.relation.inverseEntityMetadata.tableName;
@@ -128,14 +128,27 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 continue;
             }
 
-            // Ensures that it is not making circular subresources routes
-            if (!parentSubresource || !parentSubresource.currentPath.includes(relationTableName)) {
+            // Add one to also count root subresource
+            const currentDepth = 1 + (nestedPath ? nestedPath.current.length : 0);
+
+            // Checks for every max depth of every subresources including this one
+            const hasReachedMaxDepth = nestedPath
+                ? nestedPath.maxDepths.some((maxDepth) => currentDepth >= maxDepth)
+                : currentDepth >= subresourceProp.maxDepth;
+
+            const isSubresourceCircular = nestedPath && nestedPath.current.includes(relationTableName);
+
+            // Ensures that it is not making circular subresources routes & that maxDepth isn't reached
+            if (!hasReachedMaxDepth && !isSubresourceCircular) {
                 // Recursively make subresources
                 nestedEntityRoute.makeSubresourcesRoutes(router, {
-                    subresourcePath,
-                    currentPath: parentSubresource
-                        ? parentSubresource.currentPath.concat(relationTableName)
+                    parent: subresourcePath,
+                    current: nestedPath
+                        ? nestedPath.current.concat(relationTableName)
                         : [relationTableName],
+                    maxDepths: nestedPath
+                        ? nestedPath.maxDepths.concat(currentDepth)
+                        : [currentDepth],
                 });
             }
 
@@ -151,7 +164,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
                     );
                 });
 
-                return;
+                continue;
             }
 
             // Generates endpoint at subresourcePath for each operation
@@ -360,6 +373,8 @@ export type SubresourceProperty<Entity extends AbstractEntity> = {
     operations: SubresourceOperation[];
     /** Subresource entity, used to retrieve its EntityRoute */
     entityTarget: Entity;
+    /** Max depth of a subresource property : Limit the number of times a subresource can have another */
+    maxDepth: number;
 };
 export type RouteSubresourcesMeta<ParentEntity extends AbstractEntity> = {
     parent: ParentEntity;
