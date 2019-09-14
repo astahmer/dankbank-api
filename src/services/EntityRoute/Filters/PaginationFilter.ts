@@ -86,6 +86,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
 
             // If last part of propPath is a relation (instead of a column), append ".id" to it
             if (
+                this.entityMetadata.findRelationWithPropertyPath(props[0]) &&
                 isValidParam.propertyName === "id" &&
                 !propPath.endsWith(".id")
             ) {
