@@ -19,7 +19,7 @@ export function Subresource(
             // Merge default options with decorator parameter
             options = {
                 operations: ["create", "list", "details"],
-                ...options
+                ...options,
             };
 
             subresourcesMeta.properties[propName] = {

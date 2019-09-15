@@ -29,19 +29,18 @@ export class QueryAliasManager {
         return entityTableName + "_" + propName + "_" + this.aliases[key];
     }
 
-    public isJoinAlreadyMade (qb: SelectQueryBuilder<any>, relation: RelationMetadata) {
+    public isJoinAlreadyMade(qb: SelectQueryBuilder<any>, relation: RelationMetadata) {
         return qb.expressionMap.joinAttributes.find(
             (join) => join.entityOrProperty === relation.entityMetadata.tableName + "." + relation.propertyName
-        )
+        );
     }
 
-    public getAliasForRelation (qb: SelectQueryBuilder<any>, relation: RelationMetadata) {
+    public getAliasForRelation(qb: SelectQueryBuilder<any>, relation: RelationMetadata) {
         const isJoinAlreadyMade = this.isJoinAlreadyMade(qb, relation);
 
         const alias = isJoinAlreadyMade
-            ? this.getPropertyLastAlias(relation.entityMetadata.tableName,relation.propertyName)
-            : this.generate(relation.entityMetadata.tableName, relation.propertyName)
-        ;
+            ? this.getPropertyLastAlias(relation.entityMetadata.tableName, relation.propertyName)
+            : this.generate(relation.entityMetadata.tableName, relation.propertyName);
 
         return { isJoinAlreadyMade, alias };
     }

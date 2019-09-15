@@ -19,7 +19,9 @@ services:
       - core
     links:
       - database
-    network_mode: bridge
+    networks:
+      - api
+      - server
 
   webpack:
     build:
@@ -30,7 +32,8 @@ services:
     volumes:
       - .:/usr/app/
       - ./node_modules/:/usr/app/node_modules
-    network_mode: bridge
+    networks:
+      - server
 
   # Only used to install vendors
   vendors:
@@ -52,7 +55,8 @@ services:
       - data-nginx:/etc/nginx/vhost.d
       - data-nginx:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
-    network_mode: bridge
+    networks:
+      - server
 
   nginx-proxy-companion:
     container_name: ${PROJECT_NAME}-nginx-proxy-companion
@@ -73,7 +77,8 @@ services:
       - MYSQL_PASSWORD=${TYPEORM_PASSWORD}
       - MYSQL_ROOT_PASSWORD=${TYPEORM_PASSWORD}
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
-    network_mode: bridge
+    networks:
+      - api
 
   phpmyadmin:
     container_name: ${PROJECT_NAME}-phpmyadmin
@@ -90,7 +95,8 @@ services:
       - 9000:80
     links:
       - database
-    network_mode: bridge
+    networks:
+      - api
 
   # Emulates a group of services with an almost-empty image
   # Makes koa server wait for others before running
@@ -107,3 +113,6 @@ services:
 
 volumes:
   data-nginx:
+networks:
+  api:
+  server:

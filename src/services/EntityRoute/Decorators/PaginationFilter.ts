@@ -21,9 +21,9 @@ export function PaginationFilter(
 export function OrderFilter(direction?: ORDER_DIRECTIONS, relationPropName?: string): PropertyDecorator {
     const defaultConfig = getDefaultConfig();
 
-    const withRelationPropName = relationPropName ? '.' + relationPropName : '';
+    const withRelationPropName = relationPropName ? "." + relationPropName : "";
     const propFilterHook = (propName: string, filterConfig: IAbstractFilterConfig<IPaginationFilterOptions>) => {
-        return propName + withRelationPropName + ':' + (direction || filterConfig.options.defautOrderDirection);
+        return propName + withRelationPropName + ":" + (direction || filterConfig.options.defautOrderDirection);
     };
 
     return AbstractFilterDecorator({

@@ -401,9 +401,9 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         const value =
             typeof rawValue === "string"
                 ? rawValue
-                    .split(",")
-                    .map((val) => val.trim())
-                    .filter(Boolean)
+                      .split(",")
+                      .map((val) => val.trim())
+                      .filter(Boolean)
                 : rawValue;
 
         return {

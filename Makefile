@@ -3,8 +3,18 @@
 #
 -include .env
 
-EXECUTOR = docker exec -i $(PROJECT_NAME)-koa /bin/bash -c
-EXECUTOR-WWW = ""
+EXECUTOR = docker exec -i $(PROJECT_NAME)-koa /bin/sh -c
+
+DEFAULT_CONTAINER := koa
+# If the first argument is one of the supported commands...
+SUPPORTED_COMMANDS := logs term
+SUPPORTS_MAKE_ARGS := $(findstring $(firstword $(MAKECMDGOALS)), $(SUPPORTED_COMMANDS))
+ifneq "$(SUPPORTS_MAKE_ARGS)" ""
+    # use the rest as arguments for the command
+    COMMAND_ARGS := $(or $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS)),$(DEFAULT_CONTAINER))
+    # ...and turn them into do-nothing targets
+    $(eval $(COMMAND_ARGS):;@:)
+endif
 
 #
 ##@ HELP
@@ -68,18 +78,13 @@ docker-build: # Build docker image
 	docker-compose build
 
 logs: ## Show & follow koa container logs
-	docker logs -f $(PROJECT_NAME)-koa
-
-logsw: ## Show & follow koa container logs
-	docker logs -f $(PROJECT_NAME)-webpack
-
-term-user: ## Enter in container terminal
-	docker-compose exec -u www-data koa /bin/sh
+	docker logs -f $(PROJECT_NAME)-$(COMMAND_ARGS)
 
 term: ## Enter in container terminal as root
-	docker-compose exec -u root koa /bin/sh
-termw: ## Enter in container terminal as root
-	docker-compose exec -u root webpack /bin/sh
+	docker-compose exec -u root $(COMMAND_ARGS) /bin/sh
+
+prettier:
+	$(EXECUTOR) "npm run prettier"
 
 #
 ##@ ENVIRONMENT
@@ -90,7 +95,7 @@ checkenv: ## Check if .env file exists and create it if not
 		echo "Copying .env.dist to .env"; \
 		cp .env.dist .env; \
 	fi;
-	source .env
+	. .env
 
 #
 ##@ VIRTUAL HOSTS
