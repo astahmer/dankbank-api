@@ -46,7 +46,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         return this.isPropPathValid(propPath, this.entityMetadata);
     }
 
-    protected isPropPathValid (propPath: string[], entityMetadata: EntityMetadata): ColumnMetadata {
+    protected isPropPathValid(propPath: string[], entityMetadata: EntityMetadata): ColumnMetadata {
         const column = entityMetadata.findColumnWithPropertyName(propPath[0]);
         const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(propPath[0]);
         const nextProp = propPath.length > 1 ? propPath.slice(1) : ["id"];
@@ -55,7 +55,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
             return null;
         }
 
-        return column || this.isPropPathValid(nextProp, relation.inverseEntityMetadata)
+        return column || this.isPropPathValid(nextProp, relation.inverseEntityMetadata);
     }
 
     /**

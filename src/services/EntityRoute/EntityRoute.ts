@@ -108,7 +108,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     /** Recursively add subresources routes for this entity */
     private makeSubresourcesRoutes(
         router: Router,
-        nestedPath?: { current: string[]; parent: string, maxDepths?: number[] }
+        nestedPath?: { current: string[]; parent: string; maxDepths?: number[] }
     ) {
         // For each subresources of this entity
         for (let key in this.subresourcesMeta.properties) {
@@ -143,12 +143,8 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 // Recursively make subresources
                 nestedEntityRoute.makeSubresourcesRoutes(router, {
                     parent: subresourcePath,
-                    current: nestedPath
-                        ? nestedPath.current.concat(relationTableName)
-                        : [relationTableName],
-                    maxDepths: nestedPath
-                        ? nestedPath.maxDepths.concat(currentDepth)
-                        : [currentDepth],
+                    current: nestedPath ? nestedPath.current.concat(relationTableName) : [relationTableName],
+                    maxDepths: nestedPath ? nestedPath.maxDepths.concat(currentDepth) : [currentDepth],
                 });
             }
 

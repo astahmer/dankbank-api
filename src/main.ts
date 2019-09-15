@@ -18,12 +18,15 @@ import { getAppRoutes } from "@/utils/getAppRoutes";
 import { makeFixtures } from "@/fixtures";
 import { AbstractEntity } from "./entity/AbstractEntity";
 
+export const BASE_URL = `http://api.${process.env.PROJECT_NAME}.lol`;
+
 declare const module: any;
 
 init();
 
 /** If there is an existing connection, close it and then restart app, else just start app */
 function init() {
+    console.log(process.env.PISSE);
     if (module.hot && module.hot.data && module.hot.data.connection) {
         module.hot.data.connection.close().then(connectToDatabase);
     } else {
@@ -63,8 +66,9 @@ async function startApp(connection: Connection) {
 
     const server = app.listen(3000, "0.0.0.0");
     logger.info("Listening on port 3000");
+    logger.info("Server up on " + BASE_URL);
 
-    // TODO restart if not hot if .env.USE_HMR === true
+    // TODO restart if not hot if .env.USE_HMR === false
     if (module.hot) {
         module.hot.accept();
         module.hot.dispose((data: any) => {
@@ -92,5 +96,3 @@ function getEntities(included?: string[]) {
         return acc;
     }, []);
 }
-
-export const BASE_URL = "http://localhost:3000";

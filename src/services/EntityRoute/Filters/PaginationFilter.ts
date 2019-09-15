@@ -26,7 +26,9 @@ export enum PAGINATION_TYPES {
     SKIP = "skip",
 }
 
-export const getDefaultConfig = (options?: IPaginationFilterOptions): FilterDefaultConfig<IPaginationFilterOptions> => ({
+export const getDefaultConfig = (
+    options?: IPaginationFilterOptions
+): FilterDefaultConfig<IPaginationFilterOptions> => ({
     class: PaginationFilter,
     options: {
         all: false,
@@ -70,9 +72,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
         for (i; i < length; i++) {
             let [propPath, directionRaw] = orderBy[i].split(":");
             const props = propPath.split(".");
-            const direction = directionRaw
-                ? (directionRaw.toUpperCase())
-                : this.config.options.defaultOrderDirection;
+            const direction = directionRaw ? directionRaw.toUpperCase() : this.config.options.defaultOrderDirection;
 
             // Checks that given direction is valid & that filter is both enabled & valid
             const isValidParam = this.isParamInEntityProps(propPath);
@@ -113,7 +113,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
         // Apply filter for each property decorator
         this.filterProperties.forEach((orderBy) => {
             this.addOrderBy(qb, orderBy);
-        })
+        });
 
         // Apply filter for each query params
         const { orderBy, take, skip } = this.getFilterParamsByTypes(queryParams);
