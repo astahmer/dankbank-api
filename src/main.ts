@@ -1,74 +1,38 @@
+require("dotenv").config();
 import "reflect-metadata";
 
-import * as Koa from "koa";
-import * as bodyParser from "koa-bodyparser";
-import { createConnection, Connection, getConnectionOptions } from "typeorm";
-import { createKoaServer } from "routing-controllers";
-
-import { TypeORMConfig } from "./ormconfig";
-import { logRequest } from "@/middlewares";
-import { logger } from "@/services/logger";
-
-import { useImageUploadRoute } from "./services/EntityRoute/Actions/ImageUploadAction";
-import { useCustomRoute } from "@/actions/CustomAction";
-import { useGroupsRoute } from "@/actions/GroupsAction";
-
-import { useEntitiesRoutes } from "@/services/EntityRoute";
-import { getAppRoutes } from "@/utils/getAppRoutes";
-import { makeFixtures } from "@/fixtures";
-import { AbstractEntity } from "./entity/AbstractEntity";
+import Koa = require("koa");
+import { getConnectionToDatabase, makeApp } from "./app";
+import { logger } from "./services/logger";
+import { Connection } from "typeorm";
 
 export const BASE_URL = `http://api.${process.env.PROJECT_NAME}.lol`;
+export const isDev = process.env.NODE_ENV !== "production";
 
 declare const module: any;
 
+export const app = new Koa();
 init();
 
 /** If there is an existing connection, close it and then restart app, else just start app */
-function init() {
-    console.log(process.env.PISSE);
+async function init() {
     if (module.hot && module.hot.data && module.hot.data.connection) {
-        module.hot.data.connection.close().then(connectToDatabase);
+        module.hot.data.connection.close().then(startServer);
     } else {
-        connectToDatabase();
+        startServer();
     }
 }
 
-/** Creates connection */
-async function connectToDatabase() {
-    const connectionOptions = await getConnectionOptions();
-    createConnection({ ...connectionOptions, ...(TypeORMConfig as any), entities: getEntities() })
-        .then(startApp)
-        .catch((error) => {
-            logger.error(error);
-            setTimeout(connectToDatabase, 1000);
-        });
-}
-
-async function startApp(connection: Connection) {
-    logger.info("Starting Koa server...");
-    const app: Koa = createKoaServer();
-    app.use(bodyParser());
-    app.use(logRequest(logger));
-
-    await makeFixtures(connection);
-
-    const entities = getEntities();
-    useEntitiesRoutes(app, entities);
-
-    useImageUploadRoute(connection, app);
-    useCustomRoute(app);
-    useGroupsRoute(connection, app);
-
-    if (process.env.NODE_ENV === "development") {
-        logger.info(getAppRoutes(app.middleware));
+async function startServer() {
+    let connection: Connection;
+    try {
+        connection = await getConnectionToDatabase();
+    } catch (error) {
+        logger.error(error);
+        setTimeout(startServer, 1000);
     }
 
-    const server = app.listen(3000, "0.0.0.0");
-    logger.info("Listening on port 3000");
-    logger.info("Server up on " + BASE_URL);
-
-    // TODO restart if not hot if .env.USE_HMR === false
+    const server = await makeApp(connection);
     if (module.hot) {
         module.hot.accept();
         module.hot.dispose((data: any) => {
@@ -76,23 +40,4 @@ async function startApp(connection: Connection) {
             server.close();
         });
     }
-}
-
-function getEntities(included?: string[]) {
-    const context = require.context("./entity/", true, /\.ts$/);
-    return context.keys().reduce((acc, path) => {
-        const entityModule = context(path);
-        const [entityName] = Object.keys(entityModule);
-
-        if (entityModule[entityName] && entityModule[entityName].prototype instanceof AbstractEntity) {
-            // Skip not explicitly included entities
-            if (included && !included.includes(entityName)) {
-                return acc;
-            }
-
-            acc.push(entityModule[entityName]);
-        }
-
-        return acc;
-    }, []);
 }

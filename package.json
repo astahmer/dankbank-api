@@ -3,22 +3,13 @@
     "version": "0.1.0",
     "description": "Awesome project developed with TypeORM.",
     "scripts": {
-        "tsc": "tsc --skipLibCheck",
-        "debug": "ts-node-dev --inspect --respawn --transpileOnly ./src/main.ts",
         "prod": "tsc && node ./build/app.js",
         "webpack": "webpack",
         "start": "node --inspect=0.0.0.0 -r ts-node/register build/server",
         "hmr": "npm run webpack && npm run start",
-        "watch": "nodemon --inspect",
-        "migration:run": "ts-node ./node_modules/typeorm/cli.js migration:run",
-        "migration:generate": "ts-node ./node_modules/typeorm/cli.js migration:generate -n Yes",
         "prettier": "prettier --write \"./{src,tests}/**/*.ts\"",
         "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
-        "t:mg": "npm run typeorm -- migration:generate -n",
-        "t:r": "npm run typeorm -- migration:run",
-        "typeorm:sync": "npm run typeorm schema:sync",
-        "typeorm:drop": "npm run typeorm schema:drop",
-        "typeorm:reset": "npm run typeorm:drop && npm run typeorm:sync"
+        "t:mg": "npm run typeorm -- migration:generate -n"
     },
     "dependencies": {
         "@koa/multer": "^2.0.0",
@@ -58,6 +49,7 @@
         "webpack": "^4.39.3",
         "webpack-cli": "^3.3.7",
         "webpack-loader-helper": "^1.0.0",
-        "webpack-node-externals": "^1.7.2"
+        "webpack-node-externals": "^1.7.2",
+        "webpack-shell-plugin": "^0.5.0"
     }
 }
