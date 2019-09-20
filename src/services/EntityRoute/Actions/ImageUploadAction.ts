@@ -1,37 +1,40 @@
-import * as Koa from "koa";
-import * as Router from "koa-router";
-import * as path from "path";
-import * as fs from "fs";
-import * as multer from "@koa/multer";
-import * as sharp from "sharp";
-import { IncomingMessage } from "http";
+import { Context } from "koa";
+import path = require("path");
+import fs = require("fs");
+import multer = require("@koa/multer");
+import sharp = require("sharp");
 
-import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/RouteAction";
 import { File } from "@/entity/File";
-import { EntityManager, Connection } from "typeorm";
+import { EntityManager, getManager } from "typeorm";
 import { sortObjectByKeys } from "../utils";
 import { BASE_URL } from "@/main";
-
-export function useImageUploadRoute(connection: Connection, app: Koa) {
-    const router = new Router();
-    const action = new ImageUploadAction(connection.manager);
-    router.post("/upload", upload.single("image"), action.onRequest.bind(action));
-
-    app.use(router.routes());
-}
+import { NextFn } from "@/utils/globalTypes";
+import { DIR_PATH, diskStorage, imageFilter } from "@/config/storage";
 
 export function getImageLocalLink(name: string) {
-    return path.resolve(PUBLIC_UPLOADS_DIR, name);
+    return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
 }
 
 export function getImageURL(name: string) {
     return BASE_URL + "/public/" + name;
 }
 
-class ImageUploadAction implements RouteAction {
-    constructor(private entityManager: EntityManager) {}
+export const imgUploadMiddleware = multer({ storage: diskStorage, fileFilter: imageFilter }).single("image");
 
-    public async onRequest(ctx: Koa.Context) {
+export class ImageUploadAction extends AbstractRouteAction {
+    private entityManager: EntityManager;
+
+    constructor(routeContext: RouteActionConstructorArgs) {
+        super(routeContext);
+
+        this.middlewares.push(imgUploadMiddleware);
+        this.entityManager = getManager();
+    }
+
+    public async onRequest(ctx: Context, next: NextFn) {
+        await this.useMiddlewares(ctx, next);
+
         const req = <multer.MulterIncomingMessage>ctx.req;
         const filePath = path.parse(req.file.filename);
         const fileName = filePath.name.replace(/\s/g, "_") + "_" + Date.now() + filePath.ext;
@@ -40,7 +43,7 @@ class ImageUploadAction implements RouteAction {
         const resized = await sharp(req.file.path)
             .resize(500, null, { fit: "inside" })
             .jpeg({ quality: 50 })
-            .toFile(path.resolve(PUBLIC_UPLOADS_DIR, fileName));
+            .toFile(path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, fileName));
 
         // Removes tmp file
         fs.unlink(req.file.path, (err) => {
@@ -53,32 +56,7 @@ class ImageUploadAction implements RouteAction {
             size: resized.size,
         });
         ctx.body = sortObjectByKeys(result);
+
+        next();
     }
-}
-
-const PUBLIC_UPLOADS_DIR = path.resolve(__dirname, "../public/", "uploads");
-const TEMP_UPLOADS_DIR = path.resolve(__dirname, "../tmp/", "uploads");
-const storage = multer.diskStorage({
-    destination: TEMP_UPLOADS_DIR,
-    filename: function(_req, file, callback) {
-        callback(null, file.originalname);
-    },
-});
-
-const imageFilter = function(
-    _req: IncomingMessage,
-    file: multer.File,
-    callback: (error: Error, acceptFile: boolean) => void
-) {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/)) {
-        return callback(new Error("Uploaded file was not an image."), false);
-    }
-
-    callback(null, true);
-};
-
-const upload = multer({ storage, fileFilter: imageFilter });
-
-if (!fs.existsSync(PUBLIC_UPLOADS_DIR)) {
-    (fs.mkdirSync as any)(PUBLIC_UPLOADS_DIR, { recursive: true });
 }

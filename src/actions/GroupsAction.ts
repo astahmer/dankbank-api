@@ -16,7 +16,7 @@ export function useGroupsRoute(connection: Connection, app: Koa) {
 class GroupsAction implements RouteAction {
     constructor(private connection: Connection) {}
 
-    public onRequest(ctx: Koa.Context) {
+    public async onRequest(ctx: Koa.Context) {
         try {
             const repository = this.connection.getRepository(ctx.params.tableName);
             const entityMetadata = repository.metadata;

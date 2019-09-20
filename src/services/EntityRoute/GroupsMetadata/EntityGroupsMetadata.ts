@@ -1,13 +1,13 @@
 import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
-import { COMPUTED_PREFIX, Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { COMPUTED_PREFIX, RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { GroupsMetadata } from "./GroupsMetadata";
 
 export class EntityGroupsMetadata extends GroupsMetadata {
     /**
      * Get exposed props that are primitives props, used in queryBuilder selects
      */
-    getSelectProps(operation: Operation, routeContext: EntityMetadata, withPrefix = true, prefix?: string) {
+    getSelectProps(operation: RouteOperation, routeContext: EntityMetadata, withPrefix = true, prefix?: string) {
         return this.getExposedProps(operation, routeContext)
             .filter(
                 (propName) =>
@@ -20,7 +20,7 @@ export class EntityGroupsMetadata extends GroupsMetadata {
     /**
      * Get exposed props that are relations props, used to retrieve nested entities
      */
-    getRelationPropsMetas(operation: Operation, routeContext: EntityMetadata) {
+    getRelationPropsMetas(operation: RouteOperation, routeContext: EntityMetadata) {
         return this.getExposedProps(operation, routeContext)
             .map((propName) => this.entityMeta.relations.find((rel) => rel.propertyName === propName))
             .filter((rel) => rel);
@@ -29,7 +29,7 @@ export class EntityGroupsMetadata extends GroupsMetadata {
     /**
      * Get exposed props that are computed props, used to retrieve themselves
      */
-    getComputedProps(operation: Operation, routeContext: EntityMetadata) {
+    getComputedProps(operation: RouteOperation, routeContext: EntityMetadata) {
         return this.getExposedProps(operation, routeContext).filter(
             (propName) => propName.indexOf(COMPUTED_PREFIX) !== -1
         );
@@ -38,7 +38,7 @@ export class EntityGroupsMetadata extends GroupsMetadata {
     /**
      * Returns both selects & relations props
      */
-    getExposedPropsByTypes(operation: Operation, routeContext: EntityMetadata) {
+    getExposedPropsByTypes(operation: RouteOperation, routeContext: EntityMetadata) {
         const selectProps: string[] = [];
         const relationProps: RelationMetadata[] = [];
 

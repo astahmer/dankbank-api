@@ -1,7 +1,7 @@
 import { EntityMetadata } from "typeorm";
 import { path, pluck } from "ramda";
 
-import { Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityMapper } from "./EntityMapper";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
@@ -24,7 +24,7 @@ export class MappingMaker<Entity extends AbstractEntity> {
     }
 
     /** Make the mapping object for this entity on a given operation */
-    public make(operation: Operation): MappingItem {
+    public make(operation: RouteOperation): MappingItem {
         return this.getMappingFor({}, operation, this.mapper.metadata, "", this.mapper.metadata.tableName);
     }
 
@@ -50,7 +50,7 @@ export class MappingMaker<Entity extends AbstractEntity> {
      */
     private getMappingFor(
         mapping: MappingResponse,
-        operation: Operation,
+        operation: RouteOperation,
         entityMetadata: EntityMetadata,
         currentPath: string,
         currentTableNamePath: string

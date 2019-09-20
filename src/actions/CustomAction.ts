@@ -12,7 +12,7 @@ export function useCustomRoute(app: Koa) {
 }
 
 class CustomAction implements RouteAction {
-    public onRequest(ctx: Koa.Context) {
+    public async onRequest(ctx: Koa.Context) {
         ctx.body = "yes";
     }
 }

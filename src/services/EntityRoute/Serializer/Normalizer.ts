@@ -2,7 +2,7 @@ import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
 import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/Decorators/Groups";
@@ -124,7 +124,7 @@ export class Normalizer<Entity extends AbstractEntity> {
      * */
     private async recursiveFormatItem<Entity extends AbstractEntity>(
         item: Entity,
-        operation: Operation
+        operation: RouteOperation
     ): Promise<Entity> {
         let key, prop, entityMetadata;
         entityMetadata = getRepository(item.constructor.name).metadata;
@@ -167,7 +167,7 @@ export class Normalizer<Entity extends AbstractEntity> {
      * @param prevProp used to left join further
      */
     private joinAndSelectExposedProps(
-        operation: Operation,
+        operation: RouteOperation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata,
         currentPath?: string,
@@ -204,7 +204,7 @@ export class Normalizer<Entity extends AbstractEntity> {
 
     /** Join and select any props marked as needed for each computed prop (with @DependsOn) in order to be able to retrieve them later */
     private joinAndSelectPropsThatComputedPropsDependsOn(
-        operation: Operation,
+        operation: RouteOperation,
         qb: SelectQueryBuilder<any>,
         entityMetadata: EntityMetadata
     ) {
@@ -228,7 +228,7 @@ export class Normalizer<Entity extends AbstractEntity> {
 
     private async setComputedPropsOnItem<U extends AbstractEntity>(
         item: U,
-        operation: Operation,
+        operation: RouteOperation,
         entityMetadata: EntityMetadata
     ) {
         const computedProps = this.mapper

@@ -7,7 +7,7 @@ import {
     RouteOperations,
     GroupsOperationOrAll,
     ALL_OPERATIONS,
-    Operation,
+    RouteOperation,
 } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
@@ -79,13 +79,13 @@ export class GroupsMetadata<PropNameType = string> {
                 groups[route] = ALL_OPERATIONS;
             }
 
-            let operation: Operation;
+            let operation: RouteOperation;
             for (i; i < groups[route].length; i++) {
                 if (!this.routes[route]) {
                     this.routes[route] = {};
                 }
 
-                operation = groups[route][i] as Operation;
+                operation = groups[route][i] as RouteOperation;
 
                 if (!this.routes[route][operation]) {
                     this.routes[route][operation] = [];
@@ -160,7 +160,7 @@ export class GroupsMetadata<PropNameType = string> {
     /**
      * Get exposed props (from groups) for a given entity (using its EntityMetadata) on a specific operation
      */
-    getExposedProps(operation: Operation, routeContext: EntityMetadata) {
+    getExposedProps(operation: RouteOperation, routeContext: EntityMetadata) {
         let exposedProps = this.exposedPropsByContexts[routeContext.tableName];
 
         if (!exposedProps || !exposedProps[operation]) {

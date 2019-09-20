@@ -7,9 +7,19 @@ import { File } from "./File";
 import { MemeBank } from "./MemeBank";
 import { Comment } from "./Comment";
 import { User } from "./User";
+import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
+import { ROUTE_VERB } from "@/services/EntityRoute/EntityRoute";
 
 @SearchFilter([], { all: true })
-@EntityRoute("/memes", ["create", "list", "details", "update", "delete"])
+@EntityRoute("/memes", ["create", "list", "details", "update", "delete"], {
+    actions: [
+        {
+            verb: ROUTE_VERB.POST,
+            path: "/upload",
+            class: ImageUploadAction,
+        },
+    ],
+})
 @Entity()
 export class Meme extends AbstractEntity {
     @Groups({

@@ -85,15 +85,15 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
     };
 }
 
-export type Operation = "create" | "list" | "details" | "update" | "delete";
+export type RouteDefaultOperation = "create" | "list" | "details" | "update" | "delete";
+export type RouteOperation = RouteDefaultOperation | string;
 
-// Types only used as params for @Groups decorator
-export type GroupsOperation = "create" | "list" | "details" | "update";
+export type GroupsOperation = "create" | "list" | "details" | "update" | string;
 export type GroupsOperationOrAll = GroupsOperation[] | "all";
 export type RouteOperations = Record<string, GroupsOperationOrAll>;
 
 /** An object with Operation as keys and an array of entity props as values  */
-export type OperationGroups<PropNameType = string> = PartialRecord<Operation, PropNameType[]>;
+export type OperationGroups<PropNameType = string> = PartialRecord<RouteOperation, PropNameType[]>;
 
 /**
  * An object containing many routeContext (keys) associated to OperationsGroups (values)
