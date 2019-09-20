@@ -5,7 +5,7 @@ import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Normalizer } from "./Serializer/Normalizer";
-import { Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
 import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
@@ -13,6 +13,7 @@ import { isType } from "./utils";
 import { entityRoutesContainer } from ".";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
+import { RouteAction, RouteActionClass } from "./Actions/RouteAction";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -35,6 +36,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     public readonly repository: Repository<Entity>;
     private actions: RouteCrudActions;
     private globalOptions: IEntityRouteOptions;
+    private customActionsClasses: Record<string, RouteAction> = {};
 
     // Meta
     private routeMetadata: RouteMetadata;
@@ -66,6 +68,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
         // Add this EntityRoute to the list (used by subresources)
         entityRoutesContainer[entity.name] = this as any;
+
+        // Instanciate and store every custom action classes
+        if (this.options.actions) {
+            this.initCustomActions();
+        }
     }
 
     // Computed getters
@@ -86,7 +93,9 @@ export class EntityRoute<Entity extends AbstractEntity> {
     public makeRouter() {
         const router = new Router();
 
-        for (let i = 0; i < this.routeMetadata.operations.length; i++) {
+        // CRUD routes
+        let i = 0;
+        for (i; i < this.routeMetadata.operations.length; i++) {
             const operation = this.routeMetadata.operations[i];
             const verb = this.actions[operation].verb;
             const path = this.routeMetadata.path + this.actions[operation].path;
@@ -98,8 +107,21 @@ export class EntityRoute<Entity extends AbstractEntity> {
             (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
+        // Subresoures routes
         if (Object.keys(this.subresourcesMeta.properties).length) {
             this.makeSubresourcesRoutes(router);
+        }
+
+        // Custom actions routes
+        if (this.options.actions) {
+            i = 0;
+            for (i; i < this.options.actions.length; i++) {
+                const { operation, verb, path: actionPath } = this.options.actions[i];
+                const path = this.routeMetadata.path + actionPath;
+                const responseMethod = this.makeResponseMethod(operation, this.options.actions[i]);
+
+                (<any>router)[verb](path, responseMethod);
+            }
         }
 
         return router;
@@ -205,6 +227,20 @@ export class EntityRoute<Entity extends AbstractEntity> {
         );
     }
 
+    private initCustomActions() {
+        this.options.actions.forEach((action) => {
+            if (!this.customActionsClasses[action.class.name]) {
+                //  Cannot read property 'ImageUploadAction' of undefined
+                this.customActionsClasses[action.class.name] = new action.class({
+                    entityRoute: this as any,
+                    routeMetadata: this.routeMetadata,
+                    entityMetadata: this.metadata,
+                    middlewares: action.middlewares || [],
+                });
+            }
+        });
+    }
+
     private async create({ values, subresourceRelation }: IActionParams<Entity>) {
         // Auto-join subresource parent on body values
         if (subresourceRelation) {
@@ -277,12 +313,30 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     /** Returns the response method on a given operation for this entity */
-    public makeResponseMethod(operation: Operation, subresourceRelation?: SubresourceRelation): Koa.Middleware {
+    public makeResponseMethod(operation: RouteOperation, subresourceRelation?: SubresourceRelation): Koa.Middleware;
+    /** Returns the custom action method on a given operation for this entity  */
+    public makeResponseMethod(operation: RouteOperation, customAction?: IRouteCustomActionItem): Koa.Middleware;
+    public makeResponseMethod(
+        operation: RouteOperation,
+        subresourceRelationOrCustomAction?: SubresourceRelation | IRouteCustomActionItem
+    ): Koa.Middleware {
         return async (ctx, next) => {
             const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
 
-            if (subresourceRelation) {
-                subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
+            let subresourceRelation: SubresourceRelation;
+            let customAction: IRouteCustomActionItem;
+            if (subresourceRelationOrCustomAction) {
+                if (
+                    isType<SubresourceRelation>(
+                        subresourceRelationOrCustomAction,
+                        "action" in subresourceRelationOrCustomAction
+                    )
+                ) {
+                    subresourceRelation = subresourceRelationOrCustomAction;
+                    subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
+                } else {
+                    customAction = subresourceRelationOrCustomAction;
+                }
             }
 
             const params: IActionParams<Entity> = { subresourceRelation };
@@ -291,8 +345,15 @@ export class EntityRoute<Entity extends AbstractEntity> {
             if (operation === "list") params.queryParams = ctx.query;
 
             this.aliasManager.resetList();
-            const method = this.actions[operation].method;
-            const result = await this[method](params);
+
+            let result;
+            if (!customAction) {
+                const method = this.actions[operation].method;
+                result = await this[method](params);
+            } else {
+                const method = (customAction.action as keyof RouteAction) || "onRequest";
+                result = await this.customActionsClasses[customAction.class.name][method](ctx, next, params);
+            }
 
             let response: IRouteResponse = {
                 "@context": {
@@ -320,7 +381,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     /** Returns the method of a mapping route on a given operation for this entity */
-    private makeRouteMappingMethod(operation: Operation): Koa.Middleware {
+    private makeRouteMappingMethod(operation: RouteOperation): Koa.Middleware {
         return async (ctx, next) => {
             ctx.body = {
                 context: {
@@ -354,7 +415,7 @@ export type RouteMetadata = {
     /** The path prefix for every action of this route */
     path: string;
     /** List of operations to create a route for */
-    operations: Operation[];
+    operations: RouteOperation[];
     /** Specific options to be used on this EntityRoute, if none specified, will default to global options */
     options?: IEntityRouteOptions;
 };
@@ -389,6 +450,7 @@ export type SubresourceRelation = {
 };
 
 export interface IEntityRouteOptions {
+    actions?: IRouteCustomActionItem[];
     isMaxDepthEnabledByDefault?: boolean;
     /** Level of depth at which the nesting should stop */
     defaultMaxDepthLvl?: number;
@@ -398,10 +460,14 @@ export interface IEntityRouteOptions {
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
 }
 
-/**
- * @property operation - le oui mais oui
- */
-interface IActionParams<Entity extends AbstractEntity> {
+export enum ROUTE_VERB {
+    "GET" = "get",
+    "POST" = "post",
+    "PUT" = "put",
+    "DELETE" = "delete",
+}
+
+export interface IActionParams<Entity extends AbstractEntity> {
     /** Current route entity id */
     entityId?: number;
     /** Subresource relation with parent, used to auto-join on this entity's relation inverse side */
@@ -431,41 +497,53 @@ interface IRouteResponse {
     [k: string]: any;
 }
 
-type RouteCrudActionItem = {
+interface IRouteCrudActionItem {
     /** The route path for this action */
     path: string;
     /** HTTP verb for this action */
-    verb: string;
-    /** EntityRoute's method associated to this action */
-    method: "create" | "getList" | "getDetails" | "update" | "delete";
-};
+    verb: ROUTE_VERB;
+    /** EntityRoute method's name associated to this action or just a function */
+    method?: "create" | "getList" | "getDetails" | "update" | "delete";
+}
+
+interface IRouteCustomActionItem extends IRouteCrudActionItem {
+    /** Custom operation for that action */
+    operation?: RouteOperation;
+    /** Class that implements RouteAction, onRequest method will be called by default unless a custom action parameter is defined */
+    class?: RouteActionClass;
+    /** Custom method name of RouteAction class to call for this verb+path, mostly useful to re-use the same class for multiple actions */
+    action?: string;
+    /** List of middlewares to be called (in the same order as defined here) */
+    middlewares?: Koa.Middleware[];
+}
+
 /** A list of CRUD Actions or "all" */
-type RouteCrudActions = Omit<Record<Operation | "delete", RouteCrudActionItem>, "all">;
+type RouteCrudActions = Omit<Record<RouteOperation | "delete", IRouteCrudActionItem>, "all">;
 
 const ACTIONS: RouteCrudActions = {
     create: {
         path: "",
-        verb: "post",
+        verb: ROUTE_VERB.POST,
         method: "create",
     },
     list: {
         path: "",
-        verb: "get",
+        verb: ROUTE_VERB.GET,
         method: "getList",
     },
     details: {
         path: "/:id(\\d+)",
-        verb: "get",
+        verb: ROUTE_VERB.GET,
         method: "getDetails",
     },
     update: {
         path: "/:id(\\d+)",
-        verb: "put",
+        verb: ROUTE_VERB.PUT,
         method: "update",
     },
     delete: {
         path: "/:id(\\d+)",
-        verb: "delete",
+        verb: ROUTE_VERB.DELETE,
         method: "delete",
     },
 };

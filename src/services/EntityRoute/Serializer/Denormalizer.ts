@@ -4,7 +4,7 @@ import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityRoute } from "../EntityRoute";
 import { MappingItem } from "../Mapping/MappingMaker";
 import { formatEntityId } from "../utils";
@@ -36,7 +36,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Clean & validate item and then save it if there was no error */
-    private async saveItem(operation: Operation, values: QueryDeepPartialEntity<Entity>) {
+    private async saveItem(operation: RouteOperation, values: QueryDeepPartialEntity<Entity>) {
         const item = this.repository.create(values as any);
         const cleanedItem = this.cleanItem(operation, item as any);
 
@@ -55,7 +55,10 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Return a clone of this request body values with only mapped props */
-    private cleanItem(operation: Operation, values: QueryDeepPartialEntity<Entity>): QueryDeepPartialEntity<Entity> {
+    private cleanItem(
+        operation: RouteOperation,
+        values: QueryDeepPartialEntity<Entity>
+    ): QueryDeepPartialEntity<Entity> {
         const routeMapping = this.mapper.make(operation);
         return this.recursiveClean(values, {}, [], routeMapping);
     }

@@ -1,6 +1,6 @@
 import { EntityMetadata } from "typeorm";
 
-import { Operation } from "@/services/EntityRoute/Decorators/Groups";
+import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 import { GroupsMetaByRoutes, GroupsMetadata } from "../GroupsMetadata/GroupsMetadata";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
@@ -26,7 +26,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
         return this.entityRoute.options;
     }
 
-    public make(operation: Operation) {
+    public make(operation: RouteOperation) {
         return this.maker.make(operation);
     }
 
@@ -35,7 +35,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
-    public getExposedProps(operation: Operation, entityMetadata: EntityMetadata) {
+    public getExposedProps(operation: RouteOperation, entityMetadata: EntityMetadata) {
         return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getExposedProps(
             operation,
             this.metadata
@@ -43,7 +43,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
-    public getExposedPropsByTypes(operation: Operation, entityMetadata: EntityMetadata) {
+    public getExposedPropsByTypes(operation: RouteOperation, entityMetadata: EntityMetadata) {
         return this.getGroupsMetadataFor<EntityGroupsMetadata>(
             entityMetadata,
             EntityGroupsMetadata
@@ -51,7 +51,12 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
-    public getSelectProps(operation: Operation, entityMetadata: EntityMetadata, withPrefix = true, prefix?: string) {
+    public getSelectProps(
+        operation: RouteOperation,
+        entityMetadata: EntityMetadata,
+        withPrefix = true,
+        prefix?: string
+    ) {
         return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getSelectProps(
             operation,
             this.metadata,
@@ -61,7 +66,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     /** Get relation props metas (from groups) of a given entity for a specific operation */
-    public getRelationPropsMetas(operation: Operation, entityMetadata: EntityMetadata) {
+    public getRelationPropsMetas(operation: RouteOperation, entityMetadata: EntityMetadata) {
         return this.getGroupsMetadataFor<EntityGroupsMetadata>(
             entityMetadata,
             EntityGroupsMetadata
@@ -69,7 +74,7 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     /** Get computed props metas (from groups) of a given entity for a specific operation */
-    public getComputedProps(operation: Operation, entityMetadata: EntityMetadata) {
+    public getComputedProps(operation: RouteOperation, entityMetadata: EntityMetadata) {
         return this.getGroupsMetadataFor<EntityGroupsMetadata>(entityMetadata, EntityGroupsMetadata).getComputedProps(
             operation,
             this.metadata
