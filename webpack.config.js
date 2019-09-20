@@ -3,6 +3,7 @@ const path = require("path");
 const nodeExternals = require("webpack-node-externals");
 const { loader } = require("webpack-loader-helper");
 const TsconfigPathsPlugin = require("tsconfig-paths-webpack-plugin");
+const WebpackShellPlugin = require("webpack-shell-plugin");
 
 const pollInterval = 500;
 
@@ -23,8 +24,12 @@ module.exports = {
     },
     plugins: [
         new webpack.HotModuleReplacementPlugin(),
-        new webpack.EnvironmentPlugin({ NODE_ENV: "development" })
+        new webpack.EnvironmentPlugin({ NODE_ENV: "development" }),
+        new WebpackShellPlugin({
+            onBuildEnd: ["npm run start"],
+        }),
     ],
+    cache: true,
     module: {
         rules: [
             {
