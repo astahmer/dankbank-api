@@ -13,13 +13,18 @@ services:
       - 3000:3000
       - 9229:9229
     environment:
-      - VIRTUAL_HOST=api.dankbank.lol
+      - VIRTUAL_HOST=api.${PROJECT_NAME}.lol
       - VIRTUAL_PORT=3000
+      - ELASTIC_URL=http://elasticsearch:9200
     links:
       - database
+      - elasticsearch
     networks:
       - api
-      - server
+      - db
+      - proxy
+    depends_on:
+      - nginx-proxy
 
 
   # Only used to install vendors
@@ -32,6 +37,51 @@ services:
       - .:/usr/app/
       - ./node_modules/:/usr/app/node_modules
 
+  # Only used to enter container & install packages
+  term:
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+    command: tail -f /dev/null
+    container_name: ${PROJECT_NAME}-terms
+    volumes:
+      - .:/usr/app/
+      - ./node_modules/:/usr/app/node_modules
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.3.2
+    container_name: ${PROJECT_NAME}-elastic
+    volumes:
+      - data-elastic:/usr/share/elasticsearch/data
+    environment:
+      - VIRTUAL_HOST=elastic.${PROJECT_NAME}.lol
+      - VIRTUAL_PORT=9200
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - discovery.type=single-node
+    logging:
+      driver: none
+    ports:
+      - 9300:9300
+      - 9200:9200
+    networks:
+      - api
+      - proxy
+
+  kibana:
+   image: docker.elastic.co/kibana/kibana:7.3.2
+   container_name: ${PROJECT_NAME}-kibana
+   environment:
+    - VIRTUAL_HOST=kibana.${PROJECT_NAME}.lol
+    - SERVER_NAME=kibana.${PROJECT_NAME}.lol
+    - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+   ports:
+    - 9201:5601
+   depends_on:
+    - elasticsearch
+   networks:
+     - proxy
+
   nginx-proxy:
     container_name: ${PROJECT_NAME}-nginx-proxy
     image: jwilder/nginx-proxy
@@ -43,7 +93,7 @@ services:
       - data-nginx:/usr/share/nginx/html
       - /var/run/docker.sock:/tmp/docker.sock:ro
     networks:
-      - server
+      - proxy
 
   nginx-proxy-companion:
     container_name: ${PROJECT_NAME}-nginx-proxy-companion
@@ -52,6 +102,8 @@ services:
       - data-nginx:/etc/nginx/conf.d
       - data-nginx:/etc/nginx/certs:rw
       - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - nginx-proxy
 
   database:
     container_name: ${PROJECT_NAME}-db
@@ -65,13 +117,13 @@ services:
       - MYSQL_ROOT_PASSWORD=${TYPEORM_PASSWORD}
       - MYSQL_ALLOW_EMPTY_PASSWORD=yes
     networks:
-      - api
+      - db
 
   phpmyadmin:
     container_name: ${PROJECT_NAME}-phpmyadmin
     image: phpmyadmin/phpmyadmin
     environment:
-      - VIRTUAL_HOST=phpmyadmin.dankbank.lol
+      - VIRTUAL_HOST=phpmyadmin.${PROJECT_NAME}.lol
       - VIRTUAL_PORT=9000
       - MYSQL_USERNAME=${TYPEORM_USERNAME}
       - MYSQL_PASSWORD=${TYPEORM_PASSWORD}
@@ -83,10 +135,13 @@ services:
     links:
       - database
     networks:
-      - api
+      - proxy
+      - db
 
 volumes:
   data-nginx:
+  data-elastic:
 networks:
   api:
-  server:
+  proxy:
+  db:

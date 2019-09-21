@@ -42,9 +42,11 @@ export const getDefaultConfig = (
 export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
     /** Returns every filterable properties  */
     get filterProperties() {
-        return this.config.properties.map(
-            (prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)).split(":")[0]
-        );
+        return this.config.properties
+            ? this.config.properties.map(
+                  (prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)).split(":")[0]
+              )
+            : [];
     }
 
     protected getFilterParamsByTypes(queryParams: QueryParams) {

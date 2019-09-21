@@ -7,7 +7,6 @@ import { sortObjectByKeys, lowerFirstLetter } from "../utils";
 import { EntityRoute } from "../EntityRoute";
 import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/Decorators/Groups";
 import { getDependsOnMetadata } from "@/services/EntityRoute/Decorators/DependsOn";
-import { NotFoundError } from "routing-controllers";
 
 export class Normalizer<Entity extends AbstractEntity> {
     constructor(private entityRoute: EntityRoute<Entity>) {}
@@ -65,7 +64,7 @@ export class Normalizer<Entity extends AbstractEntity> {
 
         // Item doesn't exist
         if (!result) {
-            throw new NotFoundError();
+            throw new Error("Not found.");
         }
 
         const item: Entity = await this.recursiveFormatItem(result, operation);

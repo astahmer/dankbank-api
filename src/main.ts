@@ -15,7 +15,7 @@ export const app = new Koa();
 init();
 
 /** If there is an existing connection, close it and then restart app, else just start app */
-async function init() {
+function init() {
     if (module.hot && module.hot.data && module.hot.data.connection) {
         module.hot.data.connection.close().then(startServer);
     } else {

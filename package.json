@@ -12,7 +12,9 @@
         "t:mg": "npm run typeorm -- migration:generate -n"
     },
     "dependencies": {
+        "@elastic/elasticsearch": "^7.3.0",
         "@koa/multer": "^2.0.0",
+        "class-validator": "^0.8.5",
         "dotenv": "^8.0.0",
         "koa": "^2.7.0",
         "koa-bodyparser": "^4.2.1",
@@ -23,9 +25,10 @@
         "pino-pretty": "^3.2.0",
         "ramda": "^0.26.1",
         "reflect-metadata": "^0.1.13",
-        "routing-controllers": "^0.7.7",
         "sharp": "^0.23.0",
-        "typeorm": "^0.2.18"
+        "typedi": "^0.8.0",
+        "typeorm": "^0.2.18",
+        "typeorm-typedi-extensions": "^0.2.3"
     },
     "devDependencies": {
         "@types/faker": "^4.1.5",
