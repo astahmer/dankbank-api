@@ -1,5 +1,5 @@
 import * as faker from "faker";
-import { Connection, Repository, getRepository, DeepPartial } from "typeorm";
+import { Connection, Repository, getRepository, DeepPartial, QueryRunner } from "typeorm";
 import { AbstractEntity } from "../entity/AbstractEntity";
 import { Entity } from "@/utils/globalTypes";
 
@@ -11,10 +11,20 @@ export interface AbstractGenerator<T extends AbstractEntity> {
 export abstract class AbstractGenerator<T extends AbstractEntity> {
     protected faker: Faker.FakerStatic = faker;
     protected repository: Repository<T>;
+    protected connection: Connection;
+    protected queryRunner: QueryRunner;
 
-    constructor(protected entityClass: Entity<T>) {
+    constructor(protected entityClass: Entity<T>, connectionOrQueryRunner?: Connection | QueryRunner) {
         this.entityClass = entityClass;
-        this.repository = getRepository(entityClass) as any;
+
+        if (!connectionOrQueryRunner) {
+            this.repository = getRepository(entityClass) as any;
+        } else if (connectionOrQueryRunner instanceof Connection) {
+            this.connection = connectionOrQueryRunner;
+        } else {
+            this.queryRunner = connectionOrQueryRunner;
+            this.repository = this.queryRunner.manager.getRepository(entityClass) as any;
+        }
     }
 
     abstract getDefaultValues(): DeepPartial<T>;

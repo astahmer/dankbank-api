@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, ManyToMany, JoinTable, OneToMany } from "typeorm";
 
-import { Groups, EntityRoute, SearchFilter, Subresource } from "@/services/EntityRoute/Decorators";
+import { Groups, EntityRoute, SearchFilter, Subresource, PaginationFilter } from "@/services/EntityRoute/Decorators";
 import { AbstractEntity } from "./AbstractEntity";
 import { Tag } from "./Tag";
 import { File } from "./File";
@@ -10,6 +10,7 @@ import { User } from "./User";
 import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/EntityRoute";
 
+@PaginationFilter()
 @SearchFilter([], { all: true })
 @EntityRoute("/memes", ["create", "list", "details", "update", "delete"], {
     actions: [
@@ -31,7 +32,7 @@ export class Meme extends AbstractEntity {
     @Groups({
         meme: ["create", "details", "update"],
     })
-    @Column()
+    @Column({ nullable: true })
     description: string;
 
     @Groups({
@@ -43,19 +44,19 @@ export class Meme extends AbstractEntity {
     @Groups({
         meme: ["list", "details", "update"],
     })
-    @Column()
+    @Column({ default: 0 })
     upvoteCount: number;
 
     @Groups({
         meme: ["list", "details", "update"],
     })
-    @Column()
+    @Column({ default: 0 })
     downvoteCount: number;
 
     @Groups({
         meme: ["details", "update"],
     })
-    @Column()
+    @Column({ default: 0 })
     views: number;
 
     @Groups({

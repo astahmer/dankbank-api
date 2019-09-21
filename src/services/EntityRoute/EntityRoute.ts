@@ -1,6 +1,15 @@
 import * as Koa from "koa";
 import * as Router from "koa-router";
-import { Repository, getRepository, ObjectType, SelectQueryBuilder, DeleteResult } from "typeorm";
+import {
+    Repository,
+    getRepository,
+    ObjectType,
+    SelectQueryBuilder,
+    DeleteResult,
+    Connection,
+    QueryRunner,
+    getConnection,
+} from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
@@ -44,6 +53,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     private subresourcesMeta: RouteSubresourcesMeta<Entity>;
 
     // Managers/services
+    public readonly connection: Connection;
     public readonly mapper: EntityMapper<Entity>;
     public readonly aliasManager: QueryAliasManager;
     public readonly normalizer: Normalizer<Entity>;
@@ -61,6 +71,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.subresourcesMeta = getRouteSubresourcesMetadata(entity);
 
         // Managers/services
+        this.connection = getConnection();
         this.mapper = new EntityMapper<Entity>(this);
         this.aliasManager = new QueryAliasManager();
         this.normalizer = new Normalizer<Entity>(this);
@@ -241,25 +252,26 @@ export class EntityRoute<Entity extends AbstractEntity> {
         });
     }
 
-    private async create({ values, subresourceRelation }: IActionParams<Entity>) {
+    private async create({ values, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
         // Auto-join subresource parent on body values
         if (subresourceRelation) {
             (values as any)[subresourceRelation.relation.inverseSidePropertyPath] = { id: subresourceRelation.id };
         }
 
-        const insertResult = await this.denormalizer.insertItem(values);
+        const insertResult = await this.denormalizer.insertItem(values, queryRunner);
 
         // Has errors
         if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
             return insertResult;
         }
 
-        return this.getDetails({ entityId: insertResult.raw.insertId });
+        return this.getDetails({ entityId: insertResult.id }, queryRunner);
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
-    private async getList({ queryParams, subresourceRelation }: IActionParams<Entity>) {
-        const qb = this.repository.createQueryBuilder(this.metadata.tableName);
+    private async getList({ queryParams, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
+        const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+        const qb = repository.createQueryBuilder(this.metadata.tableName);
 
         // Apply a max item to retrieve
         qb.take(500);
@@ -281,8 +293,9 @@ export class EntityRoute<Entity extends AbstractEntity> {
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
-    private async getDetails({ entityId, subresourceRelation }: IActionParams<Entity>) {
-        const qb = this.repository.createQueryBuilder(this.metadata.tableName);
+    private async getDetails({ entityId, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
+        const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+        const qb = repository.createQueryBuilder(this.metadata.tableName);
 
         if (subresourceRelation) {
             this.joinSubresourceOnInverseSide(qb, subresourceRelation);
@@ -291,19 +304,19 @@ export class EntityRoute<Entity extends AbstractEntity> {
         return await this.normalizer.getItem<Entity>(qb, entityId);
     }
 
-    private async update({ values, entityId }: IActionParams<Entity>) {
+    private async update({ values, entityId }: IActionParams<Entity>, queryRunner: QueryRunner) {
         (values as any).id = entityId;
-        const insertResult = await this.denormalizer.updateItem(values);
+        const insertResult = await this.denormalizer.updateItem(values, queryRunner);
 
         // Has errors
         if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
             return insertResult;
         }
 
-        return this.getDetails({ entityId: insertResult.raw.insertId });
+        return this.getDetails({ entityId: insertResult.id }, queryRunner);
     }
 
-    private async delete({ entityId }: IActionParams<Entity>) {
+    private async delete({ entityId }: IActionParams<Entity>, queryRunner: QueryRunner) {
         return this.repository
             .createQueryBuilder()
             .delete()
@@ -346,14 +359,19 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
             this.aliasManager.resetList();
 
+            const queryRunner = this.connection.createQueryRunner();
+            queryRunner.data = { requestContext: { ctx, next, params, entityRoute: this } };
+
             let result;
             if (!customAction) {
                 const method = this.actions[operation].method;
-                result = await this[method](params);
+                result = await this[method](params, queryRunner);
             } else {
                 const method = (customAction.action as keyof RouteAction) || "onRequest";
                 result = await this.customActionsClasses[customAction.class.name][method](ctx, next, params);
             }
+
+            queryRunner.release();
 
             let response: IRouteResponse = {
                 "@context": {
@@ -479,6 +497,14 @@ export interface IActionParams<Entity extends AbstractEntity> {
     /** Request query params */
     queryParams?: any;
 }
+
+export type RequestContext<Entity extends AbstractEntity> = {
+    ctx: Koa.ParameterizedContext<any, {}>;
+    next: () => Promise<any>;
+    params: IActionParams<Entity>;
+    entityRoute: EntityRoute<Entity>;
+    subresourceRelation?: SubresourceRelation;
+};
 
 interface IRouteResponse {
     "@context": {

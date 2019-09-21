@@ -1,4 +1,4 @@
-import { InsertResult, UpdateResult } from "typeorm";
+import { DeepPartial, QueryRunner } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { isObject, isPrimitive } from "util";
@@ -26,32 +26,33 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Method used when making a POST request */
-    public async insertItem(values: QueryDeepPartialEntity<Entity>) {
-        return this.saveItem("create", values) as Promise<InsertResult | ErrorMappingItem>;
+    public async insertItem(values: QueryDeepPartialEntity<Entity>, queryRunner: QueryRunner) {
+        return this.saveItem("create", values, queryRunner);
     }
 
     /** Method used when making a PUT request on a specific id */
-    public async updateItem(values: QueryDeepPartialEntity<Entity>) {
-        return this.saveItem("update", values) as Promise<UpdateResult | ErrorMappingItem>;
+    public async updateItem(values: QueryDeepPartialEntity<Entity>, queryRunner: QueryRunner) {
+        return this.saveItem("update", values, queryRunner);
     }
 
     /** Clean & validate item and then save it if there was no error */
-    private async saveItem(operation: RouteOperation, values: QueryDeepPartialEntity<Entity>) {
-        const item = this.repository.create(values as any);
-        const cleanedItem = this.cleanItem(operation, item as any);
+    private async saveItem(
+        operation: RouteOperation,
+        values: QueryDeepPartialEntity<Entity>,
+        queryRunner: QueryRunner
+    ) {
+        const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+        const cleanedItem = this.cleanItem(operation, values);
+        const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
 
-        const validatorOptions = operation === "update" ? { skipMissingProperties: true } : undefined;
-        const errorMapping = await this.recursiveValidate(cleanedItem, [], validatorOptions);
+        const validatorOptions = operation === "update" ? { skipMissingProperties: false } : undefined;
+        const errorMapping = await this.recursiveValidate(item, [], validatorOptions);
 
         if (hasAnyError(errorMapping)) {
             return errorMapping;
         }
 
-        if (operation === "update") {
-            return this.repository.update(cleanedItem.id as any, cleanedItem);
-        } else {
-            return this.repository.insert(cleanedItem);
-        }
+        return repository.save((item as any) as DeepPartial<Entity>);
     }
 
     /** Return a clone of this request body values with only mapped props */

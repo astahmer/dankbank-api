@@ -7,7 +7,7 @@ import {
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
 
 export function PaginationFilter(
-    properties: FilterProperty[],
+    properties?: FilterProperty[],
     filterOptions?: IPaginationFilterOptions
 ): ClassDecorator {
     const defaultConfig = getDefaultConfig(filterOptions);

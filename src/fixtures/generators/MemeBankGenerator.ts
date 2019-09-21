@@ -4,10 +4,12 @@ import { Visibility } from "@/entity/Visibility";
 import { FileGenerator } from "./FileGenerator";
 import { User } from "@/entity/User";
 import { MemeGenerator } from "./MemeGenerator";
+import { logger } from "@/services/logger";
+import { QueryRunner } from "typeorm";
 
 export class MemeBankGenerator extends AbstractGenerator<MemeBank> {
-    constructor() {
-        super(MemeBank);
+    constructor(queryRunner: QueryRunner) {
+        super(MemeBank, queryRunner);
     }
 
     getDefaultValues() {
@@ -19,8 +21,8 @@ export class MemeBankGenerator extends AbstractGenerator<MemeBank> {
     }
 
     async generateBundle({ ownerId }: any) {
-        const fileGen = new FileGenerator();
-        const memeGen = new MemeGenerator();
+        const fileGen = new FileGenerator(this.queryRunner);
+        const memeGen = new MemeGenerator(this.queryRunner);
 
         const coverPicture = await fileGen.generate();
         const memes = await memeGen.makeBundles({ ownerId }, 10);
@@ -31,7 +33,7 @@ export class MemeBankGenerator extends AbstractGenerator<MemeBank> {
             memes,
         });
 
-        console.log("✔️ MemeBankGenerator.generateBundle");
+        logger.info("✔️ MemeBankGenerator.generateBundle");
         return bank;
     }
 }

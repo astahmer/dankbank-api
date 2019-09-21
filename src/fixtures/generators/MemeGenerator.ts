@@ -3,10 +3,11 @@ import { Meme } from "@/entity/Meme";
 import { TagGenerator } from "./TagGenerator";
 import { FileGenerator } from "./FileGenerator";
 import { User } from "@/entity/User";
+import { QueryRunner } from "typeorm";
 
 export class MemeGenerator extends AbstractGenerator<Meme> {
-    constructor() {
-        super(Meme);
+    constructor(queryRunner: QueryRunner) {
+        super(Meme, queryRunner);
     }
 
     getDefaultValues() {
@@ -20,8 +21,8 @@ export class MemeGenerator extends AbstractGenerator<Meme> {
     }
 
     async generateBundle({ ownerId }: { ownerId?: number }) {
-        const fileGen = new FileGenerator();
-        const tagGen = new TagGenerator();
+        const fileGen = new FileGenerator(this.queryRunner);
+        const tagGen = new TagGenerator(this.queryRunner);
 
         const pictures = await fileGen.generate({}, 3);
         const meme = await this.generate({

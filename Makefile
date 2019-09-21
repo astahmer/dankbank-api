@@ -7,7 +7,7 @@ EXECUTOR = docker exec -i $(PROJECT_NAME)-koa /bin/sh -c
 
 DEFAULT_CONTAINER := koa
 # If the first argument is one of the supported commands...
-SUPPORTED_COMMANDS := logs term
+SUPPORTED_COMMANDS := logs term restart
 SUPPORTS_MAKE_ARGS := $(findstring $(firstword $(MAKECMDGOALS)), $(SUPPORTED_COMMANDS))
 ifneq "$(SUPPORTS_MAKE_ARGS)" ""
     # use the rest as arguments for the command
@@ -37,13 +37,17 @@ install:
 	 ${MAKE} start-install;
 
 start: ## Start container
-start: stop docker-compose-up
+start: stop docker-compose-up ${MAKE} logs;
 
 start-install: ## Install vendors and then start
 start-install: stop vendors docker-compose-up
 
 stop: ## Stop container
 stop: docker-compose-down
+
+restart: ## Restart container
+restart:
+	docker-compose restart $(COMMAND_ARGS)
 
 #
 ##@ DOCKER UNIT COMMANDS
@@ -70,7 +74,7 @@ vendors: # Install vendors
 	@if [ -d node_modules ]; then \
 		echo "Vendors already installed. Skipping."; \
 	else \
-		docker-compose up vendors; \
+		docker-compose up --build vendors; \
 	fi; \
 
 docker-build: # Build docker image
@@ -102,7 +106,7 @@ checkenv: ## Check if .env file exists and create it if not
 #
 
 LINE1='\\\# Added by ${PROJECT_NAME}'
-HOST_LINE='127.0.0.1 api.${PROJECT_NAME}.lol phpmyadmin.${PROJECT_NAME}.lol'
+HOST_LINE='127.0.0.1 api.${PROJECT_NAME}.lol elastic.${PROJECT_NAME}.lol kibana.${PROJECT_NAME}.lol phpmyadmin.${PROJECT_NAME}.lol'
 LINE3='\\\# End of section'
 
 vhosts: ## Add required lines to /etc/hosts file if missing

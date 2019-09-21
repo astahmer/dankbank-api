@@ -1,9 +1,10 @@
 import { AbstractGenerator } from "../AbstractGenerator";
 import { File } from "@/entity/File";
+import { QueryRunner } from "typeorm";
 
 export class FileGenerator extends AbstractGenerator<File> {
-    constructor() {
-        super(File);
+    constructor(queryRunner: QueryRunner) {
+        super(File, queryRunner);
     }
 
     getDefaultValues() {
