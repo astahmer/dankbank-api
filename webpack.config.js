@@ -4,6 +4,7 @@ const nodeExternals = require("webpack-node-externals");
 const { loader } = require("webpack-loader-helper");
 const TsconfigPathsPlugin = require("tsconfig-paths-webpack-plugin");
 const WebpackShellPlugin = require("webpack-shell-plugin");
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 const pollInterval = 500;
 
@@ -28,6 +29,7 @@ module.exports = {
         new WebpackShellPlugin({
             onBuildEnd: ["npm run start"],
         }),
+        new CleanWebpackPlugin(),
     ],
     cache: true,
     module: {
