@@ -2,7 +2,7 @@ import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
 import { pick } from "ramda";
 
 import { Normalizer } from "../Serializer/Normalizer";
-import { getObjectOnlyKey, isDefined } from "../utils";
+import { isDefined } from "../utils";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
@@ -34,7 +34,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
 
     /** Returns every filterable properties  */
     get filterProperties() {
-        return this.config.properties.map((prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)));
+        return this.config.properties.map((prop) => (typeof prop === "string" ? prop : prop[0]));
     }
 
     /** This method should add conditions to the queryBuilder using queryParams  */
@@ -105,7 +105,7 @@ export type AbstractFilterApplyArgs = {
     whereExp?: WhereExpression;
 };
 
-export type FilterProperty = string | Record<string, string>;
+export type FilterProperty = string | [string, string];
 
 export enum WhereType {
     AND = "and",

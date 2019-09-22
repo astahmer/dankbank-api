@@ -11,14 +11,7 @@ import {
     FilterDefaultConfig,
 } from "./AbstractFilter";
 import { Brackets, WhereExpression } from "typeorm";
-import {
-    getObjectOnlyKey as getObjectFirstKey,
-    isDefined,
-    camelToSnake,
-    setNestedKey,
-    sortObjectByKeys,
-    parseStringAsBoolean,
-} from "../utils";
+import { isDefined, camelToSnake, setNestedKey, sortObjectByKeys, parseStringAsBoolean } from "../utils";
 import { sortBy, prop, path } from "ramda";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
@@ -68,23 +61,45 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     /** Enum of where condition strategy types */
     static readonly STRATEGY_TYPES = STRATEGY_TYPES;
 
-    /** Retrieve a property default where strategy from its propName/propPath */
+    public apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs) {
+        if (!queryParams) {
+            return;
+        }
+
+        const { filters, nestedConditionsFilters } = this.getFiltersLists(queryParams);
+        filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, filter }));
+        this.applyNestedConditionsFilters({ qb, whereExp, nestedConditionsFilters });
+
+        // Fix TypeORM queryBuilder behavior where the first parsed "where" clause is of type "OR" > it would end up as a simple where clause, losing the OR
+        qb.expressionMap.wheres = sortBy(prop("type"), qb.expressionMap.wheres);
+    }
+
+    /**
+     * Retrieve a property default where strategy from its propName/propPath
+     * @example
+     * propPath = "name" -> return "STARTS_WITH"
+     * propPath = "profilePicture.id" -> return "EXACT"
+     */
     protected getPropertyDefaultWhereStrategy(propPath: string) {
-        // If all entity props are authorized as filters, return default where strategy
+        // If all entity props are enabled as filters, return default where strategy
         if (this.config.options.all) {
             return this.config.options.defaultWhereStrategy || STRATEGY_TYPES.EXACT;
         }
 
         const propFilter = this.config.properties.find((propFilter) =>
-            typeof propFilter === "string" ? propFilter === propPath : getObjectFirstKey(propFilter) === propPath
+            typeof propFilter === "string" ? propFilter === propPath : propFilter[0] === propPath
         );
 
         return typeof propFilter === "string"
             ? this.config.options.defaultWhereStrategy || STRATEGY_TYPES.EXACT
-            : this.formatWhereStrategy(propFilter[getObjectFirstKey(propFilter)]);
+            : this.formatWhereStrategy(propFilter[1]);
     }
 
-    /** Returns where strategy formatted as a valid keyof STRATEGY_TYPES */
+    /**
+     * Returns where strategy formatted as a valid keyof STRATEGY_TYPES
+     * @example
+     * strategyRaw = "startsWith" -> return "STARTS_WITH"
+     */
     protected formatWhereStrategy(strategyRaw: string) {
         return camelToSnake(strategyRaw).toUpperCase() as STRATEGY_TYPES;
     }
@@ -546,20 +561,6 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         };
 
         recursiveBrowseFilter(nestedConditionsFilters, whereExp, true);
-    }
-
-    apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs) {
-        if (!queryParams) {
-            return;
-        }
-
-        const { filters, nestedConditionsFilters } = this.getFiltersLists(queryParams);
-
-        filters.forEach((filter) => this.applyFilterParam({ qb, whereExp, filter }));
-        this.applyNestedConditionsFilters({ qb, whereExp, nestedConditionsFilters });
-
-        // Fix TypeORM queryBuilder bug where the first parsed "where" clause is of type "OR" > it would end up as a simple where clause, losing the OR
-        qb.expressionMap.wheres = sortBy(prop("type"), qb.expressionMap.wheres);
     }
 }
 

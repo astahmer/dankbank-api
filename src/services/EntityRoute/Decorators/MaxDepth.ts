@@ -7,7 +7,7 @@ export function MaxDepth(): ClassDecorator;
 
 /**
  * Will apply MaxDepth on that property
- * @param max depth recursion authorized
+ * @param max depth recursion enabled
  */
 export function MaxDepth(max: number): PropertyDecorator;
 

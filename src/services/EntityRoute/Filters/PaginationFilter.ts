@@ -7,7 +7,7 @@ import {
     FilterDefaultConfig,
 } from "./AbstractFilter";
 import { SelectQueryBuilder } from "typeorm";
-import { isType, getObjectOnlyKey } from "../utils";
+import { isType } from "../utils";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
     defaultOrderBys?: string | string[];
@@ -43,9 +43,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
     /** Returns every filterable properties  */
     get filterProperties() {
         return this.config.properties
-            ? this.config.properties.map(
-                  (prop) => (typeof prop === "string" ? prop : getObjectOnlyKey(prop)).split(":")[0]
-              )
+            ? this.config.properties.map((prop) => (typeof prop === "string" ? prop : prop[0]).split(":")[0])
             : [];
     }
 

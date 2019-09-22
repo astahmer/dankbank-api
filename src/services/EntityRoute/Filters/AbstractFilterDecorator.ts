@@ -1,13 +1,13 @@
 import { RouteFiltersMeta, getRouteFiltersMeta, ROUTE_FILTERS_METAKEY } from "@/services/EntityRoute/EntityRoute";
-import { IAbstractFilterConfig, FilterProperty } from "./AbstractFilter";
+import { IAbstractFilterConfig, FilterProperty, IDefaultFilterOptions } from "./AbstractFilter";
 
 export function AbstractFilterDecorator({
     defaultConfig,
-    propParamOrFilterProperties,
+    propsOrOptions,
     propFilterHook,
 }: {
     defaultConfig: Partial<IAbstractFilterConfig>;
-    propParamOrFilterProperties: any | FilterProperty[];
+    propsOrOptions: FilterProperty[] | IDefaultFilterOptions;
     propFilterHook?: (propName: string, filterConfig?: any) => FilterProperty;
 }): PropertyDecorator | ClassDecorator {
     return (target: object | Function, propName: string, _descriptor?: PropertyDescriptor) => {
@@ -32,11 +32,9 @@ export function AbstractFilterDecorator({
             } else {
                 defaultConfig.properties = [propFilter];
             }
-        } else {
-            // Class Decorator
-            defaultConfig.properties = filter
-                ? filter.properties.concat(propParamOrFilterProperties)
-                : propParamOrFilterProperties;
+        } else if (Array.isArray(propsOrOptions)) {
+            // Class Decorator & properties were not skipped
+            defaultConfig.properties = filter ? filter.properties.concat(propsOrOptions) : propsOrOptions;
         }
 
         // Update filter

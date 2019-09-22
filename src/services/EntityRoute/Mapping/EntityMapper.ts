@@ -19,9 +19,8 @@ export class EntityMapper<Entity extends AbstractEntity> {
     }
 
     get metadata() {
-        return this.entityRoute.metadata;
+        return this.entityRoute.repository.metadata;
     }
-
     get options() {
         return this.entityRoute.options;
     }

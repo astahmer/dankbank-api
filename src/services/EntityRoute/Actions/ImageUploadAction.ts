@@ -32,9 +32,7 @@ export class ImageUploadAction extends AbstractRouteAction {
         this.entityManager = getManager();
     }
 
-    public async onRequest(ctx: Context, next: NextFn) {
-        await this.useMiddlewares(ctx, next);
-
+    public async onRequest(ctx: Context) {
         const req = <multer.MulterIncomingMessage>ctx.req;
         const filePath = path.parse(req.file.filename);
         const fileName = filePath.name.replace(/\s/g, "_") + "_" + Date.now() + filePath.ext;
@@ -55,8 +53,7 @@ export class ImageUploadAction extends AbstractRouteAction {
             name: fileName,
             size: resized.size,
         });
-        ctx.body = sortObjectByKeys(result);
 
-        next();
+        ctx.body = sortObjectByKeys(result);
     }
 }
