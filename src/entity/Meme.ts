@@ -8,7 +8,7 @@ import { MemeBank } from "./MemeBank";
 import { Comment } from "./Comment";
 import { User } from "./User";
 import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/EntityRoute";
+import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 @PaginationFilter()
 @SearchFilter([], { all: true })

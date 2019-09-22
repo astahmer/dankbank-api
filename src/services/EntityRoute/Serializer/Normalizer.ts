@@ -33,9 +33,9 @@ export class Normalizer<Entity extends AbstractEntity> {
 
     /** Retrieve collection of entities with only exposed props (from groups) */
     public async getCollection<Entity extends AbstractEntity>(
-        qb: SelectQueryBuilder<Entity>
+        qb: SelectQueryBuilder<Entity>,
+        operation?: RouteOperation
     ): Promise<[Entity[], number]> {
-        const operation = "list";
         this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
         this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
@@ -46,8 +46,11 @@ export class Normalizer<Entity extends AbstractEntity> {
     }
 
     /** Retrieve a specific entity with only exposed props (from groups) */
-    public async getItem<Entity extends AbstractEntity>(qb: SelectQueryBuilder<Entity>, entityId: number) {
-        const operation = "details";
+    public async getItem<Entity extends AbstractEntity>(
+        qb: SelectQueryBuilder<Entity>,
+        entityId: number,
+        operation: RouteOperation
+    ) {
         const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
 
         qb.select(selectProps);

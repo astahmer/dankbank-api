@@ -3,6 +3,7 @@
     "version": "0.1.0",
     "description": "Awesome project developed with TypeORM.",
     "scripts": {
+        "tsc": "tsc",
         "prod": "tsc && node ./build/app.js",
         "webpack": "webpack",
         "start": "node --inspect=0.0.0.0 -r ts-node/register build/server",

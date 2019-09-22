@@ -6,19 +6,44 @@ import {
 } from "@/services/EntityRoute/Filters/PaginationFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
 
+/**
+ * PaginationFilter ClassDecorator without properties
+ * @example
+ * [at]PaginationFilter()
+ * [at]PaginationFilter({ all: true })
+ */
+export function PaginationFilter(options?: IPaginationFilterOptions): ClassDecorator;
+
+/**
+ * PaginationFilter ClassDecorator with properties
+ * @example [at]PaginationFilter(["id", ["name", "desc"], { defaultRetrievedItemsLimit: 10 })
+ */
+export function PaginationFilter(properties?: FilterProperty[], options?: IPaginationFilterOptions): ClassDecorator;
+
 export function PaginationFilter(
-    properties?: FilterProperty[],
-    filterOptions?: IPaginationFilterOptions
-): ClassDecorator {
-    const defaultConfig = getDefaultConfig(filterOptions);
+    propertiesOrOptions?: FilterProperty[] | IPaginationFilterOptions,
+    options?: IPaginationFilterOptions
+) {
+    let properties: any[] = [];
+    // If ClassDecorator & skipping properties
+    if (!Array.isArray(propertiesOrOptions)) {
+        options = propertiesOrOptions;
+    }
+
+    const defaultConfig = getDefaultConfig(options);
 
     return AbstractFilterDecorator({
         defaultConfig,
-        propParamOrFilterProperties: properties,
+        propsOrOptions: properties,
     }) as ClassDecorator;
 }
 
-export function OrderFilter(direction?: ORDER_DIRECTIONS, relationPropName?: string): PropertyDecorator {
+/**
+ * PaginationFilter PropertyDecorator
+ * @example [at]OrderBy(ORDER_DIRECTIONS.ASC, "user.name")
+ * @example [at]OrderBy(ORDER_DIRECTIONS.DESC)
+ */
+export function OrderBy(direction?: ORDER_DIRECTIONS, relationPropName?: string): PropertyDecorator {
     const defaultConfig = getDefaultConfig();
 
     const withRelationPropName = relationPropName ? "." + relationPropName : "";
@@ -28,7 +53,7 @@ export function OrderFilter(direction?: ORDER_DIRECTIONS, relationPropName?: str
 
     return AbstractFilterDecorator({
         defaultConfig,
-        propParamOrFilterProperties: { direction, relationPropName },
+        propsOrOptions: { direction, relationPropName },
         propFilterHook,
     });
 }

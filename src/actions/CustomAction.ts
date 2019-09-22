@@ -11,7 +11,7 @@ export function useCustomRoute(app: Koa) {
     app.use(router.routes());
 }
 
-class CustomAction implements RouteAction {
+export class CustomAction implements RouteAction {
     public async onRequest(ctx: Koa.Context) {
         ctx.body = "yes";
     }

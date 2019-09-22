@@ -26,22 +26,30 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Method used when making a POST request */
-    public async insertItem(values: QueryDeepPartialEntity<Entity>, queryRunner: QueryRunner) {
-        return this.saveItem("create", values, queryRunner);
+    public async insertItem(
+        values: QueryDeepPartialEntity<Entity>,
+        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+    ) {
+        return this.saveItem(params.operation || "create", values, params.queryRunner);
     }
 
     /** Method used when making a PUT request on a specific id */
-    public async updateItem(values: QueryDeepPartialEntity<Entity>, queryRunner: QueryRunner) {
-        return this.saveItem("update", values, queryRunner);
+    public async updateItem(
+        values: QueryDeepPartialEntity<Entity>,
+        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+    ) {
+        return this.saveItem(params.operation || "update", values, params.queryRunner);
     }
 
     /** Clean & validate item and then save it if there was no error */
     private async saveItem(
         operation: RouteOperation,
         values: QueryDeepPartialEntity<Entity>,
-        queryRunner: QueryRunner
+        queryRunner?: QueryRunner
     ) {
-        const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+        const repository = queryRunner
+            ? queryRunner.manager.getRepository<Entity>(this.metadata.target)
+            : this.repository;
         const cleanedItem = this.cleanItem(operation, values);
         const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
 

@@ -7,8 +7,8 @@ import { AbstractEntity } from "./AbstractEntity";
 import { MemeBank } from "./MemeBank";
 import { File } from "./File";
 
-@PaginationFilter([], { all: true })
-@SearchFilter(["id", { name: "startsWith" }])
+@PaginationFilter({ all: true })
+@SearchFilter(["id", ["name", "startsWith"]])
 @EntityRoute("/users", ["create", "list", "details", "update", "delete"])
 @Entity()
 export class User extends AbstractEntity {

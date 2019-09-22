@@ -1,11 +1,7 @@
-import {
-    ROUTE_SUBRESOURCES,
-    RouteSubresourcesMeta,
-    SubresourceOperation,
-    getRouteSubresourcesMetadata,
-} from "@/services/EntityRoute/EntityRoute";
+import { ROUTE_SUBRESOURCES, getRouteSubresourcesMetadata } from "@/services/EntityRoute/EntityRoute";
 import { ObjectType } from "typeorm";
 import { AbstractEntity } from "@/entity/AbstractEntity";
+import { RouteSubresourcesMeta, SubresourceOperation } from "../SubresourceManager";
 
 export function Subresource(
     entityTarget: Promise<EntityReference> | EntityReference,
