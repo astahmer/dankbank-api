@@ -1,0 +1,72 @@
+set $cors "";
+
+if ($http_origin ~* (^https?://([^/]+\.)*(localhost|(dankbank\.(com|lol))$))) {
+    set $cors "true";
+}
+
+# Nginx doesn't support nested If statements. This is where things get slightly nasty.
+# Determine the HTTP request method used
+if ($request_method = 'OPTIONS') {
+    set $cors "${cors}_OPTIONS";
+}
+if ($request_method = 'POST') {
+    set $cors "${cors}_POST";
+}
+if ($request_method = 'GET') {
+    set $cors "${cors}_GET";
+}
+if ($request_method = 'PUT') {
+    set $cors "${cors}_PUT";
+}
+if ($request_method = 'DELETE') {
+    set $cors "${cors}_DELETE";
+}
+
+if ($cors = "true") {
+    # Catch all incase there's a request method we're not dealing with properly
+    add_header 'Access-Control-Allow-Origin' "$http_origin";
+}
+
+if ($cors = 'true_OPTIONS') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
+    #
+    # Custom headers and headers various browsers *should* be OK with but aren't
+    #
+    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+
+    #
+    # Tell client that this pre-flight info is valid for 20 days
+    #
+    add_header 'Access-Control-Max-Age' 1728000;
+    add_header 'Content-Type' 'text/plain; charset=utf-8';
+    add_header 'Content-Length' 0;
+    return 204;
+}
+if ($cors = 'true_POST') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
+    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+}
+if ($cors = 'true_GET') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
+    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+}
+
+if ($cors = 'true_PUT') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
+    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+}
+
+if ($cors = 'true_DELETE') {
+    add_header 'Access-Control-Allow-Origin' "$http_origin" always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
+    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+}

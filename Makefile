@@ -33,7 +33,7 @@ install: ## Fully install the project with docker, then run a container
 install:
 	@${MAKE} checkenv; \
 	 ${MAKE} vhosts; \
-	 ${MAKE} docker-build; \
+	 ${MAKE} build; \
 	 ${MAKE} start-install;
 
 start: ## Start container
@@ -55,7 +55,7 @@ restart:
 
 docker-compose-up: # Start a container
 	@echo "Starting container...";
-	@if [ "$(shell docker ps | grep $(PROJECT_NAME))" != "" ]; then \
+	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-koa)" != "" ]; then \
 		echo "Container already up. Skipping."; \
 	else \
 		docker-compose up -d --force-recreate koa; \
@@ -63,7 +63,7 @@ docker-compose-up: # Start a container
 
 docker-compose-down: # Stop a container
 	@echo "Stopping container...";
-	@if [ "$(shell docker ps | grep $(PROJECT_NAME))" != "" ]; then \
+	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-koa)" != "" ]; then \
 		docker-compose down --remove-orphans --volumes; \
 	else \
 		echo "No container up. Skipping."; \
@@ -77,7 +77,7 @@ vendors: # Install vendors
 		docker-compose up --build vendors; \
 	fi; \
 
-docker-build: # Build docker image
+build: # Build docker image
 	@echo "Building docker image..."
 	docker-compose build
 

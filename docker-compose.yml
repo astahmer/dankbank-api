@@ -15,6 +15,8 @@ services:
     environment:
       - VIRTUAL_HOST=api.${PROJECT_NAME}.lol
       - VIRTUAL_PORT=3000
+      - LETSENCRYPT_HOST=api.${PROJECT_NAME}.lol
+      - LETSENCRYPT_EMAIL=dankbank@nqp.fr
       - ELASTIC_URL=http://elasticsearch:9200
     links:
       - database
@@ -25,6 +27,8 @@ services:
       - proxy
     depends_on:
       - nginx-proxy
+      - phpmyadmin
+      - kibana
 
 
   # Only used to install vendors
@@ -43,7 +47,7 @@ services:
       context: ./
       dockerfile: ./docker/Dockerfile
     command: tail -f /dev/null
-    container_name: ${PROJECT_NAME}-terms
+    container_name: ${PROJECT_NAME}-term
     volumes:
       - .:/usr/app/
       - ./node_modules/:/usr/app/node_modules
@@ -86,24 +90,42 @@ services:
     container_name: ${PROJECT_NAME}-nginx-proxy
     image: jwilder/nginx-proxy
     ports:
-      - "80:80"
+      - 80:80
+      # - 443:443
     volumes:
       - data-nginx:/etc/nginx/conf.d
       - data-nginx:/etc/nginx/vhost.d
       - data-nginx:/usr/share/nginx/html
+      - data-nginx:/etc/nginx/certs:ro
+      - ./docker/nginx/vhost.d/default_location:/etc/nginx/vhost.d/default_location
       - /var/run/docker.sock:/tmp/docker.sock:ro
     networks:
       - proxy
+    labels:
+      com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy: "true"
 
   nginx-proxy-companion:
     container_name: ${PROJECT_NAME}-nginx-proxy-companion
     image: jrcs/letsencrypt-nginx-proxy-companion
     volumes:
       - data-nginx:/etc/nginx/conf.d
+      - data-nginx:/etc/nginx/vhost.d
+      - data-nginx:/usr/share/nginx/html
       - data-nginx:/etc/nginx/certs:rw
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - nginx-proxy
+
+  # Used to make a local self-signed SSL certificate
+  mkcert:
+    container_name: ${PROJECT_NAME}-mkcert
+    build:
+      context: ./
+      dockerfile: ./docker/mkcert/Dockerfile
+    volumes:
+      - ./var/mkcert/:/root/.local/share/mkcert
+    environment:
+      - DOMAINS=api.${PROJECT_NAME}.lol,${PROJECT_NAME}.lol
 
   database:
     container_name: ${PROJECT_NAME}-db
@@ -140,6 +162,7 @@ services:
 
 volumes:
   data-nginx:
+  data-mkcert:
   data-elastic:
 networks:
   api:

@@ -52,8 +52,9 @@ export async function makeApp(connection: Connection) {
     useGroupsRoute(connection, app);
     useRouteListAtIndex(app);
 
-    const server = app.listen(3000, "0.0.0.0");
-    logger.info("Listening on port 3000");
+    const port = parseInt(process.env.VIRTUAL_PORT);
+    const server = app.listen(port, "0.0.0.0");
+    logger.info("Listening on port " + port);
     logger.info("Server up on " + BASE_URL);
 
     return server;
