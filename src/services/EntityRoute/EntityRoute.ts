@@ -102,7 +102,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
                 const method = (action as keyof RouteAction) || "onRequest";
                 const responseMethod = this.customActions[actionClass.name][method];
 
-                (<any>router)[verb](path, ...(middlewares || []), responseMethod);
+                (<any>router)[verb](
+                    path,
+                    ...(middlewares || []),
+                    responseMethod.bind(this.customActions[actionClass.name])
+                );
             }
         }
 

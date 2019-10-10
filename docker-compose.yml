@@ -56,7 +56,7 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.3.2
     container_name: ${PROJECT_NAME}-elastic
     volumes:
-      - data-elastic:/usr/share/elasticsearch/data
+      - ./var/lib/elasticsearch/data:/usr/share/elasticsearch/data:rw
     environment:
       - VIRTUAL_HOST=elastic.${PROJECT_NAME}.lol
       - VIRTUAL_PORT=9200
@@ -71,6 +71,8 @@ services:
     networks:
       - api
       - proxy
+    depends_on:
+    - nginx-proxy
 
   kibana:
    image: docker.elastic.co/kibana/kibana:7.3.2

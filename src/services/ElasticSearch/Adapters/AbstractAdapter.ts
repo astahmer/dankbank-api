@@ -55,13 +55,13 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
         if (!indexResponse.body) {
             logger.info("Index doesn't exist, creating it with its mapping.");
 
-            const body = { mapping: { properties: this.getMapping() } };
+            const body = { mappings: { properties: this.getMapping() } };
             await this.client.indices.create({ index: this.INDEX_NAME, body });
         }
 
         let lastValueStr;
         try {
-            lastValueStr = await this.getLastValueStored();
+            lastValueStr = (await this.getLastValueStored()) || MIN_DATE;
         } catch (error) {
             lastValueStr = MIN_DATE;
         }
@@ -103,3 +103,8 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
         });
     }
 }
+
+export type AbstractDocument = {
+    dateCreated: string;
+    dateUpdated: string;
+};
