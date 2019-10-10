@@ -1,4 +1,4 @@
-import { AbstractAdapter } from "./AbstractAdapter";
+import { AbstractAdapter, AbstractDocument } from "./AbstractAdapter";
 import { SelectQueryBuilder, Repository } from "typeorm";
 import { Meme } from "@/entity/Meme";
 import { MemeTransformer } from "../Transformers/MemeTransformer";
@@ -19,15 +19,8 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
             dateUpdated: { type: "text" },
             title: { type: "text" },
             description: { type: "text" },
-            tags: {
-                type: "nested",
-                properties: {
-                    tag: {
-                        type: "completion",
-                    },
-                    upvoteCount: { type: "integer" },
-                },
-            },
+            tags: { type: "text" },
+            tags_suggest: { type: "completion" },
             upvoteCount: { type: "integer" },
             downvoteCount: { type: "integer" },
             views: { type: "integer" },
@@ -36,7 +29,7 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
                 type: "nested",
                 properties: {
                     id: { type: "keyword" },
-                    originalName: { type: "keyword" },
+                    originalName: { type: "text" },
                     name: { type: "keyword" },
                     size: { type: "integer" },
                 },
@@ -138,3 +131,24 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
         this.updateLastValue(lastIndexedItem.dateUpdated);
     }
 }
+
+export type MemePictureDocument = {
+    id: number;
+    originalName: string;
+    name: string;
+    size: number;
+};
+
+export type MemeDocument = AbstractDocument & {
+    title: string;
+    description: string;
+    tags: string[];
+    tags_suggest?: string;
+    upvoteCount: number;
+    downvoteCount: number;
+    views: number;
+    isMultipartMeme: string;
+    pictures: MemePictureDocument[];
+    banks: string[];
+    owner: string;
+};

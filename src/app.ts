@@ -18,6 +18,7 @@ import { useGroupsRoute } from "./actions/GroupsAction";
 import { BASE_URL, app } from "./main";
 import { getAppRoutes } from "./utils/getAppRoutes";
 import { AbstractEntity } from "./entity/AbstractEntity";
+import { adaptRowsToDocuments } from "./services/ElasticSearch/ESManager";
 
 /** Creates connection and returns it */
 export async function getConnectionToDatabase() {
@@ -41,8 +42,12 @@ export async function makeApp(connection: Connection) {
     app.use(bodyParser());
     app.use(logRequest(logger));
 
-    if (process.env.MAKE_FIXTURES) {
+    if (process.env.MAKE_FIXTURES === "true") {
         await makeFixtures(connection);
+    }
+
+    if (process.env.ADAPT_ROWS === "true") {
+        await adaptRowsToDocuments();
     }
 
     const entities = getEntities();

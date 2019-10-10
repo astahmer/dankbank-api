@@ -9,6 +9,7 @@ import { Comment } from "./Comment";
 import { User } from "./User";
 import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
+import { SearchAction } from "@/actions/Meme/SearchAction";
 
 @PaginationFilter()
 @SearchFilter([], { all: true })
@@ -18,6 +19,11 @@ import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
             verb: ROUTE_VERB.POST,
             path: "/upload",
             class: ImageUploadAction,
+        },
+        {
+            verb: ROUTE_VERB.GET,
+            path: "/search",
+            class: SearchAction,
         },
     ],
 })

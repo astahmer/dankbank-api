@@ -4,7 +4,7 @@ import { getImageURL } from "@/services/EntityRoute/Actions/ImageUploadAction";
 
 export class MemeTransformer implements ITransformer<Meme> {
     transform(meme: Meme) {
-        const tags = meme.tags.map((item) => ({ tag: item.tag, upvoteCount: item.upvoteCount }));
+        const tags = meme.tags.map((tag) => tag.tag);
         const pictures = meme.pictures.map((item) => ({
             iri: item.getIri(),
             url: getImageURL(item.name),
@@ -13,11 +13,12 @@ export class MemeTransformer implements ITransformer<Meme> {
             name: item.name,
             size: item.size,
         }));
-        const banks = meme.tags.map((item) => item.getIri());
+        const banks = meme.banks.map((item) => item.getIri());
 
         return {
             ...meme,
             tags,
+            tags_suggest: tags,
             pictures,
             banks,
             owner: meme.owner && meme.owner.getIri(),

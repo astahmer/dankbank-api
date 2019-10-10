@@ -52,3 +52,7 @@ export const formatEntityId = (id: string) => (parseInt(id) ? parseInt(id) : iri
 export const getUnixTimestampFromDate = (date: Date) => Math.round(+date / 1000);
 export const chunk = <T = any>(arr: T[], size: number): T[] =>
     arr.reduce((chunks, el, i) => (i % size ? chunks[chunks.length - 1].push(el) : chunks.push([el])) && chunks, []);
+
+export const limit = (nb: number, [min, max]: [number, number]) => {
+    return Math.min(Math.max(nb, min), max);
+};
