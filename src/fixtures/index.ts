@@ -1,6 +1,8 @@
 import { Connection } from "typeorm";
-import { UserGenerator } from "./generators/UserGenerator";
+
 import { logger } from "@/services/logger";
+
+import { UserGenerator } from "./generators/UserGenerator";
 
 export async function makeFixtures(connection: Connection, drop = false) {
     logger.info("Syncing schema...");

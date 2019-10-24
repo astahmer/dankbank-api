@@ -49,6 +49,11 @@ restart: ## Restart container
 restart:
 	docker-compose restart $(COMMAND_ARGS)
 
+rl: ## Restart main container &
+rl:
+	@${MAKE} restart koa; \
+	 ${MAKE} logs koa; \
+
 #
 ##@ DOCKER UNIT COMMANDS
 #

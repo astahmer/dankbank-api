@@ -1,7 +1,10 @@
-import { EventSubscriber, EntitySubscriberInterface, InsertEvent, UpdateEvent, Repository } from "typeorm";
+import {
+    EntitySubscriberInterface, EventSubscriber, InsertEvent, Repository, UpdateEvent
+} from "typeorm";
+
 import { Meme } from "@/entity/Meme";
-import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import { MemeAdapter } from "@/services/ElasticSearch/Adapters/MemeAdapter";
+import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import { logger } from "@/services/logger";
 
 @EventSubscriber()

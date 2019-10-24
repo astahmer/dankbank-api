@@ -1,13 +1,14 @@
 import * as Koa from "koa";
 
 import { EntityRoute, IEntityRouteOptions, getRouteMetadata } from "./EntityRoute";
+
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Entity } from "@/utils/globalTypes";
+import { ObjectType } from "typeorm";
 
 /** Make an EntityRoute out of each given entities and assign them a global options object (overridable with @EntityRoute) */
 export async function useEntitiesRoutes<T extends AbstractEntity>(
     app: Koa,
-    entities: Entity<T>[],
+    entities: ObjectType<T>[],
     options: IEntityRouteOptions = {
         isMaxDepthEnabledByDefault: true,
         defaultMaxDepthLvl: 2,

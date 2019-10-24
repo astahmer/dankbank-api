@@ -1,6 +1,8 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { File } from "@/entity/File";
 import { QueryRunner } from "typeorm";
+
+import { File } from "@/entity/File";
+
+import { AbstractGenerator } from "../AbstractGenerator";
 
 export class FileGenerator extends AbstractGenerator<File> {
     constructor(queryRunner: QueryRunner) {

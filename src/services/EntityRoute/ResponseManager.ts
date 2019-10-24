@@ -1,15 +1,16 @@
-import { Middleware, ParameterizedContext } from "koa";
+import { Middleware } from "koa";
+import { DeleteResult, QueryRunner, SelectQueryBuilder } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
-import { ErrorMappingItem } from "./Serializer/Denormalizer";
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { EntityRoute, getRouteFiltersMeta, RouteFiltersMeta } from "./EntityRoute";
-import { QueryRunner, DeleteResult, SelectQueryBuilder } from "typeorm";
-import { isType } from "./utils";
-import { RouteOperation } from "./Decorators/Groups";
-import { SubresourceRelation } from "./SubresourceManager";
+
 import { RouteActionClass } from "./Actions/RouteAction";
+import { RouteOperation } from "./Decorators/Groups";
+import { EntityRoute, getRouteFiltersMeta, RouteFiltersMeta } from "./EntityRoute";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
+import { ErrorMappingItem } from "./Serializer/Denormalizer";
+import { SubresourceRelation } from "./SubresourceManager";
+import { isType } from "./utils";
 
 export class ResponseManager<Entity extends AbstractEntity> {
     private filtersMeta: RouteFiltersMeta;
@@ -131,38 +132,53 @@ export class ResponseManager<Entity extends AbstractEntity> {
             .execute();
     }
 
-    /** Returns the response method on a given operation for this entity */
-    public makeResponseMethod(operation: RouteOperation, subresourceRelation?: SubresourceRelation): Middleware;
-    public makeResponseMethod(
+    public makeRequestContextMiddleware(
         operation: RouteOperation,
-        subresourceRelationOrCustomAction?: SubresourceRelation
+        subresourceRelation?: SubresourceRelation
     ): Middleware {
         return async (ctx, next) => {
-            const isUpdateOrCreate = (ctx.method === "POST" || ctx.method === "PUT") && ctx.request.body;
-
-            let subresourceRelation: SubresourceRelation;
-            let customAction: IRouteCustomActionItem;
-            if (subresourceRelationOrCustomAction) {
-                subresourceRelation = subresourceRelationOrCustomAction;
+            if (subresourceRelation) {
+                subresourceRelation = subresourceRelation;
                 subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
             }
 
-            const params: IActionParams<Entity> = { subresourceRelation };
+            const params: IActionParams<Entity> = {
+                subresourceRelation,
+                isUpdateOrCreate: ctx.request.body && (ctx.method === "POST" || ctx.method === "PUT"),
+            };
+
             if (ctx.params.id) params.entityId = parseInt(ctx.params.id);
-            if (isUpdateOrCreate) params.values = ctx.request.body;
+            if (params.isUpdateOrCreate) params.values = ctx.request.body;
             if (operation === "list") params.queryParams = ctx.query;
 
             this.aliasManager.resetList();
 
             // Create query runner to retrieve requestContext in subscribers
             const queryRunner = this.connection.createQueryRunner();
-            const requestContext: RequestContext<Entity> = { ctx, params, entityRoute: this as any };
+            const requestContext: RequestContext<Entity> = { params };
             queryRunner.data = { requestContext };
+
+            ctx.state.requestContext = requestContext;
+            ctx.state.queryRunner = queryRunner;
+
+            await next();
+
+            if (!ctx.state.queryRunner.isReleased) {
+                ctx.state.queryRunner.release();
+            }
+        };
+    }
+
+    /** Returns the response method on a given operation for this entity */
+    public makeResponseMiddleware(operation: RouteOperation): Middleware {
+        return async (ctx) => {
+            const {
+                requestContext: { params },
+                queryRunner,
+            } = ctx.state;
 
             const method = CRUD_ACTIONS[operation].method;
             const result = await this[method](params, queryRunner);
-
-            queryRunner.release();
 
             let response: IRouteResponse = {
                 "@context": {
@@ -170,30 +186,26 @@ export class ResponseManager<Entity extends AbstractEntity> {
                     entity: this.metadata.tableName,
                 },
             };
-            if (isUpdateOrCreate) response["@context"].errors = null;
+            if (params.isUpdateOrCreate) response["@context"].errors = null;
 
-            if (!customAction) {
-                if (isType<ErrorMappingItem>(result, "errors" in result)) {
-                    response["@context"].errors = result;
-                } else if (isType<CollectionResult<Entity>>(result, operation === "list")) {
-                    response["@context"].retrievedItems = result.items.length;
-                    response["@context"].totalItems = result.totalItems;
-                    response.items = result.items;
-                } else if (isType<DeleteResult>(result, "raw" in result)) {
-                    response.deleted = result.affected ? result.raw.insertId : null;
-                } else {
-                    response = { ...response, ...result };
-                }
+            if (isType<ErrorMappingItem>(result, "errors" in result)) {
+                response["@context"].errors = result;
+            } else if (isType<CollectionResult<Entity>>(result, operation === "list")) {
+                response["@context"].retrievedItems = result.items.length;
+                response["@context"].totalItems = result.totalItems;
+                response.items = result.items;
+            } else if (isType<DeleteResult>(result, "raw" in result)) {
+                response.deleted = result.affected ? result.raw.insertId : null;
+            } else {
+                response = { ...response, ...result };
             }
 
             ctx.body = response;
-
-            next();
         };
     }
 
     /** Returns the method of a mapping route on a given operation for this entity */
-    public makeRouteMappingMethod(operation: RouteOperation): Middleware {
+    public makeRouteMappingMiddleware(operation: RouteOperation): Middleware {
         return async (ctx, next) => {
             ctx.body = {
                 context: {
@@ -272,13 +284,23 @@ export interface IRouteCrudActionItem {
 export interface IRouteCustomActionItem extends Omit<IRouteCrudActionItem, "method"> {
     /** Custom operation for that action */
     operation?: RouteOperation;
+    /** List of middlewares to be called (in the same order as defined here) */
+    middlewares?: Middleware[];
+}
+
+export interface IRouteCustomActionItemClass extends IRouteCustomActionItem {
     /** Class that implements RouteAction, onRequest method will be called by default unless a custom action parameter is defined */
     class?: RouteActionClass;
     /** Custom method name of RouteAction class to call for this verb+path, mostly useful to re-use the same class for multiple actions */
     action?: string;
-    /** List of middlewares to be called (in the same order as defined here) */
-    middlewares?: Middleware[];
 }
+
+export interface IRouteCustomActionItemFunction extends IRouteCustomActionItem {
+    /** Custom handler (actually is a middleware) */
+    handler?: Function;
+}
+
+export type RouteCustomAction = IRouteCustomActionItemClass | IRouteCustomActionItemFunction;
 
 export interface IActionParams<Entity extends AbstractEntity> {
     /** Current route entity id */
@@ -296,10 +318,7 @@ export interface IActionParams<Entity extends AbstractEntity> {
 }
 
 export type RequestContext<Entity extends AbstractEntity> = {
-    ctx: ParameterizedContext<any, {}>;
     params: IActionParams<Entity>;
-    entityRoute: EntityRoute<Entity>;
-    subresourceRelation?: SubresourceRelation;
 };
 
 interface IRouteResponse {

@@ -1,4 +1,5 @@
 import { EntityMetadata } from "typeorm";
+
 import { getRouteMetadata } from "./EntityRoute";
 
 export const isDev = () => process.env.NODE_ENV === "development";

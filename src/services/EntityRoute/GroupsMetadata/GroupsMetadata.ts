@@ -1,14 +1,11 @@
+import { concat, mergeWith } from "ramda";
 import { EntityMetadata, getRepository } from "typeorm";
-import { mergeWith, concat } from "ramda";
 
 import {
-    OperationGroups,
-    ContextOperations,
-    RouteOperations,
-    GroupsOperationOrAll,
-    ALL_OPERATIONS,
-    RouteOperation,
+    ALL_OPERATIONS, ContextOperations, GroupsOperationOrAll, OperationGroups, RouteOperation,
+    RouteOperations
 } from "@/services/EntityRoute/Decorators/Groups";
+
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
 
 export const ENTITY_META_SYMBOL = Symbol("entityMeta");

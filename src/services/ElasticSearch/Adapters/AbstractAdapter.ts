@@ -1,12 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import { EntityManager, SelectQueryBuilder, getConnection } from "typeorm";
-import { Client } from "@elastic/elasticsearch";
+import { EntityManager, getConnection, SelectQueryBuilder } from "typeorm";
 
-import { ITransformer } from "../Transformers/ITransformer";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { getUnixTimestampFromDate } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
+import { Client } from "@elastic/elasticsearch";
+
+import { ITransformer } from "../Transformers/ITransformer";
 
 const MIN_DATE = new Date("January 1, 1970 00:00:00").toISOString();
 const TMP_DIR = path.resolve(__dirname, "../tmp/");

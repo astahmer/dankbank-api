@@ -1,5 +1,8 @@
-import { RouteFiltersMeta, getRouteFiltersMeta, ROUTE_FILTERS_METAKEY } from "@/services/EntityRoute/EntityRoute";
-import { IAbstractFilterConfig, FilterProperty, IDefaultFilterOptions } from "./AbstractFilter";
+import {
+    getRouteFiltersMeta, ROUTE_FILTERS_METAKEY, RouteFiltersMeta
+} from "@/services/EntityRoute/EntityRoute";
+
+import { FilterProperty, IAbstractFilterConfig, IDefaultFilterOptions } from "./AbstractFilter";
 
 export function AbstractFilterDecorator({
     defaultConfig,

@@ -1,9 +1,10 @@
+import { SearchResponse } from "elasticsearch";
+import Container, { Service } from "typedi";
+
 import { Client } from "@elastic/elasticsearch";
 
-import { MemeAdapter } from "./Adapters/MemeAdapter";
-import Container, { Service } from "typedi";
 import { logger } from "../logger";
-import { SearchResponse } from "elasticsearch";
+import { MemeAdapter } from "./Adapters/MemeAdapter";
 
 @Service()
 export class ElasticSearchManager {

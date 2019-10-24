@@ -1,10 +1,12 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { MemeBankGenerator } from "./MemeBankGenerator";
+import { QueryRunner } from "typeorm";
+
 import { User } from "@/entity/User";
 import { Visibility } from "@/entity/Visibility";
-import { FileGenerator } from "./FileGenerator";
-import { QueryRunner } from "typeorm";
 import { logger } from "@/services/logger";
+
+import { AbstractGenerator } from "../AbstractGenerator";
+import { FileGenerator } from "./FileGenerator";
+import { MemeBankGenerator } from "./MemeBankGenerator";
 
 export class UserGenerator extends AbstractGenerator<User> {
     constructor(queryRunner: QueryRunner) {

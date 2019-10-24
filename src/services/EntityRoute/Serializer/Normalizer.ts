@@ -1,12 +1,14 @@
-import { EntityMetadata, SelectQueryBuilder, getRepository } from "typeorm";
+import { EntityMetadata, getRepository, SelectQueryBuilder } from "typeorm";
 import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
-import { sortObjectByKeys, lowerFirstLetter } from "../utils";
-import { EntityRoute } from "../EntityRoute";
-import { COMPUTED_PREFIX, ALIAS_PREFIX } from "@/services/EntityRoute/Decorators/Groups";
 import { getDependsOnMetadata } from "@/services/EntityRoute/Decorators/DependsOn";
+import {
+    ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation
+} from "@/services/EntityRoute/Decorators/Groups";
+
+import { EntityRoute } from "../EntityRoute";
+import { lowerFirstLetter, sortObjectByKeys } from "../utils";
 
 export class Normalizer<Entity extends AbstractEntity> {
     constructor(private entityRoute: EntityRoute<Entity>) {}
@@ -124,7 +126,7 @@ export class Normalizer<Entity extends AbstractEntity> {
      * - Add computed props to this item
      * - Sort item's property keys
      * */
-    private async recursiveFormatItem<Entity extends AbstractEntity>(
+    public async recursiveFormatItem<Entity extends AbstractEntity>(
         item: Entity,
         operation: RouteOperation
     ): Promise<Entity> {

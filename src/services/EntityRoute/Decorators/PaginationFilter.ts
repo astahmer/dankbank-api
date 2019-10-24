@@ -1,10 +1,10 @@
-import { FilterProperty, IAbstractFilterConfig } from "@/services/EntityRoute/Filters/AbstractFilter";
 import {
-    IPaginationFilterOptions,
-    getDefaultConfig,
-    ORDER_DIRECTIONS,
-} from "@/services/EntityRoute/Filters/PaginationFilter";
+    FilterProperty, IAbstractFilterConfig
+} from "@/services/EntityRoute/Filters/AbstractFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
+import {
+    getDefaultConfig, IPaginationFilterOptions, ORDER_DIRECTIONS
+} from "@/services/EntityRoute/Filters/PaginationFilter";
 
 /**
  * PaginationFilter ClassDecorator without properties

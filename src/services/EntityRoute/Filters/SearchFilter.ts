@@ -1,19 +1,14 @@
-import {
-    AbstractFilter,
-    AbstractFilterApplyArgs,
-    QueryParamValue,
-    WhereType,
-    WhereMethod,
-    QueryParams,
-    WhereOperator,
-    IDefaultFilterOptions,
-    COMPARISON_OPERATOR,
-    FilterDefaultConfig,
-} from "./AbstractFilter";
+import { path, prop, sortBy } from "ramda";
 import { Brackets, WhereExpression } from "typeorm";
-import { isDefined, camelToSnake, setNestedKey, sortObjectByKeys, parseStringAsBoolean } from "../utils";
-import { sortBy, prop, path } from "ramda";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
+
+import {
+    camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys
+} from "../utils";
+import {
+    AbstractFilter, AbstractFilterApplyArgs, COMPARISON_OPERATOR, FilterDefaultConfig,
+    IDefaultFilterOptions, QueryParams, QueryParamValue, WhereMethod, WhereOperator, WhereType
+} from "./AbstractFilter";
 
 export interface ISearchFilterOptions extends IDefaultFilterOptions {
     defaultWhereStrategy?: STRATEGY_TYPES;

@@ -1,7 +1,8 @@
-import { Entity, Column } from "typeorm";
+import { Column, Entity } from "typeorm";
+
+import { EntityRoute } from "@/services/EntityRoute/Decorators";
 
 import { AbstractEntity } from "./AbstractEntity";
-import { EntityRoute } from "@/services/EntityRoute/Decorators";
 
 @EntityRoute("/files")
 @Entity()
