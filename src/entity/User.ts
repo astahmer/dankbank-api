@@ -1,28 +1,37 @@
-import { Entity, Column, OneToMany, OneToOne, JoinColumn } from "typeorm";
+import { Column, Entity, JoinColumn, OneToMany, OneToOne } from "typeorm";
 
-import { EntityRoute, Groups, SearchFilter, PaginationFilter } from "@/services/EntityRoute/Decorators";
+import { userCreationMw } from "@/actions/User/CreationAction";
+import {
+    EntityRoute, Groups, PaginationFilter, SearchFilter
+} from "@/services/EntityRoute/Decorators";
 import { Subresource } from "@/services/EntityRoute/Decorators/Subresource";
-import { Visibility } from "./Visibility";
+
 import { AbstractEntity } from "./AbstractEntity";
-import { MemeBank } from "./MemeBank";
 import { File } from "./File";
+import { MemeBank } from "./MemeBank";
+import { Visibility } from "./Visibility";
 
 @PaginationFilter({ all: true })
 @SearchFilter(["id", ["name", "startsWith"]])
-@EntityRoute("/users", ["create", "list", "details", "update", "delete"])
+@EntityRoute("/users", ["list", "details", "update", "delete"], {
+    actions: [userCreationMw],
+})
 @Entity()
 export class User extends AbstractEntity {
     @Groups({
         user: ["create", "list", "details", "update"],
     })
-    @Column()
+    @Column({ unique: true })
     name: string;
 
     @Groups({
         user: ["create", "list", "details", "update"],
     })
-    @Column()
+    @Column({ nullable: true })
     email: string;
+
+    @Column({ select: false, nullable: true })
+    password: string;
 
     @Groups({
         user: ["details", "update"],
@@ -30,16 +39,11 @@ export class User extends AbstractEntity {
     @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
     visibility: Visibility;
 
-    @Subresource(() => MemeBank, { operations: ["details"], maxDepth: 1 })
-    @OneToOne(() => MemeBank, (bank) => bank.owner)
-    @JoinColumn()
-    favorites: MemeBank;
-
     @Groups({
         user: ["list", "details"],
     })
     @Subresource(() => MemeBank)
-    @OneToMany(() => MemeBank, (bank) => bank.owner)
+    @OneToMany(() => MemeBank, (bank) => bank.owner, { cascade: ["remove"] })
     banks: MemeBank[];
 
     @Groups({
@@ -48,4 +52,10 @@ export class User extends AbstractEntity {
     @OneToOne(() => File)
     @JoinColumn()
     profilePicture: File;
+
+    @Column({ unique: true, nullable: true })
+    twitterId: string;
+
+    @Column({ default: 0, select: false })
+    refreshTokenVersion: number;
 }

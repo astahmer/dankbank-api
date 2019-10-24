@@ -1,14 +1,15 @@
+import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { DeepPartial, QueryRunner } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
-import { validate, ValidationError, ValidatorOptions } from "class-validator";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
+
 import { EntityRoute } from "../EntityRoute";
+import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { MappingItem } from "../Mapping/MappingMaker";
 import { formatEntityId } from "../utils";
-import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private entityRoute: EntityRoute<Entity>) {}
@@ -64,7 +65,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Return a clone of this request body values with only mapped props */
-    private cleanItem(
+    public cleanItem(
         operation: RouteOperation,
         values: QueryDeepPartialEntity<Entity>
     ): QueryDeepPartialEntity<Entity> {

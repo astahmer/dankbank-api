@@ -1,11 +1,13 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { MemeBank } from "@/entity/MemeBank";
-import { Visibility } from "@/entity/Visibility";
-import { FileGenerator } from "./FileGenerator";
-import { User } from "@/entity/User";
-import { MemeGenerator } from "./MemeGenerator";
-import { logger } from "@/services/logger";
 import { QueryRunner } from "typeorm";
+
+import { MemeBank } from "@/entity/MemeBank";
+import { User } from "@/entity/User";
+import { Visibility } from "@/entity/Visibility";
+import { logger } from "@/services/logger";
+
+import { AbstractGenerator } from "../AbstractGenerator";
+import { FileGenerator } from "./FileGenerator";
+import { MemeGenerator } from "./MemeGenerator";
 
 export class MemeBankGenerator extends AbstractGenerator<MemeBank> {
     constructor(queryRunner: QueryRunner) {

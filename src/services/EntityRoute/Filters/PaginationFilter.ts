@@ -1,13 +1,10 @@
-import {
-    AbstractFilter,
-    AbstractFilterApplyArgs,
-    IDefaultFilterOptions,
-    QueryParams,
-    QueryParamValue,
-    FilterDefaultConfig,
-} from "./AbstractFilter";
 import { SelectQueryBuilder } from "typeorm";
+
 import { isType } from "../utils";
+import {
+    AbstractFilter, AbstractFilterApplyArgs, FilterDefaultConfig, IDefaultFilterOptions,
+    QueryParams, QueryParamValue
+} from "./AbstractFilter";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
     defaultOrderBys?: string | string[];

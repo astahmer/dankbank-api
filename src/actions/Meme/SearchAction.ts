@@ -1,12 +1,15 @@
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/RouteAction";
-import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
+import { SearchResponse } from "elasticsearch";
 import { Context } from "koa";
 import Container from "typedi";
-import { logger } from "@/services/logger";
+
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
-import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
-import { SearchResponse } from "elasticsearch";
+import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
+import {
+    AbstractRouteAction, RouteActionConstructorArgs
+} from "@/services/EntityRoute/Actions/RouteAction";
 import { limit } from "@/services/EntityRoute/utils";
+import { logger } from "@/services/logger";
+import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 
 export class SearchAction extends AbstractRouteAction {
     private esManager: ElasticSearchManager;

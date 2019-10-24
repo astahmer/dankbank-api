@@ -1,16 +1,19 @@
 import { Context } from "koa";
+import { EntityManager, getManager } from "typeorm";
+
+import { DIR_PATH, diskStorage, imageFilter } from "@/config/storage";
+import { File } from "@/entity/File";
+import { BASE_URL } from "@/main";
+import {
+    AbstractRouteAction, RouteActionConstructorArgs
+} from "@/services/EntityRoute/Actions/RouteAction";
+
+
+
 import path = require("path");
 import fs = require("fs");
 import multer = require("@koa/multer");
 import sharp = require("sharp");
-
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/RouteAction";
-import { File } from "@/entity/File";
-import { EntityManager, getManager } from "typeorm";
-import { sortObjectByKeys } from "../utils";
-import { BASE_URL } from "@/main";
-import { NextFn } from "@/utils/globalTypes";
-import { DIR_PATH, diskStorage, imageFilter } from "@/config/storage";
 
 export function getImageLocalLink(name: string) {
     return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
@@ -54,6 +57,6 @@ export class ImageUploadAction extends AbstractRouteAction {
             size: resized.size,
         });
 
-        ctx.body = sortObjectByKeys(result);
+        ctx.body = this.serializeItem(result);
     }
 }

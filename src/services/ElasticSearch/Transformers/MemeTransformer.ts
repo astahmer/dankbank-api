@@ -1,6 +1,7 @@
-import { ITransformer } from "./ITransformer";
 import { Meme } from "@/entity/Meme";
 import { getImageURL } from "@/services/EntityRoute/Actions/ImageUploadAction";
+
+import { ITransformer } from "./ITransformer";
 
 export class MemeTransformer implements ITransformer<Meme> {
     transform(meme: Meme) {

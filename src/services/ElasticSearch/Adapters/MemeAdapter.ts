@@ -1,10 +1,12 @@
-import { AbstractAdapter, AbstractDocument } from "./AbstractAdapter";
-import { SelectQueryBuilder, Repository } from "typeorm";
+import { Repository, SelectQueryBuilder } from "typeorm";
+
 import { Meme } from "@/entity/Meme";
-import { MemeTransformer } from "../Transformers/MemeTransformer";
-import { Client } from "@elastic/elasticsearch";
-import { logger } from "@/services/logger";
 import { chunk } from "@/services/EntityRoute/utils";
+import { logger } from "@/services/logger";
+import { Client } from "@elastic/elasticsearch";
+
+import { MemeTransformer } from "../Transformers/MemeTransformer";
+import { AbstractAdapter, AbstractDocument } from "./AbstractAdapter";
 
 export class MemeAdapter extends AbstractAdapter<Meme> {
     constructor(client: Client) {
@@ -82,7 +84,7 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
         const results = await Promise.all(promises);
 
         const errors = results.reduce((acc, bulkResponse) => {
-            if (bulkResponse.body.errors) {
+            if (bulkResponse && bulkResponse.body.errors) {
                 acc.push(bulkResponse);
             }
 

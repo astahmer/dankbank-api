@@ -1,6 +1,8 @@
-import { AbstractGenerator } from "../AbstractGenerator";
-import { Tag } from "@/entity/Tag";
 import { QueryRunner } from "typeorm";
+
+import { Tag } from "@/entity/Tag";
+
+import { AbstractGenerator } from "../AbstractGenerator";
 
 export class TagGenerator extends AbstractGenerator<Tag> {
     constructor(queryRunner: QueryRunner) {

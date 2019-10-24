@@ -1,15 +1,19 @@
-import { Entity, Column, ManyToOne, ManyToMany, JoinTable, OneToMany } from "typeorm";
+import { Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany } from "typeorm";
 
-import { Groups, EntityRoute, SearchFilter, Subresource, PaginationFilter } from "@/services/EntityRoute/Decorators";
+import { SearchAction } from "@/actions/Meme/SearchAction";
+import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
+import {
+    EntityRoute, Groups, PaginationFilter, SearchFilter, Subresource
+} from "@/services/EntityRoute/Decorators";
+import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
+
 import { AbstractEntity } from "./AbstractEntity";
-import { Tag } from "./Tag";
+import { Comment } from "./Comment";
 import { File } from "./File";
 import { MemeBank } from "./MemeBank";
-import { Comment } from "./Comment";
+import { Tag } from "./Tag";
 import { User } from "./User";
-import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
-import { SearchAction } from "@/actions/Meme/SearchAction";
+import { Visibility } from "./Visibility";
 
 @PaginationFilter()
 @SearchFilter([], { all: true })
@@ -93,4 +97,10 @@ export class Meme extends AbstractEntity {
     })
     @ManyToOne(() => User)
     owner: User;
+
+    @Groups({
+        meme: ["create", "details", "update"],
+    })
+    @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
+    visibility: Visibility;
 }

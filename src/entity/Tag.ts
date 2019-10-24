@@ -1,9 +1,11 @@
+import { Column, Entity, ManyToOne } from "typeorm";
+
+import { SuggestionAction } from "@/actions/Tag/SuggestionAction";
+import { EntityRoute, Groups } from "@/services/EntityRoute/Decorators";
+import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
+
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
-import { Column, ManyToOne, Entity } from "typeorm";
-import { Groups, EntityRoute } from "@/services/EntityRoute/Decorators";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
-import { SuggestionAction } from "@/actions/Tag/SuggestionAction";
 
 @EntityRoute("/tags", ["create", "list", "details", "update", "delete"], {
     actions: [

@@ -1,4 +1,7 @@
-import { PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, getRepository, Repository } from "typeorm";
+import {
+    CreateDateColumn, getRepository, ObjectType, PrimaryGeneratedColumn, UpdateDateColumn
+} from "typeorm";
+
 import { Groups } from "@/services/EntityRoute/Decorators";
 import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
 
@@ -32,8 +35,8 @@ export abstract class AbstractEntity {
         return this.constructor.name;
     }
 
-    getEntityRepository() {
-        return getRepository<any>(this.getClassName());
+    getEntityRepository<T = any>(type?: ObjectType<T>) {
+        return getRepository<T>(type || this.getClassName());
     }
 
     getEntityMetadata() {

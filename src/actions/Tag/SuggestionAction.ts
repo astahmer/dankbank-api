@@ -1,14 +1,14 @@
 import { Context } from "koa";
 import Container from "typedi";
-import { RequestParams, ApiResponse } from "@elastic/elasticsearch";
-import { SearchResponse } from "elasticsearch";
 
+import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
+import { ElasticSearchManager, SuggestResponse } from "@/services/ElasticSearch/ESManager";
+import {
+    AbstractRouteAction, RouteActionConstructorArgs
+} from "@/services/EntityRoute/Actions/RouteAction";
 import { limit } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
-
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/RouteAction";
-import { ElasticSearchManager, SuggestResponse } from "@/services/ElasticSearch/ESManager";
-import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
+import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 
 export class SuggestionAction extends AbstractRouteAction {
     private esManager: ElasticSearchManager;

@@ -3,8 +3,9 @@ import { SelectQueryBuilder } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
+
+import { entityRoutesContainer } from "./";
 import { EntityRoute, getRouteSubresourcesMetadata } from "./EntityRoute";
-import { entityRoutesContainer } from ".";
 import { CRUD_ACTIONS } from "./ResponseManager";
 
 export class SubresourceManager<Entity extends AbstractEntity> {
@@ -79,7 +80,8 @@ export class SubresourceManager<Entity extends AbstractEntity> {
                 subresourceProp.operations.forEach((operation) => {
                     (<any>router)[CRUD_ACTIONS[operation].verb](
                         subresourcePath,
-                        nestedEntityRoute.responseManager.makeResponseMethod(operation, subresourceRelation)
+                        nestedEntityRoute.responseManager.makeRequestContextMiddleware(operation, subresourceRelation),
+                        nestedEntityRoute.responseManager.makeResponseMiddleware(operation)
                     );
                 });
 
@@ -90,7 +92,8 @@ export class SubresourceManager<Entity extends AbstractEntity> {
             subresourceProp.operations.forEach((operation) => {
                 (<any>router)[CRUD_ACTIONS[operation].verb](
                     subresourcePath + CRUD_ACTIONS[operation].path,
-                    nestedEntityRoute.responseManager.makeResponseMethod(operation, subresourceRelation)
+                    nestedEntityRoute.responseManager.makeRequestContextMiddleware(operation, subresourceRelation),
+                    nestedEntityRoute.responseManager.makeResponseMiddleware(operation)
                 );
             });
         }

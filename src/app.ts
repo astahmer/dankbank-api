@@ -1,24 +1,25 @@
-import Koa = require("koa");
 import Router = require("koa-router");
 import bodyParser = require("koa-bodyparser");
+import session = require("koa-session");
 
-import { Container } from "typedi";
 import { useContainer as validatorUseContainer } from "class-validator";
-import { getConnectionOptions, Connection, createConnection, useContainer as typeOrmUseContainer } from "typeorm";
-import { TypeORMConfig } from "./ormconfig";
+import { Container } from "typedi";
+import {
+    Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer
+} from "typeorm";
 
-import { logger } from "./services/logger";
-import { logRequest } from "./middlewares";
-
-import { makeFixtures } from "./fixtures";
-import { useEntitiesRoutes } from "./services/EntityRoute";
+import { useAuthRoutes } from "./actions/Authentication";
 import { useCustomRoute } from "./actions/CustomAction";
 import { useGroupsRoute } from "./actions/GroupsAction";
-
-import { BASE_URL, app } from "./main";
-import { getAppRoutes } from "./utils/getAppRoutes";
 import { AbstractEntity } from "./entity/AbstractEntity";
+import { makeFixtures } from "./fixtures";
+import { app, BASE_URL } from "./main";
+import { logRequest } from "./middlewares";
+import { TypeORMConfig } from "./ormconfig";
 import { adaptRowsToDocuments } from "./services/ElasticSearch/ESManager";
+import { useEntitiesRoutes } from "./services/EntityRoute";
+import { logger } from "./services/logger";
+import { getAppRoutes } from "./utils/getAppRoutes";
 
 /** Creates connection and returns it */
 export async function getConnectionToDatabase() {
@@ -39,9 +40,6 @@ export async function getConnectionToDatabase() {
 export async function makeApp(connection: Connection) {
     logger.info("Starting Koa server...");
 
-    app.use(bodyParser());
-    app.use(logRequest(logger));
-
     if (process.env.MAKE_FIXTURES === "true") {
         await makeFixtures(connection);
     }
@@ -50,12 +48,19 @@ export async function makeApp(connection: Connection) {
         await adaptRowsToDocuments();
     }
 
+    app.keys = [process.env.SESSION_KEY];
+    app.use(session(app));
+
+    app.use(bodyParser());
+    app.use(logRequest(logger));
+
+    app.use(useRouteListAtIndex().routes());
+    app.use(useCustomRoute().routes());
+    app.use(useGroupsRoute().routes());
+    app.use(useAuthRoutes().routes());
+
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
-
-    useCustomRoute(app);
-    useGroupsRoute(connection, app);
-    useRouteListAtIndex(app);
 
     const port = parseInt(process.env.VIRTUAL_PORT);
     const server = app.listen(port, "0.0.0.0");
@@ -96,8 +101,8 @@ export function getSubscribers() {
     }, []);
 }
 
-function useRouteListAtIndex(app: Koa) {
+function useRouteListAtIndex() {
     const router = new Router();
     router.get("/", (ctx) => (ctx.body = getAppRoutes(app.middleware)));
-    app.use(router.routes());
+    return router;
 }

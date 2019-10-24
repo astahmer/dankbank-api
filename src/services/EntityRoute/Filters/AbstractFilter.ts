@@ -1,9 +1,9 @@
-import { SelectQueryBuilder, EntityMetadata, WhereExpression } from "typeorm";
 import { pick } from "ramda";
+import { EntityMetadata, SelectQueryBuilder, WhereExpression } from "typeorm";
+import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 import { Normalizer } from "../Serializer/Normalizer";
 import { isDefined } from "../utils";
-import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;

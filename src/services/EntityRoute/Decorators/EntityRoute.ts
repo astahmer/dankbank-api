@@ -1,5 +1,6 @@
+import { IEntityRouteOptions, ROUTE_METAKEY } from "@/services/EntityRoute/EntityRoute";
+
 import { RouteDefaultOperation } from "./Groups";
-import { ROUTE_METAKEY, IEntityRouteOptions } from "@/services/EntityRoute/EntityRoute";
 
 /**
  * @example

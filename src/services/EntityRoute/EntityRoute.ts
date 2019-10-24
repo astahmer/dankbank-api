@@ -1,17 +1,21 @@
 import * as Router from "koa-router";
-import { Repository, getRepository, ObjectType, Connection, getConnection } from "typeorm";
+import { Connection, getConnection, getRepository, ObjectType, Repository } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { Normalizer } from "./Serializer/Normalizer";
+
+import { entityRoutesContainer } from "./";
+import { IRouteAction } from "./Actions/RouteAction";
 import { RouteOperation } from "./Decorators/Groups";
 import { IAbstractFilterConfig } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
+import {
+    CRUD_ACTIONS, IRouteCustomActionItemClass, ResponseManager, RouteCustomAction
+} from "./ResponseManager";
 import { Denormalizer } from "./Serializer/Denormalizer";
+import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
-import { RouteAction } from "./Actions/RouteAction";
-import { SubresourceManager, RouteSubresourcesMeta } from "./SubresourceManager";
-import { entityRoutesContainer } from ".";
-import { ResponseManager, CRUD_ACTIONS, IRouteCustomActionItem } from "./ResponseManager";
+import { RouteSubresourcesMeta, SubresourceManager } from "./SubresourceManager";
+import { isType } from "./utils";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);
@@ -33,7 +37,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
     // Entity Route specifics
     public readonly repository: Repository<Entity>;
     public readonly options: IEntityRouteOptions;
-    public readonly customActions: Record<string, RouteAction> = {};
+    public readonly customActions: Record<string, IRouteAction> = {};
 
     // Meta
     public readonly routeMetadata: RouteMetadata;
@@ -67,7 +71,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
         // Instanciate and store every custom action classes
         if (this.options.actions) {
-            this.initCustomActions();
+            this.initCustomActionsClasses();
         }
     }
 
@@ -82,10 +86,11 @@ export class EntityRoute<Entity extends AbstractEntity> {
             const verb = CRUD_ACTIONS[operation].verb;
             const path = this.routeMetadata.path + CRUD_ACTIONS[operation].path;
 
-            const responseMethod = this.responseManager.makeResponseMethod(operation);
-            const mappingMethod = this.responseManager.makeRouteMappingMethod(operation);
+            const requestContextMw = this.responseManager.makeRequestContextMiddleware(operation);
+            const responseMw = this.responseManager.makeResponseMiddleware(operation);
+            const mappingMethod = this.responseManager.makeRouteMappingMiddleware(operation);
 
-            (<any>router)[verb](path, responseMethod);
+            (<any>router)[verb](path, requestContextMw, responseMw);
             (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
@@ -96,26 +101,32 @@ export class EntityRoute<Entity extends AbstractEntity> {
         if (this.options.actions) {
             i = 0;
             for (i; i < this.options.actions.length; i++) {
-                const { verb, path: actionPath, action, class: actionClass, middlewares } = this.options.actions[i];
+                const actionItem = this.options.actions[i];
+                const { operation, verb, path: actionPath, middlewares } = actionItem;
                 const path = this.routeMetadata.path + actionPath;
+                const requestContextMw = this.responseManager.makeRequestContextMiddleware(operation);
+                let customActionMw;
 
-                const method = (action as keyof RouteAction) || "onRequest";
-                const responseMethod = this.customActions[actionClass.name][method];
+                if (isType<IRouteCustomActionItemClass>(actionItem, "class" in actionItem)) {
+                    const { action, class: actionClass } = actionItem;
+                    const method = (action as keyof IRouteAction) || "onRequest";
+                    customActionMw = this.customActions[actionClass.name][method].bind(
+                        this.customActions[actionClass.name]
+                    );
+                } else {
+                    customActionMw = actionItem.handler;
+                }
 
-                (<any>router)[verb](
-                    path,
-                    ...(middlewares || []),
-                    responseMethod.bind(this.customActions[actionClass.name])
-                );
+                (<any>router)[verb](path, ...(middlewares || []), requestContextMw, customActionMw);
             }
         }
 
         return router;
     }
 
-    private initCustomActions() {
+    private initCustomActionsClasses() {
         this.options.actions.forEach((action) => {
-            if (!this.customActions[action.class.name]) {
+            if ("class" in action && !this.customActions[action.class.name]) {
                 this.customActions[action.class.name] = new action.class({
                     entityRoute: this as any,
                     middlewares: action.middlewares || [],
@@ -137,7 +148,7 @@ export type RouteMetadata = {
 export type RouteFiltersMeta = Record<string, IAbstractFilterConfig>;
 
 export interface IEntityRouteOptions {
-    actions?: IRouteCustomActionItem[];
+    actions?: Array<RouteCustomAction>;
     isMaxDepthEnabledByDefault?: boolean;
     /** Level of depth at which the nesting should stop */
     defaultMaxDepthLvl?: number;

@@ -1,11 +1,12 @@
-import { Column, ManyToOne, ManyToMany, JoinTable, Entity, OneToOne, JoinColumn } from "typeorm";
+import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne } from "typeorm";
 
-import { Groups, Subresource, EntityRoute, SearchFilter } from "@/services/EntityRoute/Decorators";
-import { Visibility } from "./Visibility";
+import { EntityRoute, Groups, SearchFilter, Subresource } from "@/services/EntityRoute/Decorators";
+
 import { AbstractEntity } from "./AbstractEntity";
 import { File } from "./File";
-import { User } from "./User";
 import { Meme } from "./Meme";
+import { User } from "./User";
+import { Visibility } from "./Visibility";
 
 @SearchFilter(["id", { title: "partial" }, "owner", "isCollaborative", "members"])
 @EntityRoute("/banks", ["create", "list", "details", "update", "delete"])
@@ -36,10 +37,13 @@ export class MemeBank extends AbstractEntity {
     @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
     visibility: Visibility;
 
+    @Column({ default: false })
+    isDefault: boolean;
+
     @Groups({
         meme_bank: ["create", "details"],
     })
-    @ManyToOne(() => User, (user) => user.banks)
+    @ManyToOne(() => User, (user) => user.banks, { nullable: false })
     owner: User;
 
     @Groups({

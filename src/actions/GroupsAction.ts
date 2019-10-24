@@ -1,20 +1,30 @@
 import * as Koa from "koa";
-import * as Router from "koa-router";
-import { Connection } from "typeorm";
+import { Connection, getConnection } from "typeorm";
 
-import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
+import { isAuthenticatedMw } from "@/middlewares/isAuthenticated";
+import {
+    IRouteAction, makeRouterFromCustomActions
+} from "@/services/EntityRoute/Actions/RouteAction";
 import { EntityGroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
+import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
-export function useGroupsRoute(connection: Connection, app: Koa) {
-    const router = new Router();
-    const action = new GroupsAction(connection);
-
-    router.get("/groups/:tableName", action.onRequest);
-    app.use(router.routes());
+export function useGroupsRoute() {
+    return makeRouterFromCustomActions([
+        {
+            verb: ROUTE_VERB.GET,
+            path: "/groups/:tableName",
+            middlewares: [isAuthenticatedMw],
+            class: GroupsAction,
+        },
+    ]);
 }
 
-class GroupsAction implements RouteAction {
-    constructor(private connection: Connection) {}
+class GroupsAction implements IRouteAction {
+    private connection: Connection;
+
+    constructor() {
+        this.connection = getConnection();
+    }
 
     public async onRequest(ctx: Koa.Context) {
         try {

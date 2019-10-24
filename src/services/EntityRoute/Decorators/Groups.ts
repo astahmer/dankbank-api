@@ -1,7 +1,6 @@
 import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
-import { PartialRecord } from "@/utils/globalTypes";
-import { GroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/GroupsMetadata";
 import { EntityMetadata } from "typeorm";
+import { GroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/GroupsMetadata";
 
 /**
  * Expose decorated property for each operation for each listed EntityRoute context

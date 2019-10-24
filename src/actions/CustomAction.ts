@@ -1,18 +1,18 @@
-import * as Koa from "koa";
-import * as Router from "koa-router";
+import { Context } from "koa";
 
-import { RouteAction } from "@/services/EntityRoute/Actions/RouteAction";
+import { isAuthenticatedMw } from "@/middlewares/isAuthenticated";
+import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/RouteAction";
+import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
-export function useCustomRoute(app: Koa) {
-    const router = new Router();
-    const action = new CustomAction();
-    router.get("/custom", action.onRequest);
-
-    app.use(router.routes());
-}
-
-export class CustomAction implements RouteAction {
-    public async onRequest(ctx: Koa.Context) {
-        ctx.body = "yes";
-    }
+export function useCustomRoute() {
+    return makeRouterFromCustomActions([
+        {
+            verb: ROUTE_VERB.GET,
+            path: "/custom",
+            middlewares: [isAuthenticatedMw],
+            handler: async (ctx: Context) => {
+                ctx.body = ctx.get("Authorization");
+            },
+        },
+    ]);
 }

@@ -1,7 +1,15 @@
 import * as faker from "faker";
-import { Connection, Repository, getRepository, DeepPartial, QueryRunner } from "typeorm";
+
+import {
+    Connection,
+    DeepPartial,
+    ObjectType,
+    QueryRunner,
+    Repository,
+    getRepository
+} from "typeorm";
+
 import { AbstractEntity } from "../entity/AbstractEntity";
-import { Entity } from "@/utils/globalTypes";
 
 // Make generateBundle an optional method with interface-merging
 export interface AbstractGenerator<T extends AbstractEntity> {
@@ -14,7 +22,7 @@ export abstract class AbstractGenerator<T extends AbstractEntity> {
     protected connection: Connection;
     protected queryRunner: QueryRunner;
 
-    constructor(protected entityClass: Entity<T>, connectionOrQueryRunner?: Connection | QueryRunner) {
+    constructor(protected entityClass: ObjectType<T>, connectionOrQueryRunner?: Connection | QueryRunner) {
         this.entityClass = entityClass;
 
         if (!connectionOrQueryRunner) {

@@ -1,5 +1,5 @@
-import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 import { SelectQueryBuilder } from "typeorm";
+import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 export type AliasList = Record<string, number>;
 
