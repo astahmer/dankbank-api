@@ -1,18 +1,20 @@
 import { Column, Entity } from "typeorm";
 
-import { EntityRoute } from "@/services/EntityRoute/Decorators";
+import { Groups } from "@/services/EntityRoute/Decorators";
 
 import { AbstractEntity } from "./AbstractEntity";
 
-@EntityRoute("/files")
 @Entity()
 export class File extends AbstractEntity {
+    @Groups({ file: "all" })
     @Column()
     originalName: string;
 
+    @Groups({ file: "all" })
     @Column()
     name: string;
 
+    @Groups({ file: "all" })
     @Column()
     size: number;
 }

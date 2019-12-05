@@ -45,7 +45,10 @@ export abstract class AbstractRouteAction<Entity extends AbstractEntity = Abstra
         return ctx.state.queryRunner;
     }
 
-    protected async serializeItem(entity: Entity, operation: GroupsOperation = "details") {
+    protected async serializeItem<Entity extends AbstractEntity = AbstractEntity>(
+        entity: Entity,
+        operation: GroupsOperation = "details"
+    ) {
         const cleaned = this.entityRoute.denormalizer.cleanItem(operation, entity as any);
         const entityInstance: Entity = entity.repository.manager.create(
             entity.getEntityMetadata().targetName,

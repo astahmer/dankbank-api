@@ -28,6 +28,7 @@ export enum STRATEGY_TYPES {
     LESS_THAN_OR_EQUAL = "LESS_THAN_OR_EQUAL",
     GREATER_THAN = "GREATER_THAN",
     GREATER_THAN_OR_EQUAL = "GREATER_THAN_OR_EQUAL",
+    // TODO count strategy for array property ?
 }
 
 export const getDefaultConfig = (options: ISearchFilterOptions): FilterDefaultConfig<ISearchFilterOptions> => ({

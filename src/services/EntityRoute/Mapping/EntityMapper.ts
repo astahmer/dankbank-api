@@ -1,37 +1,51 @@
+import { path, pluck } from "ramda";
 import { EntityMetadata } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
-import { AbstractEntity } from "@/entity/AbstractEntity";
 import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 import { MaxDeptMetas } from "@/services/EntityRoute/Decorators/MaxDepth";
 
-import { EntityRoute, getRouteSubresourcesMetadata } from "../EntityRoute";
+import { getRouteSubresourcesMetadata, IEntityRouteOptions } from "../EntityRoute";
 import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
-import { GroupsMetaByRoutes, GroupsMetadata } from "../GroupsMetadata/GroupsMetadata";
-import { MappingItem, MappingMaker } from "./MappingMaker";
+import {
+    ENTITY_META_SYMBOL, GroupsMetaByRoutes, GroupsMetadata
+} from "../GroupsMetadata/GroupsMetadata";
 
-export class EntityMapper<Entity extends AbstractEntity> {
+export type MappingItem = {
+    mapping: MappingResponse;
+    exposedProps: string[];
+    selectProps: string[];
+    relationProps: string[];
+    [ENTITY_META_SYMBOL]: EntityMetadata;
+};
+
+export type MappingResponse = Record<string, MappingItem>;
+
+type EntityMapperOptions = Pick<IEntityRouteOptions, "defaultMaxDepthLvl" | "isMaxDepthEnabledByDefault">;
+
+// TODO Route /x/mapping = output graphQL like : { name, xxx, yyy { zzz } }
+// TODO Route /routes to get a pretty json with all routes for each entities (to be used as front config)
+export class EntityMapper {
     private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
-    private maker: MappingMaker<Entity>;
 
-    constructor(private entityRoute: EntityRoute<Entity>) {
-        this.maker = new MappingMaker(this as any) as any;
+    constructor(private metadata: EntityMetadata, private options: EntityMapperOptions) {}
+
+    /** Make the mapping object for this entity on a given operation */
+    public make(operation: RouteOperation, pretty?: boolean): MappingItem | any {
+        const mapping = this.getMappingFor({}, operation, this.metadata, "", this.metadata.tableName);
+        return pretty ? this.prettify(mapping) : mapping;
     }
 
-    get metadata() {
-        return this.entityRoute.repository.metadata;
-    }
-    get options() {
-        return this.entityRoute.options;
-    }
-
-    public make(operation: RouteOperation) {
-        return this.maker.make(operation);
-    }
-
-    public getNestedMappingAt(currentPath: string | string[], mapping: MappingItem) {
-        return this.maker.getNestedMappingAt(currentPath, mapping);
+    /**
+     * Retrieve mapping at current path
+     *
+     * @param currentPath dot delimited path to keep track of the properties select nesting
+     */
+    public getNestedMappingAt(currentPath: string | string[], mapping: MappingItem): MappingItem {
+        currentPath = Array.isArray(currentPath) ? currentPath : currentPath.split(".");
+        const currentPathArray = ["mapping"].concat(currentPath.join(".mapping.").split("."));
+        return path(currentPathArray, mapping);
     }
 
     /** Get selects props (from groups) of a given entity for a specific operation */
@@ -138,11 +152,117 @@ export class EntityMapper<Entity extends AbstractEntity> {
         return null;
     }
 
+    public isPropSimple(entityMetadata: EntityMetadata, propName: string) {
+        const column = entityMetadata.findColumnWithPropertyName(propName);
+        if (column) {
+            const type = column.type.toString();
+            return column.type.toString().includes("simple") || type === "set";
+        }
+    }
+
     /** Retrieve & store entity maxDepthMeta for each entity */
     private getMaxDepthMetaFor(entityMetadata: EntityMetadata) {
         if (!this.maxDepthMetas[entityMetadata.tableName]) {
             this.maxDepthMetas[entityMetadata.tableName] = Reflect.getOwnMetadata("maxDepth", entityMetadata.target);
         }
         return this.maxDepthMetas[entityMetadata.tableName];
+    }
+
+    /**
+     * Retrieve & set mapping from exposed/relations props of an entity
+     *
+     * @param mapping object that will be recursively written into
+     * @param operation
+     * @param entityMetadata
+     * @param currentPath keep track of current mapping path
+     * @param currentTableNamePath used to check max depth
+     */
+    private getMappingFor(
+        mapping: MappingResponse,
+        operation: RouteOperation,
+        entityMetadata: EntityMetadata,
+        currentPath: string,
+        currentTableNamePath: string
+    ) {
+        const selectProps = this.getSelectProps(operation, entityMetadata, false);
+        const relationProps = this.getRelationPropsMetas(operation, entityMetadata);
+
+        const nestedMapping: MappingItem = {
+            selectProps,
+            relationProps: pluck("propertyName", relationProps),
+            exposedProps: selectProps.concat(pluck("propertyName", relationProps)),
+            [ENTITY_META_SYMBOL]: entityMetadata,
+            mapping: {},
+        };
+
+        for (let i = 0; i < relationProps.length; i++) {
+            const circularProp = this.isRelationPropCircular(
+                currentTableNamePath,
+                relationProps[i].entityMetadata,
+                relationProps[i]
+            );
+            if (circularProp) {
+                continue;
+            }
+
+            nestedMapping.mapping[relationProps[i].propertyName] = this.getMappingFor(
+                mapping,
+                operation,
+                relationProps[i].inverseEntityMetadata,
+                currentPath + "." + relationProps[i].propertyName,
+                currentTableNamePath + "." + relationProps[i].inverseEntityMetadata.tableName
+            );
+        }
+
+        return nestedMapping;
+    }
+
+    /** Returns a pretty GraphQL-like (?deep) object with each property as key and type as value */
+    private prettify(mapping: MappingItem) {
+        const prettifyPrimitives = (acc: Record<string, string>, propName: string) => {
+            const column = mapping[ENTITY_META_SYMBOL].findColumnWithPropertyName(propName);
+            acc[propName] = column.type instanceof Function ? column.type.name : column.type.toString();
+            return acc;
+        };
+
+        // Make pairs of primitive select props with their associated type
+        // ex: { title: "String", description: "String", "isMultipartMeme": "Boolean", "visibility": "enum" }
+        const primitives = mapping.selectProps.reduce(prettifyPrimitives, {});
+
+        // Recursively make pairs of selects props & associate relation when max depth is reached with "@id" or "@id[]"
+        const relations = mapping.relationProps.reduce(
+            (acc, relationName) => {
+                if (Object.keys(mapping.mapping).length) {
+                    const nestedMapping = mapping.mapping[relationName];
+                    if (nestedMapping.exposedProps.length === 1 && nestedMapping.exposedProps[0] === "id") {
+                        // If this relation has only exposed its id, then don't bother nesting it like entity: { id: "number "}
+                        // Instead, directly associate relation with "@id" or "@id[]"
+                        const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(relationName);
+                        acc[relationName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
+                    } else {
+                        // There are still props to select deeper, recursive prettify at currentPath
+                        const prettyMappingItem = this.prettify(this.getNestedMappingAt(relationName, mapping));
+                        acc[relationName] = prettyMappingItem;
+                    }
+                } else {
+                    const primitives = mapping.selectProps.reduce(prettifyPrimitives, {});
+
+                    // If max depth is reached, then associate relation with "@id" or "@id[]"
+                    const relations = mapping.relationProps.reduce(
+                        (acc, propName) => {
+                            const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(propName);
+                            acc[propName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
+                            return acc;
+                        },
+                        {} as Record<string, any>
+                    );
+                    acc[relationName] = { ...primitives, ...relations };
+                }
+                return acc;
+            },
+            {} as Record<string, any>
+        );
+
+        return { ...primitives, ...relations };
     }
 }

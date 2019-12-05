@@ -1,15 +1,14 @@
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne, OneToMany } from "typeorm";
 
 import { SearchAction } from "@/actions/Meme/SearchAction";
-import { ImageUploadAction } from "@/services/EntityRoute/Actions/ImageUploadAction";
 import {
-    EntityRoute, Groups, PaginationFilter, SearchFilter, Subresource
+    DependsOn, EntityRoute, Groups, PaginationFilter, SearchFilter, Subresource
 } from "@/services/EntityRoute/Decorators";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 import { AbstractEntity } from "./AbstractEntity";
 import { Comment } from "./Comment";
-import { File } from "./File";
+import { Image } from "./Image";
 import { MemeBank } from "./MemeBank";
 import { Tag } from "./Tag";
 import { User } from "./User";
@@ -20,11 +19,6 @@ import { Visibility } from "./Visibility";
 @EntityRoute("/memes", ["create", "list", "details", "update", "delete"], {
     actions: [
         {
-            verb: ROUTE_VERB.POST,
-            path: "/upload",
-            class: ImageUploadAction,
-        },
-        {
             verb: ROUTE_VERB.GET,
             path: "/search",
             class: SearchAction,
@@ -33,18 +27,6 @@ import { Visibility } from "./Visibility";
 })
 @Entity()
 export class Meme extends AbstractEntity {
-    @Groups({
-        meme: "all",
-    })
-    @Column()
-    title: string;
-
-    @Groups({
-        meme: ["create", "details", "update"],
-    })
-    @Column({ nullable: true })
-    description: string;
-
     @Groups({
         meme: ["create", "list", "details", "update"],
     })
@@ -72,15 +54,9 @@ export class Meme extends AbstractEntity {
     @Groups({
         meme: ["create", "list", "details", "update"],
     })
-    @Column()
-    isMultipartMeme: boolean;
-
-    @Groups({
-        meme: ["create", "list", "details", "update"],
-    })
-    @ManyToMany(() => File, { cascade: true })
+    @ManyToMany(() => Image, { cascade: true })
     @JoinTable()
-    pictures: File[];
+    pictures: Image[];
 
     @Groups({
         meme: ["create", "list", "details", "update"],
@@ -103,4 +79,10 @@ export class Meme extends AbstractEntity {
     })
     @Column({ type: "enum", enum: Visibility, default: Visibility.PUBLIC })
     visibility: Visibility;
+
+    @DependsOn(["pictures.id"])
+    @Groups({ meme: ["list", "details"] })
+    isMultipartMeme() {
+        return this.pictures.length > 1;
+    }
 }

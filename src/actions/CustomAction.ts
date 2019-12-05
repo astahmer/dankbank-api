@@ -1,7 +1,7 @@
 import { Context } from "koa";
 
 import { isAuthenticatedMw } from "@/middlewares/isAuthenticated";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/RouteAction";
+import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 export function useCustomRoute() {

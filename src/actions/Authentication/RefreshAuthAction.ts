@@ -3,7 +3,7 @@ import { getManager } from "typeorm";
 
 import { ACCESS_TOKEN_DURATION } from "@/config/jwt";
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/RouteAction";
+import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid, makeToken } from "@/services/JWT";
 

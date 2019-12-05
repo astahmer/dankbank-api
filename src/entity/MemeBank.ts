@@ -3,7 +3,7 @@ import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne 
 import { EntityRoute, Groups, SearchFilter, Subresource } from "@/services/EntityRoute/Decorators";
 
 import { AbstractEntity } from "./AbstractEntity";
-import { File } from "./File";
+import { Image } from "./Image";
 import { Meme } from "./Meme";
 import { User } from "./User";
 import { Visibility } from "./Visibility";
@@ -27,9 +27,9 @@ export class MemeBank extends AbstractEntity {
     @Groups({
         meme_bank: ["create", "list", "details", "update"],
     })
-    @OneToOne(() => File)
+    @OneToOne(() => Image)
     @JoinColumn()
-    coverPicture: File;
+    coverPicture: Image;
 
     @Groups({
         meme_bank: ["create", "details", "update"],

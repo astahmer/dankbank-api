@@ -1,28 +1,27 @@
 import Router = require("koa-router");
-import { SelectQueryBuilder } from "typeorm";
+import { Repository, SelectQueryBuilder } from "typeorm";
 import { RelationMetadata } from "typeorm/metadata/RelationMetadata";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 
 import { entityRoutesContainer } from "./";
-import { EntityRoute, getRouteSubresourcesMetadata } from "./EntityRoute";
+import { getRouteSubresourcesMetadata, RouteMetadata } from "./EntityRoute";
 import { CRUD_ACTIONS } from "./ResponseManager";
+import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 
 export class SubresourceManager<Entity extends AbstractEntity> {
     private subresourcesMeta: RouteSubresourcesMeta<Entity>;
 
-    get metadata() {
-        return this.entityRoute.repository.metadata;
-    }
-    get routeMetadata() {
-        return this.entityRoute.routeMetadata;
-    }
-    get aliasManager() {
-        return this.entityRoute.aliasManager;
+    constructor(
+        private repository: Repository<Entity>,
+        private routeMetadata: RouteMetadata,
+        private aliasManager: QueryAliasManager
+    ) {
+        this.subresourcesMeta = getRouteSubresourcesMetadata(repository.metadata.target as Function);
     }
 
-    constructor(private entityRoute: EntityRoute<Entity>) {
-        this.subresourcesMeta = getRouteSubresourcesMetadata(entityRoute.repository.metadata.target as Function);
+    get metadata() {
+        return this.repository.metadata;
     }
 
     /** Recursively add subresources routes for this entity */

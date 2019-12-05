@@ -7,7 +7,7 @@ import {
 import { Subresource } from "@/services/EntityRoute/Decorators/Subresource";
 
 import { AbstractEntity } from "./AbstractEntity";
-import { File } from "./File";
+import { Image } from "./Image";
 import { MemeBank } from "./MemeBank";
 import { Visibility } from "./Visibility";
 
@@ -49,9 +49,9 @@ export class User extends AbstractEntity {
     @Groups({
         user: ["create", "details", "update"],
     })
-    @OneToOne(() => File)
+    @OneToOne(() => Image)
     @JoinColumn()
-    profilePicture: File;
+    profilePicture: Image;
 
     @Column({ unique: true, nullable: true })
     twitterId: string;

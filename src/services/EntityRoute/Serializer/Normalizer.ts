@@ -7,31 +7,22 @@ import {
     ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation
 } from "@/services/EntityRoute/Decorators/Groups";
 
-import { EntityRoute } from "../EntityRoute";
+import { IEntityRouteOptions } from "../EntityRoute";
+import { EntityMapper } from "../Mapping/EntityMapper";
 import { lowerFirstLetter, sortObjectByKeys } from "../utils";
+import { QueryAliasManager } from "./QueryAliasManager";
 
-export class Normalizer<Entity extends AbstractEntity> {
-    constructor(private entityRoute: EntityRoute<Entity>) {}
-
-    get repository() {
-        return this.entityRoute.repository;
-    }
-
-    get metadata() {
-        return this.repository.metadata;
-    }
-
-    get mapper() {
-        return this.entityRoute.mapper;
-    }
-
-    get aliasManager() {
-        return this.entityRoute.aliasManager;
-    }
-
-    get options() {
-        return this.entityRoute.options;
-    }
+type NormalizerOptions = Pick<
+    IEntityRouteOptions,
+    "shouldMaxDepthReturnRelationPropsId" | "shouldEntityWithOnlyIdBeFlattenedToIri"
+>;
+export class Normalizer {
+    constructor(
+        private metadata: EntityMetadata,
+        private mapper: EntityMapper,
+        private aliasManager: QueryAliasManager,
+        private options: NormalizerOptions
+    ) {}
 
     /** Retrieve collection of entities with only exposed props (from groups) */
     public async getCollection<Entity extends AbstractEntity>(
@@ -131,16 +122,25 @@ export class Normalizer<Entity extends AbstractEntity> {
         operation: RouteOperation
     ): Promise<Entity> {
         let key, prop, entityMetadata;
-        entityMetadata = getRepository(item.constructor.name).metadata;
+        try {
+            const repository = getRepository(item.constructor.name);
+            entityMetadata = repository.metadata;
+        } catch (error) {
+            return item;
+        }
 
         for (key in item) {
             prop = item[key as keyof Entity];
-            if (Array.isArray(prop)) {
+            if (Array.isArray(prop) && !this.mapper.isPropSimple(entityMetadata, key)) {
                 const propArray = prop.map((nestedItem) => this.recursiveFormatItem(nestedItem, operation));
                 item[key as keyof Entity] = (await Promise.all(propArray)) as any;
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
                 item[key as keyof Entity] = await this.recursiveFormatItem(prop as any, operation);
-            } else if (!isPrimitive(prop) && !(prop instanceof Date)) {
+            } else if (
+                !isPrimitive(prop) &&
+                !(prop instanceof Date) &&
+                !this.mapper.isPropSimple(entityMetadata, key)
+            ) {
                 delete item[key as keyof Entity];
             }
         }

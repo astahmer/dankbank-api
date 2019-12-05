@@ -1,62 +1,87 @@
 import { Context } from "koa";
-import { EntityManager, getManager } from "typeorm";
 
-import { DIR_PATH, diskStorage, imageFilter } from "@/config/storage";
-import { File } from "@/entity/File";
-import { BASE_URL } from "@/main";
+import { diskStorage, imageFilter } from "@/config/storage";
+import { Image } from "@/entity/Image";
 import {
     AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/RouteAction";
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { logger } from "@/services/logger";
 
+import { ImageManager } from "../ImageManager";
+import { getRandomString } from "../utils";
 
-
-import path = require("path");
-import fs = require("fs");
 import multer = require("@koa/multer");
-import sharp = require("sharp");
-
-export function getImageLocalLink(name: string) {
-    return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
-}
-
-export function getImageURL(name: string) {
-    return BASE_URL + "/public/" + name;
-}
-
-export const imgUploadMiddleware = multer({ storage: diskStorage, fileFilter: imageFilter }).single("image");
+export const imgUploadMiddleware = (fieldName: string) => async (ctx: Context, next: any) => {
+    try {
+        await multer({ storage: diskStorage, fileFilter: imageFilter }).single(fieldName)(ctx, next);
+    } catch (error) {
+        ctx.throw(400);
+    }
+};
 
 export class ImageUploadAction extends AbstractRouteAction {
-    private entityManager: EntityManager;
+    private imageManager: ImageManager<Image>;
 
     constructor(routeContext: RouteActionConstructorArgs) {
         super(routeContext);
 
-        this.middlewares.push(imgUploadMiddleware);
-        this.entityManager = getManager();
+        this.imageManager = new ImageManager(Image.name);
     }
 
     public async onRequest(ctx: Context) {
-        const req = <multer.MulterIncomingMessage>ctx.req;
-        const filePath = path.parse(req.file.filename);
-        const fileName = filePath.name.replace(/\s/g, "_") + "_" + Date.now() + filePath.ext;
+        const tmpFile = ctx.file as multer.MulterIncomingMessage["file"];
+        const identifier = getRandomString();
 
-        // Resize uploaded file
-        const resized = await sharp(req.file.path)
-            .resize(500, null, { fit: "inside" })
-            .jpeg({ quality: 50 })
-            .toFile(path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, fileName));
+        try {
+            const [fileName, size, qualities] = await this.imageManager.resize(tmpFile.path, identifier);
+            const file = await this.imageManager.save({
+                originalName: tmpFile.originalname,
+                name: fileName,
+                size,
+                qualities,
+            });
 
-        // Removes tmp file
-        fs.unlink(req.file.path, (err) => {
-            if (err) console.log(err);
-        });
+            ctx.body = file;
+        } catch (error) {
+            logger.error(error);
+            ctx.throw(400);
+        }
+    }
 
-        const result = await this.entityManager.getRepository(File).save({
-            originalName: req.file.originalname,
-            name: fileName,
-            size: resized.size,
-        });
+    public async crop(ctx: Context) {
+        const fileId = parseInt(ctx.request.body.id);
+        const croppedId = parseInt(ctx.request.body.croppedId);
+        const cropData = ctx.request.body.cropData;
 
-        ctx.body = this.serializeItem(result);
+        if (!fileId || !cropData) {
+            ctx.throw(400);
+        }
+
+        try {
+            const foundFile = await this.imageManager.find(fileId);
+            const [name, size, qualities] = await this.imageManager.crop(
+                foundFile.name,
+                cropData,
+                foundFile.qualities,
+                croppedId
+            );
+            const roundedCropData = this.imageManager.roundCropData(cropData);
+            const file = await this.imageManager.save(
+                {
+                    originalName: foundFile.originalName,
+                    name,
+                    size,
+                    qualities,
+                    cropData: roundedCropData,
+                    parent: fileId as any,
+                },
+                croppedId
+            );
+
+            ctx.body = file;
+        } catch (error) {
+            logger.error(error);
+            ctx.throw(400);
+        }
     }
 }

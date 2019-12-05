@@ -87,7 +87,7 @@ build: # Build docker image
 	docker-compose build
 
 logs: ## Show & follow koa container logs
-	docker logs -f $(PROJECT_NAME)-$(COMMAND_ARGS)
+	docker logs --tail=50 -f $(PROJECT_NAME)-$(COMMAND_ARGS)
 
 term: ## Enter in container terminal as root
 	docker-compose exec -u root $(COMMAND_ARGS) /bin/sh

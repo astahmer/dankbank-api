@@ -6,7 +6,7 @@ import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import {
     AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/RouteAction";
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { limit } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
@@ -42,10 +42,10 @@ export class SearchAction extends AbstractRouteAction {
             bool: {
                 must: [
                     {
-                        multi_match: {
-                            query: queriedValue,
-                            type: "phrase_prefix",
-                            fields: ["title^3", "tags^2", "description"],
+                        match_phrase_prefix: {
+                            tags: {
+                                query: queriedValue,
+                            },
                         },
                     },
                 ],
