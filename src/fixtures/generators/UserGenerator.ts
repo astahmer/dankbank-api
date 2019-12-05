@@ -5,7 +5,7 @@ import { Visibility } from "@/entity/Visibility";
 import { logger } from "@/services/logger";
 
 import { AbstractGenerator } from "../AbstractGenerator";
-import { FileGenerator } from "./FileGenerator";
+import { ImageGenerator } from "./ImageGenerator";
 import { MemeBankGenerator } from "./MemeBankGenerator";
 
 export class UserGenerator extends AbstractGenerator<User> {
@@ -23,22 +23,14 @@ export class UserGenerator extends AbstractGenerator<User> {
 
     async generateBundle() {
         const bankGen = new MemeBankGenerator(this.queryRunner);
-        const fileGen = new FileGenerator(this.queryRunner);
+        const imageGen = new ImageGenerator(this.queryRunner);
 
         const user = await this.generate();
-        const profilePicture = fileGen.generate();
-
-        const favorites = bankGen.generate({
-            owner: user,
-            title: "Favorites",
-            description: "Memes marked as favorites.",
-            visibility: Visibility.PRIVATE,
-        });
+        const profilePicture = imageGen.generate();
 
         const banks = bankGen.makeBundles({ ownerId: user.id }, 3);
 
         user.profilePicture = await profilePicture;
-        user.favorites = await favorites;
 
         // Waiting for MemeBanks to be generated & user to save relations
         await Promise.all([banks, this.repository.save(user)]);

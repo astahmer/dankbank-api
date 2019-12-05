@@ -4,7 +4,7 @@ import { Connection, getConnection, getRepository, ObjectType, Repository } from
 import { AbstractEntity } from "@/entity/AbstractEntity";
 
 import { entityRoutesContainer } from "./";
-import { IRouteAction } from "./Actions/RouteAction";
+import { IRouteAction } from "./Actions/AbstractRouteAction";
 import { RouteOperation } from "./Decorators/Groups";
 import { IAbstractFilterConfig } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
@@ -44,29 +44,47 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
     // Managers/services
     public readonly connection: Connection;
-    public readonly mapper: EntityMapper<Entity>;
+    public readonly mapper: EntityMapper;
     public readonly aliasManager: QueryAliasManager;
-    public readonly normalizer: Normalizer<Entity>;
+    public readonly normalizer: Normalizer;
     public readonly denormalizer: Denormalizer<Entity>;
     public readonly subresourceManager: SubresourceManager<Entity>;
     public readonly responseManager: ResponseManager<Entity>;
 
     constructor(entity: ObjectType<Entity>, globalOptions: IEntityRouteOptions = {}) {
         // Entity Route specifics
-        this.repository = getRepository(entity) as any;
+        this.repository = getRepository(entity);
         this.routeMetadata = getRouteMetadata(entity);
         this.options = { ...globalOptions, ...this.routeMetadata.options };
 
         // Managers/services
         this.connection = getConnection();
-        this.mapper = new EntityMapper<Entity>(this);
+        this.mapper = new EntityMapper(this.repository.metadata, {
+            defaultMaxDepthLvl: this.options.defaultMaxDepthLvl,
+            isMaxDepthEnabledByDefault: this.options.isMaxDepthEnabledByDefault,
+        });
         this.aliasManager = new QueryAliasManager();
-        this.normalizer = new Normalizer<Entity>(this);
-        this.denormalizer = new Denormalizer(this as any) as any;
-        this.subresourceManager = new SubresourceManager<Entity>(this as any);
-        this.responseManager = new ResponseManager<Entity>(this as any);
+        this.normalizer = new Normalizer(this.repository.metadata, this.mapper, this.aliasManager, {
+            shouldEntityWithOnlyIdBeFlattenedToIri: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
+            shouldMaxDepthReturnRelationPropsId: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
+        });
+        this.denormalizer = new Denormalizer(this.repository, this.mapper);
+        this.subresourceManager = new SubresourceManager<Entity>(
+            this.repository,
+            this.routeMetadata,
+            this.aliasManager
+        );
+        this.responseManager = new ResponseManager<Entity>(
+            this.connection,
+            this.repository,
+            this.subresourceManager,
+            this.aliasManager,
+            this.denormalizer,
+            this.normalizer,
+            this.mapper
+        );
 
-        // Add this EntityRoute to the list (used by subresources)
+        // Add this EntityRoute to the list (used by subresources/custom actions/services)
         entityRoutesContainer[entity.name] = this as any;
 
         // Instanciate and store every custom action classes

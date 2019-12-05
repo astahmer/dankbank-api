@@ -1,3 +1,5 @@
+set $chunkHeaders "x-chunk-id,x-chunks-total,x-content-id,x-content-length,x-content-name";
+set $allowedHeaders "DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version";
 set $cors "";
 
 if ($http_origin ~* (^https?://([^/]+\.)*(localhost|(dankbank\.(com|lol))$))) {
@@ -33,7 +35,7 @@ if ($cors = 'true_OPTIONS') {
     #
     # Custom headers and headers various browsers *should* be OK with but aren't
     #
-    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Allow-Headers' '$chunkHeaders,$allowedHeaders';
     add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
 
     #
@@ -47,26 +49,32 @@ if ($cors = 'true_OPTIONS') {
 if ($cors = 'true_POST') {
     add_header 'Access-Control-Allow-Origin' "$http_origin" always;
     add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
-    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Allow-Headers' '$chunkHeaders,$allowedHeaders';
     add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
 }
 if ($cors = 'true_GET') {
     add_header 'Access-Control-Allow-Origin' "$http_origin" always;
     add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
-    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Allow-Headers' '$allowedHeaders';
     add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
 }
 
 if ($cors = 'true_PUT') {
     add_header 'Access-Control-Allow-Origin' "$http_origin" always;
     add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
-    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Allow-Headers' '$allowedHeaders';
     add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
 }
 
 if ($cors = 'true_DELETE') {
     add_header 'Access-Control-Allow-Origin' "$http_origin" always;
     add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, DELETE, PUT';
-    add_header 'Access-Control-Allow-Headers' 'DNT,authorization,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Cache-Version';
+    add_header 'Access-Control-Allow-Headers' '$allowedHeaders';
     add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range,Cache-Version';
+}
+
+location /public/ {
+    alias /var/www/html/public/;
+    add_header 'Access-Control-Allow-Origin' '*';
+    add_header 'Access-Control-Allow-Methods' 'GET';
 }

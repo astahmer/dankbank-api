@@ -1,56 +1,41 @@
 import { Middleware } from "koa";
-import { DeleteResult, QueryRunner, SelectQueryBuilder } from "typeorm";
+import { Connection, DeleteResult, QueryRunner, Repository, SelectQueryBuilder } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 
-import { RouteActionClass } from "./Actions/RouteAction";
+import { RouteActionClass } from "./Actions/AbstractRouteAction";
 import { RouteOperation } from "./Decorators/Groups";
-import { EntityRoute, getRouteFiltersMeta, RouteFiltersMeta } from "./EntityRoute";
+import { getRouteFiltersMeta, RouteFiltersMeta } from "./EntityRoute";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
-import { ErrorMappingItem } from "./Serializer/Denormalizer";
-import { SubresourceRelation } from "./SubresourceManager";
+import { EntityMapper } from "./Mapping/EntityMapper";
+import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
+import { Normalizer } from "./Serializer/Normalizer";
+import { QueryAliasManager } from "./Serializer/QueryAliasManager";
+import { SubresourceManager, SubresourceRelation } from "./SubresourceManager";
 import { isType } from "./utils";
 
 export class ResponseManager<Entity extends AbstractEntity> {
     private filtersMeta: RouteFiltersMeta;
 
-    get connection() {
-        return this.entityRoute.connection;
-    }
-    get repository() {
-        return this.entityRoute.repository;
-    }
-    get metadata() {
-        return this.entityRoute.repository.metadata;
-    }
-    get routeMetadata() {
-        return this.entityRoute.routeMetadata;
-    }
-    get subresourceManager() {
-        return this.entityRoute.subresourceManager;
-    }
-    get aliasManager() {
-        return this.entityRoute.aliasManager;
-    }
-    get denormalizer() {
-        return this.entityRoute.denormalizer;
-    }
-    get normalizer() {
-        return this.entityRoute.normalizer;
-    }
-    get mapper() {
-        return this.entityRoute.mapper;
-    }
-    get customActions() {
-        return this.entityRoute.customActions;
-    }
-    get filters() {
-        return Object.values(this.filtersMeta);
+    constructor(
+        private connection: Connection,
+        private repository: Repository<Entity>,
+        private subresourceManager: SubresourceManager<Entity>,
+        private aliasManager: QueryAliasManager,
+        private denormalizer: Denormalizer<Entity>,
+        private normalizer: Normalizer,
+        private mapper: EntityMapper
+    ) {
+        this.filtersMeta = getRouteFiltersMeta(repository.metadata.target as Function);
     }
 
-    constructor(private entityRoute: EntityRoute<Entity>) {
-        this.filtersMeta = getRouteFiltersMeta(entityRoute.repository.metadata.target as Function);
+    get metadata() {
+        return this.repository.metadata;
+    }
+
+    get filters() {
+        return Object.values(this.filtersMeta);
     }
 
     public async create({ operation, values, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
@@ -207,30 +192,32 @@ export class ResponseManager<Entity extends AbstractEntity> {
     /** Returns the method of a mapping route on a given operation for this entity */
     public makeRouteMappingMiddleware(operation: RouteOperation): Middleware {
         return async (ctx, next) => {
+            const pretty = ctx.query.pretty;
             ctx.body = {
                 context: {
                     operation: operation + ".mapping",
                     entity: this.metadata.tableName,
                 },
-                routeMapping: this.mapper.make(operation),
+                routeMapping: this.mapper.make(operation, pretty),
             };
             next();
         };
     }
 
     /** Creates a new instance of a given Filter */
-    private getFilter<Filter extends AbstractFilter>(config: IAbstractFilterConfig): Filter {
+    private makeFilter<Filter extends AbstractFilter>(config: IAbstractFilterConfig): Filter {
         return new config.class({
             config,
-            entityMetadata: this.metadata as any,
-            normalizer: this.normalizer as any,
+            entityMetadata: this.metadata,
+            normalizer: this.normalizer,
+            aliasManager: this.aliasManager,
         });
     }
 
     /** Apply every registered filters on this route */
     private applyFilters(queryParams: QueryParams, qb: SelectQueryBuilder<Entity>) {
         this.filters.forEach((filterOptions) => {
-            this.getFilter(filterOptions).apply({ queryParams, qb, whereExp: qb });
+            this.makeFilter(filterOptions).apply({ queryParams, qb, whereExp: qb });
         });
     }
 }

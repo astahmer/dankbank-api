@@ -2,7 +2,7 @@ import { Context } from "koa";
 import { getManager } from "typeorm";
 
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/RouteAction";
+import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid } from "@/services/JWT";
 

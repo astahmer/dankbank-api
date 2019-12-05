@@ -5,7 +5,7 @@ import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager, SuggestResponse } from "@/services/ElasticSearch/ESManager";
 import {
     AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/RouteAction";
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { limit } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";

@@ -1,29 +1,20 @@
 import { validate, ValidationError, ValidatorOptions } from "class-validator";
-import { DeepPartial, QueryRunner } from "typeorm";
+import { DeepPartial, QueryRunner, Repository } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
-import { EntityRoute } from "../EntityRoute";
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
-import { MappingItem } from "../Mapping/MappingMaker";
+import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
 import { formatEntityId } from "../utils";
 
 export class Denormalizer<Entity extends AbstractEntity> {
-    constructor(private entityRoute: EntityRoute<Entity>) {}
-
-    get repository() {
-        return this.entityRoute.repository;
-    }
+    constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
 
     get metadata() {
         return this.repository.metadata;
-    }
-
-    get mapper() {
-        return this.entityRoute.mapper;
     }
 
     /** Method used when making a POST request */
@@ -82,6 +73,14 @@ export class Denormalizer<Entity extends AbstractEntity> {
     ): QueryDeepPartialEntity<Entity> {
         let key: string, prop, mapping, nestedMapping;
 
+        // If item is an iri/id (coming from an array), just return it in object with proper id
+        if (isPrimitive(item)) {
+            mapping = this.mapper.getNestedMappingAt(currentPath, routeMapping);
+            return mapping && mapping.exposedProps.length === 1 && mapping.exposedProps[0] === "id"
+                ? { id: formatEntityId(item) }
+                : clone;
+        }
+
         for (key in item) {
             prop = item[key];
             mapping = currentPath.length ? this.mapper.getNestedMappingAt(currentPath, routeMapping) : routeMapping;
@@ -91,13 +90,19 @@ export class Denormalizer<Entity extends AbstractEntity> {
             }
 
             if (Array.isArray(prop)) {
-                clone[key] = prop.map((nestedItem) =>
-                    this.recursiveClean(nestedItem, {}, currentPath.concat(key), routeMapping)
-                );
+                if (!this.mapper.isPropSimple(mapping[ENTITY_META_SYMBOL], key)) {
+                    clone[key] = prop.map((nestedItem) =>
+                        this.recursiveClean(nestedItem, {}, currentPath.concat(key), routeMapping)
+                    );
+                } else {
+                    clone[key] = prop;
+                }
             } else if (isObject(prop)) {
                 nestedMapping = this.mapper.getNestedMappingAt(currentPath.concat(key), mapping);
                 if (hasAnyNestedPropMapped(nestedMapping)) {
                     clone[key] = this.recursiveClean(prop, {}, currentPath.concat(key), routeMapping);
+                } else if (!nestedMapping && this.mapper.isPropSimple(mapping[ENTITY_META_SYMBOL], key)) {
+                    clone[key] = prop;
                 }
             } else if (isPrimitive(prop)) {
                 const isRelation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(key);

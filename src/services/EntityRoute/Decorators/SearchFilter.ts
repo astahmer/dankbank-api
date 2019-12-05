@@ -22,7 +22,7 @@ export function SearchFilter(options?: ISearchFilterOptions): ClassDecorator;
  * SearchFilter ClassDecorator
  * @example
  * [at]SearchFilter(["id", "banks.id", ["banks.coverPicture", "STRATEGY_TYPES.EXISTS"]], {
- *      defaultWhereStrategy: STRATEGY_TYPES.STARTS_WIT
+ *      defaultWhereStrategy: STRATEGY_TYPES.STARTS_WITH
  * })
  */
 export function SearchFilter(properties: FilterProperty[], options?: ISearchFilterOptions): ClassDecorator;

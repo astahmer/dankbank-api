@@ -57,3 +57,17 @@ export const chunk = <T = any>(arr: T[], size: number): T[] =>
 export const limit = (nb: number, [min, max]: [number, number]) => {
     return Math.min(Math.max(nb, min), max);
 };
+
+export const getRandomString = () =>
+    Math.random()
+        .toString(36)
+        .substring(2, 15) +
+    Math.random()
+        .toString(36)
+        .substring(2, 15);
+
+export function getRandomInt(min: number, max: number) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}

@@ -19,10 +19,8 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
         return {
             dateCreated: { type: "text" },
             dateUpdated: { type: "text" },
-            title: { type: "text" },
-            description: { type: "text" },
             tags: { type: "text" },
-            tags_suggest: { type: "completion" },
+            tags_suggest: { type: "completion", analyzer: "keyword" },
             upvoteCount: { type: "integer" },
             downvoteCount: { type: "integer" },
             views: { type: "integer" },
@@ -79,7 +77,7 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
             bodyItems.push(this.transformer.transform(items[i]));
         }
 
-        const chunks = chunk(bodyItems, 20000);
+        const chunks = chunk(bodyItems, 10000);
         const promises = chunks.map((body) => this.client.bulk({ body, refresh: "true" }));
         const results = await Promise.all(promises);
 
@@ -142,8 +140,6 @@ export type MemePictureDocument = {
 };
 
 export type MemeDocument = AbstractDocument & {
-    title: string;
-    description: string;
     tags: string[];
     tags_suggest?: string;
     upvoteCount: number;

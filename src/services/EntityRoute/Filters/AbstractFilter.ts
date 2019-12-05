@@ -3,22 +3,24 @@ import { EntityMetadata, SelectQueryBuilder, WhereExpression } from "typeorm";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 import { Normalizer } from "../Serializer/Normalizer";
+import { QueryAliasManager } from "../Serializer/QueryAliasManager";
 import { isDefined } from "../utils";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;
     protected entityMetadata: EntityMetadata;
-    protected normalizer: Normalizer<any>;
+    protected normalizer: Normalizer;
+    protected aliasManager: QueryAliasManager;
 
-    constructor({ config, entityMetadata, normalizer }: AbstractFilterConstructor) {
+    constructor({ config, entityMetadata, normalizer, aliasManager }: AbstractFilterConstructor) {
         this.config = config as IAbstractFilterConfig<FilterOptions>;
         this.entityMetadata = entityMetadata;
         this.normalizer = normalizer;
+        this.aliasManager = aliasManager;
     }
 
-    get aliasManager() {
-        return this.normalizer.aliasManager;
-    }
+    // TODO Implement an interface that forces to have a getDescription method listing every possible filter key
+    // Then use it each route's mapping to describe available filters & how to use them ?
 
     /** Returns every properties of this route entity */
     get entityProperties() {
@@ -93,7 +95,8 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
 export type AbstractFilterConstructor = {
     entityMetadata: EntityMetadata;
     config: IAbstractFilterConfig;
-    normalizer: Normalizer<any>;
+    normalizer: Normalizer;
+    aliasManager: QueryAliasManager;
 };
 
 export type QueryParamValue = string | string[];

@@ -30,7 +30,6 @@ services:
       - phpmyadmin
       - kibana
 
-
   # Only used to install vendors
   vendors:
     build:
@@ -72,21 +71,21 @@ services:
       - api
       - proxy
     depends_on:
-    - nginx-proxy
+      - nginx-proxy
 
   kibana:
-   image: docker.elastic.co/kibana/kibana:7.3.2
-   container_name: ${PROJECT_NAME}-kibana
-   environment:
-    - VIRTUAL_HOST=kibana.${PROJECT_NAME}.lol
-    - SERVER_NAME=kibana.${PROJECT_NAME}.lol
-    - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-   ports:
-    - 9201:5601
-   depends_on:
-    - elasticsearch
-   networks:
-     - proxy
+    image: docker.elastic.co/kibana/kibana:7.3.2
+    container_name: ${PROJECT_NAME}-kibana
+    environment:
+      - VIRTUAL_HOST=kibana.${PROJECT_NAME}.lol
+      - SERVER_NAME=kibana.${PROJECT_NAME}.lol
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - 9201:5601
+    depends_on:
+      - elasticsearch
+    networks:
+      - proxy
 
   nginx-proxy:
     container_name: ${PROJECT_NAME}-nginx-proxy
@@ -101,6 +100,7 @@ services:
       - data-nginx:/etc/nginx/certs:ro
       - ./docker/nginx/vhost.d/default_location:/etc/nginx/vhost.d/default_location
       - /var/run/docker.sock:/tmp/docker.sock:ro
+      - ./public:/var/www/html/public
     networks:
       - proxy
     labels:

@@ -22,11 +22,11 @@ export class Tag extends AbstractEntity {
     @Column()
     tag: string;
 
-    @Groups({ meme: ["create"] })
+    @Groups({ meme: ["list"] })
     @ManyToOne(() => Meme, (meme) => meme.tags)
     meme: Meme;
 
     @Groups({ meme: ["list", "details", "update"] })
-    @Column()
+    @Column({ default: 0 })
     upvoteCount: number;
 }

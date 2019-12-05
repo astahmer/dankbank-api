@@ -4,7 +4,7 @@ import { EntityManager, getManager, Repository } from "typeorm";
 
 import { TWITTER_URLS, TwitterOAuth } from "@/config/twitter";
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/RouteAction";
+import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid, makeAuthTokens } from "@/services/JWT";
 import { logger } from "@/services/logger";
@@ -44,7 +44,7 @@ class TwitterAuthAction {
 
     async onTwitterCallbackSuccess(
         ctx: Context,
-        next: NextFunction,
+        _next: NextFunction,
         { oauth_token, oauth_token_secret, user_id, screen_name }: TwitterSuccessCallbackArgs
     ) {
         this.credentials = { key: oauth_token, secret: oauth_token_secret };
@@ -62,8 +62,8 @@ class TwitterAuthAction {
         } catch (error) {
             // Anonymous user
             try {
-                const user = await this.getUserForTwitterId(user_id, screen_name);
-                const tokens = await makeAuthTokens({ id: user.id, name: user.name });
+                const { id, name, refreshTokenVersion } = await this.getUserForTwitterId(user_id, screen_name);
+                const tokens = await makeAuthTokens({ id, name, refreshTokenVersion });
                 const queryString = `accessToken=${encodeURIComponent(
                     tokens.accessToken
                 )}&refreshToken=${encodeURIComponent(tokens.refreshToken)}`;
@@ -87,7 +87,7 @@ class TwitterAuthAction {
     }
 
     async findUserByTwitterId(twitterId: string) {
-        return this.userRepository.findOne({ select: ["id"], where: { twitterId } });
+        return this.userRepository.findOne({ select: ["id", "refreshTokenVersion"], where: { twitterId } });
     }
 
     async getUserForTwitterId(twitterId: string, name: string) {
@@ -98,7 +98,7 @@ class TwitterAuthAction {
         } catch (error) {
             logger.error("Could not find twitter user with id#", twitterId, "creating a new user");
 
-            const user = this.manager.create(User, { name, twitterId });
+            const user = this.manager.create(User, { name, twitterId, refreshTokenVersion: 0 });
             return await this.manager.save(user);
         }
     }

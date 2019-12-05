@@ -4,7 +4,7 @@ import { Connection, getConnection } from "typeorm";
 import { isAuthenticatedMw } from "@/middlewares/isAuthenticated";
 import {
     IRouteAction, makeRouterFromCustomActions
-} from "@/services/EntityRoute/Actions/RouteAction";
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { EntityGroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 

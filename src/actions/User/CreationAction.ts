@@ -4,7 +4,7 @@ import { Context } from "koa";
 import { User } from "@/entity/User";
 import {
     AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/RouteAction";
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { makeAuthTokens } from "@/services/JWT";
 
@@ -30,7 +30,7 @@ class UserCreationAction extends AbstractRouteAction<User> {
             const serialized = await this.serializeItem(result);
 
             const { id, name } = serialized;
-            const tokens = await makeAuthTokens({ id, name });
+            const tokens = await makeAuthTokens({ id, name, refreshTokenVersion: 0 });
 
             ctx.body = { ...serialized, tokens };
         } catch (error) {

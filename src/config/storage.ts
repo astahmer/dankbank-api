@@ -2,9 +2,54 @@ import path = require("path");
 import fs = require("fs");
 import multer = require("@koa/multer");
 import { IncomingMessage } from "http";
+import { promisify } from "util";
 
-const PUBLIC_UPLOADS_DIR = path.resolve(__dirname, "../public/", "uploads");
-const TEMP_UPLOADS_DIR = path.resolve(__dirname, "../tmp/", "uploads");
+export const stat = promisify(fs.stat);
+export const readFile = promisify(fs.readFile);
+export const writeFile = promisify(fs.writeFile);
+export const unlink = promisify(fs.unlink);
+export const mkdir = async (path: fs.PathLike, mode?: string | number) => {
+    try {
+        promisify(fs.mkdir)(path, mode);
+    } catch (error) {
+        if (error.code === "EEXIST") {
+            // curDir already exists!
+            return;
+        } else {
+            throw error;
+        }
+    }
+};
+
+export const writeStream = (data: any[], path: string, options?: WriteStreamOptions) => {
+    return new Promise((resolve, reject) => {
+        const stream = fs.createWriteStream(path, options);
+        stream.cork();
+
+        let i = 0;
+        for (i; i < data.length; i++) {
+            stream.write(data[i]);
+        }
+
+        stream.on("error", reject);
+        stream.end(resolve);
+    });
+};
+
+export const readStream = (path: string, options?: ReadstreamOptions): Promise<Buffer[]> => {
+    return new Promise((resolve, reject) => {
+        const stream = fs.createReadStream(path, options);
+        const chunks: Buffer[] = [];
+
+        stream.on("data", (chunk) => chunks.push(chunk));
+
+        stream.on("error", reject);
+        stream.on("close", () => resolve(chunks));
+    });
+};
+
+export const PUBLIC_UPLOADS_DIR = path.resolve(__dirname, "../public/", "uploads");
+export const TEMP_UPLOADS_DIR = path.resolve(__dirname, "../tmp/", "uploads");
 
 if (!fs.existsSync(PUBLIC_UPLOADS_DIR)) {
     (fs.mkdirSync as any)(PUBLIC_UPLOADS_DIR, { recursive: true });
@@ -33,3 +78,28 @@ export const imageFilter = function(
 
     callback(null, true);
 };
+
+type WriteStreamOptions =
+    | string
+    | {
+          flags?: string;
+          encoding?: string;
+          fd?: number;
+          mode?: number;
+          autoClose?: boolean;
+          start?: number;
+          highWaterMark?: number;
+      };
+
+type ReadstreamOptions =
+    | string
+    | {
+          flags?: string;
+          encoding?: string;
+          fd?: number;
+          mode?: number;
+          autoClose?: boolean;
+          start?: number;
+          end?: number;
+          highWaterMark?: number;
+      };
