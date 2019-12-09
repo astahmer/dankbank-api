@@ -87,10 +87,10 @@ export class Normalizer {
         const column = entityMetadata.findColumnWithPropertyName(currentProp);
         const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(currentProp);
 
-        // Flat primitive property
+        // Flat primitive property OR enum/simple-json/simple-array
         if (column && !relation) {
             return {
-                entityAlias: prevAlias,
+                entityAlias: prevAlias || entityMetadata.tableName,
                 propName: column.databaseName,
                 columnMeta: column,
             };
@@ -200,6 +200,7 @@ export class Normalizer {
 
             if (!circularProp) {
                 this.joinAndSelectExposedProps(operation, qb, relation.inverseEntityMetadata, newPath, alias);
+                this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, relation.inverseEntityMetadata, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.addSelect(alias + ".id");
             }
@@ -210,7 +211,8 @@ export class Normalizer {
     private joinAndSelectPropsThatComputedPropsDependsOn(
         operation: RouteOperation,
         qb: SelectQueryBuilder<any>,
-        entityMetadata: EntityMetadata
+        entityMetadata: EntityMetadata,
+        alias?: string
     ) {
         const dependsOnMeta = getDependsOnMetadata(entityMetadata.target as Function);
         const computedProps = this.mapper.getComputedProps(operation, entityMetadata).map(getComputedPropMethodAndKey);
@@ -224,7 +226,7 @@ export class Normalizer {
                         propPath,
                         props[0]
                     );
-                    qb.addSelect([entityAlias + "." + propName]);
+                    qb.addSelect([alias || entityAlias + "." + propName]);
                 });
             }
         });
