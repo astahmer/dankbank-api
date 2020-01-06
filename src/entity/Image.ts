@@ -5,7 +5,9 @@ import {
     ImageUploadAction, imgUploadMiddleware
 } from "@/services/EntityRoute/Actions/ImageUploadAction";
 import { DependsOn, EntityRoute, Groups } from "@/services/EntityRoute/Decorators";
-import { CropData, getImageURL, Quality } from "@/services/EntityRoute/ImageManager";
+import {
+    CropData, getImageNameSuffixForQuality, getImageURL, Quality
+} from "@/services/EntityRoute/ImageManager";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 import { AbstractEntity } from "./AbstractEntity";
@@ -33,7 +35,7 @@ import { AbstractEntity } from "./AbstractEntity";
 })
 @Entity()
 export class Image extends AbstractEntity {
-    @Groups({ image: "all" })
+    @Groups({ image: "all", meme: ["details"] })
     @Column()
     originalName: string;
 
@@ -61,6 +63,21 @@ export class Image extends AbstractEntity {
     @Groups({ image: "all" })
     getUrl() {
         return getImageURL(this.name);
+    }
+
+    @DependsOn(["qualities"])
+    @Groups({ image: "all", meme: ["details"] })
+    getQualitiesUrl() {
+        return (
+            this.qualities &&
+            this.qualities.reduce(
+                (acc, item) => {
+                    acc[item] = getImageURL(this.name.replace(".jpg", getImageNameSuffixForQuality(item)));
+                    return acc;
+                },
+                {} as Record<string, string>
+            )
+        );
     }
 
     // TODO Fix normalizer when selecting only computed prop & id

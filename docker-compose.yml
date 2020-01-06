@@ -28,7 +28,7 @@ services:
     depends_on:
       - nginx-proxy
       - phpmyadmin
-      - kibana
+      # - kibana
 
   # Only used to install vendors
   vendors:
