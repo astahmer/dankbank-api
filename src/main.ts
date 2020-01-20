@@ -7,7 +7,7 @@ import { getConnectionToDatabase, makeApp } from "./app";
 import { logger } from "./services/logger";
 
 import Koa = require("koa");
-export const BASE_URL = `http://api.${process.env.PROJECT_NAME}.lol`;
+export const BASE_URL = process.env.API_URL;
 export const isDev = process.env.NODE_ENV !== "production";
 
 declare const module: any;
