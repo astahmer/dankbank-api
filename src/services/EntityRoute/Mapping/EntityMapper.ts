@@ -23,8 +23,6 @@ export type MappingResponse = Record<string, MappingItem>;
 
 type EntityMapperOptions = Pick<IEntityRouteOptions, "defaultMaxDepthLvl" | "isMaxDepthEnabledByDefault">;
 
-// TODO Route /x/mapping = output graphQL like : { name, xxx, yyy { zzz } }
-// TODO Route /routes to get a pretty json with all routes for each entities (to be used as front config)
 export class EntityMapper {
     private groupsMetas: Record<string, GroupsMetaByRoutes<any>> = {};
     private maxDepthMetas: MaxDeptMetas = {};
@@ -152,6 +150,7 @@ export class EntityMapper {
         return null;
     }
 
+    /** Checks that a prop is of type (simple-array | simple-json | set) */
     public isPropSimple(entityMetadata: EntityMetadata, propName: string) {
         const column = entityMetadata.findColumnWithPropertyName(propName);
         if (column) {

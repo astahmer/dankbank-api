@@ -147,6 +147,8 @@ export class Normalizer {
             ) {
                 delete item[key as keyof Entity];
             }
+
+            // TODO Remove properties selected by DependsOn ? options in Route>App ? default = true
         }
 
         if (
