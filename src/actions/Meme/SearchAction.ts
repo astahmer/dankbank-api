@@ -21,10 +21,11 @@ export class SearchAction extends AbstractRouteAction {
     }
 
     public async onRequest(ctx: Context) {
-        const { q, size, excludedIds } = ctx.query;
+        const { q, size, excludedIds, tags } = ctx.query;
         const elasticQuery = this.getElasticQuery(q, {
             size,
             excludedIds: excludedIds ? excludedIds.split(",") : [],
+            tags: tags || [],
         });
         const searchPromise = this.esManager.client.search(elasticQuery);
 
@@ -37,7 +38,7 @@ export class SearchAction extends AbstractRouteAction {
         }
     }
 
-    private getQueryForParams(queriedValue: string, { excludedIds }: SearchQueryOptions) {
+    private getQueryForParams(queriedValue: string, { excludedIds, tags }: SearchQueryOptions) {
         return {
             bool: {
                 must: [
@@ -48,6 +49,13 @@ export class SearchAction extends AbstractRouteAction {
                             },
                         },
                     },
+                    ...tags.map((tag) => ({
+                        match_phrase_prefix: {
+                            tags: {
+                                query: queriedValue,
+                            },
+                        },
+                    })),
                 ],
                 must_not: [
                     {
@@ -60,7 +68,10 @@ export class SearchAction extends AbstractRouteAction {
         };
     }
 
-    private getElasticQuery(queriedValue: string, { size, excludedIds }: SearchQueryOptions): RequestParams.Search {
+    private getElasticQuery(
+        queriedValue: string,
+        { size, excludedIds, tags }: SearchQueryOptions
+    ): RequestParams.Search {
         const limitedSize = size ? limit(size, [1, 100]) : 25;
 
         return {
@@ -69,7 +80,7 @@ export class SearchAction extends AbstractRouteAction {
                 size: limitedSize,
                 query: {
                     function_score: {
-                        query: this.getQueryForParams(queriedValue, { excludedIds }),
+                        query: this.getQueryForParams(queriedValue, { excludedIds, tags }),
                         score_mode: "multiply",
                         boost_mode: "sum",
                         max_boost: 10,
@@ -100,4 +111,4 @@ export class SearchAction extends AbstractRouteAction {
     }
 }
 
-type SearchQueryOptions = { size?: number; excludedIds: string[] };
+type SearchQueryOptions = { size?: number; tags?: string[]; excludedIds: string[] };
