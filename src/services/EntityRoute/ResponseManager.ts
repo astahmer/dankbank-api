@@ -163,7 +163,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
             } = ctx.state;
 
             const method = CRUD_ACTIONS[operation].method;
-            const result = await this[method](params, queryRunner);
+            const result = await this[method]({ operation, ...params }, queryRunner);
 
             let response: IRouteResponse = {
                 "@context": {
