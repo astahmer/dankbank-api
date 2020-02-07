@@ -29,6 +29,10 @@ export class Normalizer {
         qb: SelectQueryBuilder<Entity>,
         operation?: RouteOperation
     ): Promise<[Entity[], number]> {
+        const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
+
+        qb.select(selectProps);
+
         this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
         this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
