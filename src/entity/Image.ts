@@ -4,15 +4,16 @@ import { ChunkUploadAction } from "@/services/EntityRoute/Actions/ChunkUploadAct
 import {
     ImageUploadAction, imgUploadMiddleware
 } from "@/services/EntityRoute/Actions/ImageUploadAction";
-import { DependsOn, EntityRoute, Groups } from "@/services/EntityRoute/Decorators";
+import { DependsOn, EntityRoute, Groups, SearchFilter } from "@/services/EntityRoute/Decorators";
 import {
-    CropData, getImageNameSuffixForQuality, getImageURL, Quality
+    CropData, getImageNameSuffixForQuality, getImageRelativeURL, Quality
 } from "@/services/EntityRoute/ImageManager";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 import { AbstractEntity } from "./AbstractEntity";
 
-@EntityRoute("/images", ["details"], {
+@SearchFilter([], { all: true })
+@EntityRoute("/images", ["list", "details"], {
     actions: [
         {
             verb: ROUTE_VERB.POST,
@@ -35,44 +36,44 @@ import { AbstractEntity } from "./AbstractEntity";
 })
 @Entity()
 export class Image extends AbstractEntity {
-    @Groups({ image: "all", meme: ["details"] })
+    @Groups({ image: ["details"], meme: ["details"] })
     @Column()
     originalName: string;
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     @Column()
     name: string;
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     @Column()
     size: number;
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     @OneToOne(() => Image)
     @JoinColumn()
     parent: Image;
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     @Column({ type: "set", enum: Quality, default: [Quality.ORIGINAL] })
     qualities: Quality[];
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     @Column("simple-json", { nullable: true })
     cropData: CropData;
 
-    @Groups({ image: "all" })
+    @Groups({ image: ["details"] })
     getUrl() {
-        return getImageURL(this.name);
+        return getImageRelativeURL(this.name);
     }
 
-    @DependsOn(["qualities"])
-    @Groups({ image: "all", meme: ["details"] })
+    @DependsOn(["name", "qualities"])
+    @Groups({ image: ["details", "list"], meme: ["details"] })
     getQualitiesUrl() {
         return (
             this.qualities &&
             this.qualities.reduce(
                 (acc, item) => {
-                    acc[item] = getImageURL(this.name.replace(".jpg", getImageNameSuffixForQuality(item)));
+                    acc[item] = getImageRelativeURL(this.name.replace(".jpg", getImageNameSuffixForQuality(item)));
                     return acc;
                 },
                 {} as Record<string, string>
@@ -80,9 +81,8 @@ export class Image extends AbstractEntity {
         );
     }
 
-    // TODO Fix normalizer when selecting only computed prop & id
     @DependsOn(["cropData"])
-    @Groups({ image: "all" })
+    @Groups({ image: ["list"] })
     getRatio() {
         return this.cropData ? this.cropData.width / this.cropData.height : null;
     }
