@@ -67,10 +67,10 @@ class TwitterAuthAction {
                 const queryString = `accessToken=${encodeURIComponent(
                     tokens.accessToken
                 )}&refreshToken=${encodeURIComponent(tokens.refreshToken)}`;
-                ctx.redirect(`${process.env.PUBLIC_URL}/twitter.html?${queryString}`);
+                ctx.redirect(`${process.env.APP_URL}/twitter.html?${queryString}`);
             } catch (error) {
                 const err = error.code === "ER_DUP_ENTRY" ? error.code : "UNKNOWN";
-                ctx.redirect(`${process.env.PUBLIC_URL}/twitter.html?err=${err}`);
+                ctx.redirect(`${process.env.APP_URL}/twitter.html?err=${err}`);
             }
         }
     }
