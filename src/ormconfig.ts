@@ -1,4 +1,6 @@
 export const TypeORMConfig = {
+    username: process.env.TYPEORM_USERNAME,
+    password: process.env.PASSWORD,
     synchronize: true,
     logging: ["query"],
     logger: "file",
