@@ -3,7 +3,6 @@ import { DeepPartial, EntityManager, getManager } from "typeorm";
 import { DIR_PATH, unlink } from "@/config/storage";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Image } from "@/entity/Image";
-import { BASE_URL } from "@/main";
 
 import { logger } from "../logger";
 import { entityRoutesContainer } from "./";
@@ -16,8 +15,8 @@ export function getImageLocalPath(name: string) {
     return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
 }
 
-export function getImageURL(name: string) {
-    return BASE_URL + "/public/uploads/" + name;
+export function getImageRelativeURL(name: string) {
+    return "/public/uploads/" + name;
 }
 
 type ResizeReturn = Promise<[string, number, Quality[]]>;

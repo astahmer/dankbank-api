@@ -1,5 +1,5 @@
 import { Meme } from "@/entity/Meme";
-import { getImageURL } from "@/services/EntityRoute/ImageManager";
+import { getImageRelativeURL } from "@/services/EntityRoute/ImageManager";
 
 import { ITransformer } from "./ITransformer";
 
@@ -8,11 +8,10 @@ export class MemeTransformer implements ITransformer<Meme> {
         const tags = meme.tags.map((tag) => tag.tag);
         const pictures = meme.pictures.map((item) => ({
             iri: item.getIri(),
-            url: getImageURL(item.name),
+            url: getImageRelativeURL(item.name),
             id: item.id,
             originalName: item.originalName,
             name: item.name,
-            size: item.size,
             qualities: item.qualities,
             ratio: item.getRatio(),
         }));
