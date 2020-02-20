@@ -41,7 +41,10 @@ export class ResponseManager<Entity extends AbstractEntity> {
 
     public async create({ operation, values, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
         // Auto-join subresource parent on body values
-        if (subresourceRelation) {
+        if (
+            subresourceRelation &&
+            (subresourceRelation.relation.isOneToOne || subresourceRelation.relation.isManyToOne)
+        ) {
             (values as any)[subresourceRelation.relation.inverseSidePropertyPath] = { id: subresourceRelation.id };
         }
 
@@ -54,6 +57,18 @@ export class ResponseManager<Entity extends AbstractEntity> {
         // Has errors
         if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
             return insertResult;
+        }
+
+        if (
+            subresourceRelation &&
+            (subresourceRelation.relation.isOneToMany || subresourceRelation.relation.isManyToMany)
+        ) {
+            const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+            const qb = repository.createQueryBuilder(this.metadata.tableName);
+            await qb
+                .relation(subresourceRelation.relation.target, subresourceRelation.relation.propertyName)
+                .of(subresourceRelation.id)
+                .add(insertResult);
         }
 
         return this.getDetails({ operation, entityId: insertResult.id }, queryRunner);
