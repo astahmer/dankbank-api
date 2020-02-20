@@ -232,7 +232,13 @@ export class Normalizer {
                         propPath,
                         props[0]
                     );
-                    qb.addSelect([alias || entityAlias + "." + propName]);
+
+                    const selectProp = (alias || entityAlias) + "." + propName;
+                    const isAlredySelected = qb.expressionMap.selects.find((select) => select.selection === selectProp);
+
+                    if (!isAlredySelected) {
+                        qb.addSelect([selectProp]);
+                    }
                 });
             }
         });
