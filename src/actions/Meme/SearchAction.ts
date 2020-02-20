@@ -7,7 +7,7 @@ import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import {
     AbstractRouteAction, RouteActionConstructorArgs
 } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { appendArrayDuplicates } from "@/services/EntityRoute/utils";
+import { appendArrayDuplicates, limit, parseArrayQS } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 
@@ -21,7 +21,8 @@ export class SearchAction extends AbstractRouteAction {
     }
 
     public async onRequest(ctx: Context) {
-        const { q, size, excludedIds, tags } = ctx.query;
+        const { q, size, excludedIds } = ctx.query;
+        const tags = parseArrayQS(ctx.query, "tags") as string[];
         const elasticQuery = this.getElasticQuery(q, {
             size,
             excludedIds: excludedIds ? excludedIds.split(",") : [],
@@ -55,7 +56,7 @@ export class SearchAction extends AbstractRouteAction {
                     ...tags.map((tag) => ({
                         match_phrase_prefix: {
                             tags: {
-                                query: queriedValue,
+                                query: tag,
                             },
                         },
                     })),
@@ -76,6 +77,7 @@ export class SearchAction extends AbstractRouteAction {
         { size, excludedIds, tags }: SearchQueryOptions
     ): RequestParams.Search {
         const limitedSize = size ? limit(size, [1, 100]) : 25;
+        const query = this.getQueryForParams(queriedValue, { excludedIds, tags });
 
         return {
             index: "memes",
@@ -83,7 +85,7 @@ export class SearchAction extends AbstractRouteAction {
                 size: limitedSize,
                 query: {
                     function_score: {
-                        query: this.getQueryForParams(queriedValue, { excludedIds, tags }),
+                        query,
                         score_mode: "multiply",
                         boost_mode: "sum",
                         max_boost: 10,
