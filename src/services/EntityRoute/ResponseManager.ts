@@ -3,6 +3,7 @@ import { Connection, DeleteResult, QueryRunner, Repository, SelectQueryBuilder }
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
+import { isDev } from "@/main";
 
 import { RouteActionClass } from "./Actions/AbstractRouteAction";
 import { RouteOperation } from "./Decorators/Groups";
@@ -42,6 +43,10 @@ export class ResponseManager<Entity extends AbstractEntity> {
         // Auto-join subresource parent on body values
         if (subresourceRelation) {
             (values as any)[subresourceRelation.relation.inverseSidePropertyPath] = { id: subresourceRelation.id };
+        }
+
+        if (!Object.keys(values).length) {
+            return { error: "Body can't be empty on create operation" };
         }
 
         const insertResult = await this.denormalizer.insertItem(values, { operation, queryRunner });
@@ -163,8 +168,6 @@ export class ResponseManager<Entity extends AbstractEntity> {
             } = ctx.state;
 
             const method = CRUD_ACTIONS[operation].method;
-            const result = await this[method]({ operation, ...params }, queryRunner);
-
             let response: IRouteResponse = {
                 "@context": {
                     operation,
@@ -173,16 +176,27 @@ export class ResponseManager<Entity extends AbstractEntity> {
             };
             if (params.isUpdateOrCreate) response["@context"].errors = null;
 
-            if (isType<ErrorMappingItem>(result, "errors" in result)) {
-                response["@context"].errors = result;
-            } else if (isType<CollectionResult<Entity>>(result, operation === "list")) {
-                response["@context"].retrievedItems = result.items.length;
-                response["@context"].totalItems = result.totalItems;
-                response.items = result.items;
-            } else if (isType<DeleteResult>(result, "raw" in result)) {
-                response.deleted = result.affected ? result.raw.insertId : null;
-            } else {
-                response = { ...response, ...result };
+            try {
+                const result = await this[method]({ operation, ...params }, queryRunner);
+
+                if (isType<ErrorMappingItem>(result, "errors" in result)) {
+                    response["@context"].errors = result;
+                    ctx.status = 400;
+                } else if ("error" in result) {
+                    response["@context"].error = result.error;
+                    ctx.status = 400;
+                } else if (isType<CollectionResult<Entity>>(result, operation === "list")) {
+                    response["@context"].retrievedItems = result.items.length;
+                    response["@context"].totalItems = result.totalItems;
+                    response.items = result.items;
+                } else if (isType<DeleteResult>(result, "raw" in result)) {
+                    response.deleted = result.affected ? result.raw.insertId : null;
+                } else {
+                    response = { ...response, ...result };
+                }
+            } catch (error) {
+                response["@context"].error = isDev ? error : "Bad request";
+                ctx.status = 400;
             }
 
             ctx.body = response;
@@ -318,7 +332,10 @@ interface IRouteResponse {
         totalItems?: number;
         /** Number of items retrieved for this request */
         retrievedItems?: number;
+        /** Entity validation errors */
         errors?: ErrorMappingItem;
+        /** Global response error */
+        error?: string;
     };
     items?: any[];
     deleted?: any;
