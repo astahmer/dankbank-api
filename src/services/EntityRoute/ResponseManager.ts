@@ -128,13 +128,30 @@ export class ResponseManager<Entity extends AbstractEntity> {
         return this.getDetails({ operation, entityId: insertResult.id }, queryRunner);
     }
 
-    public async delete({ entityId }: IActionParams<Entity>, _queryRunner: QueryRunner) {
-        return this.repository
-            .createQueryBuilder()
-            .delete()
-            .from(this.repository.metadata.target)
-            .where("id = :id", { id: entityId })
-            .execute();
+    public async delete({ entityId, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
+        // Remove relation if used on a subresource
+        if (subresourceRelation) {
+            const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
+            const qb = repository.createQueryBuilder(this.metadata.tableName);
+
+            const query = qb
+                .relation(subresourceRelation.relation.target, subresourceRelation.relation.propertyName)
+                .of(subresourceRelation.id);
+
+            if (subresourceRelation.relation.isOneToOne || subresourceRelation.relation.isManyToOne) {
+                await query.set(null);
+            } else if (subresourceRelation.relation.isOneToMany || subresourceRelation.relation.isManyToMany) {
+                await query.remove(entityId);
+            }
+            return { affected: 1, raw: { insertId: entityId } };
+        } else {
+            return this.repository
+                .createQueryBuilder()
+                .delete()
+                .from(this.repository.metadata.target)
+                .where("id = :id", { id: entityId })
+                .execute();
+        }
     }
 
     public makeRequestContextMiddleware(
@@ -210,7 +227,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
                     response = { ...response, ...result };
                 }
             } catch (error) {
-                response["@context"].error = isDev ? error : "Bad request";
+                response["@context"].error = isDev ? error.message : "Bad request";
                 ctx.status = 400;
             }
 

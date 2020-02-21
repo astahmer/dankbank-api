@@ -131,7 +131,7 @@ export class SubresourceManager<Entity extends AbstractEntity> {
     }
 }
 
-export type SubresourceOperation = "create" | "list" | "details";
+export type SubresourceOperation = "create" | "list" | "details" | "delete";
 export type SubresourceProperty<Entity extends AbstractEntity> = {
     /** The route path for this action */
     path: string;

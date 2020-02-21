@@ -18,7 +18,7 @@ export function Subresource(
 
             // Merge default options with decorator parameter
             options = {
-                operations: ["create", "list", "details"],
+                operations: ["create", "list", "details", "delete"],
                 ...options,
             };
 
