@@ -106,9 +106,12 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
             const requestContextMw = this.responseManager.makeRequestContextMiddleware(operation);
             const responseMw = this.responseManager.makeResponseMiddleware(operation);
-            const mappingMethod = this.responseManager.makeRouteMappingMiddleware(operation);
 
             (<any>router)[verb](path, requestContextMw, responseMw);
+
+            if (operation === "delete") continue;
+
+            const mappingMethod = this.responseManager.makeRouteMappingMiddleware(operation);
             (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
