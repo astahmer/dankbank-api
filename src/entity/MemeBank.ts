@@ -67,3 +67,17 @@ export class MemeBank extends AbstractEntity {
     @JoinTable()
     memes: Meme[];
 }
+
+export async function getDefaultMemeBankFor(userId: number) {
+    const connection = getConnection();
+    const query = connection
+        .getRepository(MemeBank)
+        .createQueryBuilder("meme")
+        .select("meme.id")
+        .where("meme.ownerId = :userId", { userId })
+        .andWhere("meme.isDefault = true");
+
+    const defaultMemeBank = await query.getOne();
+
+    return defaultMemeBank.id;
+}
