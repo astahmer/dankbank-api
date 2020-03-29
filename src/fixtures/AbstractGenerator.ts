@@ -1,13 +1,6 @@
 import * as faker from "faker";
 
-import {
-    Connection,
-    DeepPartial,
-    ObjectType,
-    QueryRunner,
-    Repository,
-    getRepository
-} from "typeorm";
+import { Connection, DeepPartial, ObjectType, QueryRunner, Repository, getRepository } from "typeorm";
 
 import { AbstractEntity } from "../entity/AbstractEntity";
 

@@ -4,9 +4,7 @@ import session = require("koa-session");
 
 import { useContainer as validatorUseContainer } from "class-validator";
 import { Container } from "typedi";
-import {
-    Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer
-} from "typeorm";
+import { Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer } from "typeorm";
 
 import { useAuthRoutes } from "./actions/Authentication";
 import { useCustomRoute } from "./actions/CustomAction";

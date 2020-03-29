@@ -1,12 +1,13 @@
 import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
 
 import { ChunkUploadAction } from "@/services/EntityRoute/Actions/ChunkUploadAction";
-import {
-    ImageUploadAction, imgUploadMiddleware
-} from "@/services/EntityRoute/Actions/ImageUploadAction";
+import { ImageUploadAction, imgUploadMiddleware } from "@/services/EntityRoute/Actions/ImageUploadAction";
 import { DependsOn, EntityRoute, Groups, SearchFilter } from "@/services/EntityRoute/Decorators";
 import {
-    CropData, getImageNameSuffixForQuality, getImageRelativeURL, Quality
+    CropData,
+    getImageNameSuffixForQuality,
+    getImageRelativeURL,
+    Quality,
 } from "@/services/EntityRoute/ImageManager";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 

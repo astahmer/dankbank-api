@@ -4,9 +4,7 @@ import Container from "typedi";
 
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
-import {
-    AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { appendArrayDuplicates, limit, parseArrayQS } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";

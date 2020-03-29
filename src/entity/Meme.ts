@@ -1,11 +1,14 @@
 import { Context } from "koa";
-import {
-    Column, Entity, getConnection, JoinTable, ManyToMany, ManyToOne, OneToMany
-} from "typeorm";
+import { Column, Entity, getConnection, JoinTable, ManyToMany, ManyToOne, OneToMany } from "typeorm";
 
 import { SearchAction } from "@/actions/Meme/SearchAction";
 import {
-    DependsOn, EntityRoute, Groups, PaginationFilter, SearchFilter, Subresource
+    DependsOn,
+    EntityRoute,
+    Groups,
+    PaginationFilter,
+    SearchFilter,
+    Subresource,
 } from "@/services/EntityRoute/Decorators";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid } from "@/services/JWT";

@@ -1,9 +1,7 @@
 import { Column, Entity, JoinColumn, OneToMany, OneToOne } from "typeorm";
 
 import { userCreationMw } from "@/actions/User/CreationAction";
-import {
-    EntityRoute, Groups, PaginationFilter, SearchFilter
-} from "@/services/EntityRoute/Decorators";
+import { EntityRoute, Groups, PaginationFilter, SearchFilter } from "@/services/EntityRoute/Decorators";
 import { Subresource } from "@/services/EntityRoute/Decorators/Subresource";
 
 import { AbstractEntity } from "./AbstractEntity";

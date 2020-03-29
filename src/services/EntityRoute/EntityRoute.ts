@@ -8,9 +8,7 @@ import { IRouteAction } from "./Actions/AbstractRouteAction";
 import { RouteOperation } from "./Decorators/Groups";
 import { IAbstractFilterConfig } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
-import {
-    CRUD_ACTIONS, IRouteCustomActionItemClass, ResponseManager, RouteCustomAction
-} from "./ResponseManager";
+import { CRUD_ACTIONS, IRouteCustomActionItemClass, ResponseManager, RouteCustomAction } from "./ResponseManager";
 import { Denormalizer } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";

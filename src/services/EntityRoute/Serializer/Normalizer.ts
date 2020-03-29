@@ -3,9 +3,7 @@ import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { getDependsOnMetadata } from "@/services/EntityRoute/Decorators/DependsOn";
-import {
-    ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation
-} from "@/services/EntityRoute/Decorators/Groups";
+import { ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { IEntityRouteOptions } from "../EntityRoute";
 import { EntityMapper } from "../Mapping/EntityMapper";

@@ -1,9 +1,7 @@
 import { ObjectType } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import {
-    getRouteSubresourcesMetadata, ROUTE_SUBRESOURCES
-} from "@/services/EntityRoute/EntityRoute";
+import { getRouteSubresourcesMetadata, ROUTE_SUBRESOURCES } from "@/services/EntityRoute/EntityRoute";
 
 import { RouteSubresourcesMeta, SubresourceOperation } from "../SubresourceManager";
 

@@ -2,8 +2,12 @@ import { SelectQueryBuilder } from "typeorm";
 
 import { isType } from "../utils";
 import {
-    AbstractFilter, AbstractFilterApplyArgs, FilterDefaultConfig, IDefaultFilterOptions,
-    QueryParams, QueryParamValue
+    AbstractFilter,
+    AbstractFilterApplyArgs,
+    FilterDefaultConfig,
+    IDefaultFilterOptions,
+    QueryParams,
+    QueryParamValue,
 } from "./AbstractFilter";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {

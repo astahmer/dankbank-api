@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne } from "typeorm";
+import { Column, Entity, getConnection, JoinColumn, JoinTable, ManyToMany, ManyToOne, OneToOne } from "typeorm";
 
 import { EntityRoute, Groups, SearchFilter, Subresource } from "@/services/EntityRoute/Decorators";
 

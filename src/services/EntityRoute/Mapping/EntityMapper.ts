@@ -7,9 +7,7 @@ import { MaxDeptMetas } from "@/services/EntityRoute/Decorators/MaxDepth";
 
 import { getRouteSubresourcesMetadata, IEntityRouteOptions } from "../EntityRoute";
 import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
-import {
-    ENTITY_META_SYMBOL, GroupsMetaByRoutes, GroupsMetadata
-} from "../GroupsMetadata/GroupsMetadata";
+import { ENTITY_META_SYMBOL, GroupsMetaByRoutes, GroupsMetadata } from "../GroupsMetadata/GroupsMetadata";
 
 export type MappingItem = {
     mapping: MappingResponse;

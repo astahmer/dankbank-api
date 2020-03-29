@@ -1,5 +1,3 @@
-
-
 import { AbstractEntity } from "@/entity/AbstractEntity";
 
 import Application = require("koa");

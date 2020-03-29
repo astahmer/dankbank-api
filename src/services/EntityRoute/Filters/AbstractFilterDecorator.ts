@@ -1,6 +1,4 @@
-import {
-    getRouteFiltersMeta, ROUTE_FILTERS_METAKEY, RouteFiltersMeta
-} from "@/services/EntityRoute/EntityRoute";
+import { getRouteFiltersMeta, ROUTE_FILTERS_METAKEY, RouteFiltersMeta } from "@/services/EntityRoute/EntityRoute";
 
 import { FilterProperty, IAbstractFilterConfig, IDefaultFilterOptions } from "./AbstractFilter";
 

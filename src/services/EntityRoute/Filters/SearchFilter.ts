@@ -2,12 +2,18 @@ import { path, prop, sortBy } from "ramda";
 import { Brackets, WhereExpression } from "typeorm";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
+import { camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys } from "../utils";
 import {
-    camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys
-} from "../utils";
-import {
-    AbstractFilter, AbstractFilterApplyArgs, COMPARISON_OPERATOR, FilterDefaultConfig,
-    IDefaultFilterOptions, QueryParams, QueryParamValue, WhereMethod, WhereOperator, WhereType
+    AbstractFilter,
+    AbstractFilterApplyArgs,
+    COMPARISON_OPERATOR,
+    FilterDefaultConfig,
+    IDefaultFilterOptions,
+    QueryParams,
+    QueryParamValue,
+    WhereMethod,
+    WhereOperator,
+    WhereType,
 } from "./AbstractFilter";
 
 export interface ISearchFilterOptions extends IDefaultFilterOptions {

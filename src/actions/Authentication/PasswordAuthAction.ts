@@ -3,9 +3,7 @@ import { Context } from "koa";
 import { getManager } from "typeorm";
 
 import { User } from "@/entity/User";
-import {
-    IRouteAction, makeRouterFromCustomActions
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { IRouteAction, makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { makeAuthTokens } from "@/services/JWT";
 

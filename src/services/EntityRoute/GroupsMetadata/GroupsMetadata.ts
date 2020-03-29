@@ -2,8 +2,12 @@ import { concat, mergeWith } from "ramda";
 import { EntityMetadata, getRepository } from "typeorm";
 
 import {
-    ALL_OPERATIONS, ContextOperations, GroupsOperationOrAll, OperationGroups, RouteOperation,
-    RouteOperations
+    ALL_OPERATIONS,
+    ContextOperations,
+    GroupsOperationOrAll,
+    OperationGroups,
+    RouteOperation,
+    RouteOperations,
 } from "@/services/EntityRoute/Decorators/Groups";
 
 import { EntityGroupsMetadata } from "./EntityGroupsMetadata";
