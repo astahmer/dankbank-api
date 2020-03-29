@@ -62,7 +62,7 @@ export async function makeApp(connection: Connection) {
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
 
-    const port = parseInt(process.env.VIRTUAL_PORT);
+    const port = parseInt(process.env.PORT);
     const server = app.listen(port, "0.0.0.0");
     logger.info("Listening on port " + port);
     logger.info("Server up on " + BASE_URL);

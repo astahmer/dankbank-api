@@ -3,9 +3,10 @@
 #
 -include .env
 
-EXECUTOR = docker exec -i $(PROJECT_NAME)-koa /bin/sh -c
-
+MAIN_CONTAINER := nginx
 DEFAULT_CONTAINER := koa
+EXECUTOR = docker exec -i $(PROJECT_NAME)-$(DEFAULT_CONTAINER) /bin/sh -c
+
 # If the first argument is one of the supported commands...
 SUPPORTED_COMMANDS := logs term restart
 SUPPORTS_MAKE_ARGS := $(findstring $(firstword $(MAKECMDGOALS)), $(SUPPORTED_COMMANDS))
@@ -51,8 +52,8 @@ restart:
 
 rl: ## Restart main container &
 rl:
-	@${MAKE} restart koa; \
-	 ${MAKE} logs koa; \
+	@${MAKE} restart $(DEFAULT_CONTAINER); \
+	 ${MAKE} logs $(DEFAULT_CONTAINER); \
 
 #
 ##@ DOCKER UNIT COMMANDS
@@ -60,15 +61,15 @@ rl:
 
 docker-compose-up: # Start a container
 	@echo "Starting container...";
-	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-koa)" != "" ]; then \
+	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-$(MAIN_CONTAINER))" != "" ]; then \
 		echo "Container already up. Skipping."; \
 	else \
-		docker-compose up -d --force-recreate koa; \
+		docker-compose up -d --force-recreate $(MAIN_CONTAINER); \
 	fi;
 
 docker-compose-down: # Stop a container
 	@echo "Stopping container...";
-	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-koa)" != "" ]; then \
+	@if [ "$(shell docker ps | grep $(PROJECT_NAME)-$(MAIN_CONTAINER))" != "" ]; then \
 		docker-compose down --remove-orphans --volumes; \
 	else \
 		echo "No container up. Skipping."; \
