@@ -96,6 +96,9 @@ term: ## Enter in container terminal as root
 prettier:
 	$(EXECUTOR) "npm run prettier"
 
+cterm:
+	docker-compose run koa /bin/sh
+
 #
 ##@ ENVIRONMENT
 #

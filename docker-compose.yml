@@ -54,17 +54,6 @@ services:
             - .:/usr/app/
             - ./node_modules/:/usr/app/node_modules
 
-    # Only used to enter container & install packages
-    term:
-        build:
-            context: ./
-            dockerfile: ./docker/Dockerfile
-        command: tail -f /dev/null
-        container_name: ${PROJECT_NAME}-term
-        volumes:
-            - .:/usr/app/
-            - ./node_modules/:/usr/app/node_modules
-
     elasticsearch:
         image: docker.elastic.co/elasticsearch/elasticsearch:7.3.2
         container_name: ${PROJECT_NAME}-elastic
