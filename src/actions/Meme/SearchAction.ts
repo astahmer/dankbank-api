@@ -4,8 +4,10 @@ import Container from "typedi";
 
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { appendArrayDuplicates, limit, parseArrayQS } from "@/services/EntityRoute/utils";
+import {
+    AbstractRouteAction, RouteActionConstructorArgs
+} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { limit, parseArrayQS } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 
@@ -31,7 +33,7 @@ export class SearchAction extends AbstractRouteAction {
         try {
             const searchResult = (await searchPromise) as ApiResponse<SearchResponse<MemeDocument>>;
             ctx.body = {
-                items: appendArrayDuplicates(searchResult.body.hits.hits, 3, "_id"),
+                items: searchResult.body.hits.hits,
                 total: searchResult.body.hits.total,
             };
         } catch (error) {
