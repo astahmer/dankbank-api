@@ -4,9 +4,7 @@ import Container from "typedi";
 
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
-import {
-    AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { limit, parseArrayQS } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
@@ -21,9 +19,10 @@ export class SearchAction extends AbstractRouteAction {
     }
 
     public async onRequest(ctx: Context) {
-        const { q, size, excludedIds } = ctx.query;
+        const { q, from, size, excludedIds } = ctx.query;
         const tags = parseArrayQS(ctx.query, "tags") as string[];
         const elasticQuery = this.getElasticQuery(q, {
+            from,
             size,
             excludedIds: excludedIds ? excludedIds.split(",") : [],
             tags: tags || [],
@@ -76,7 +75,7 @@ export class SearchAction extends AbstractRouteAction {
 
     private getElasticQuery(
         queriedValue: string,
-        { size, excludedIds, tags }: SearchQueryOptions
+        { from = 0, size, excludedIds, tags }: SearchQueryOptions
     ): RequestParams.Search {
         const limitedSize = size ? limit(size, [1, 100]) : 25;
         const query = this.getQueryForParams(queriedValue, { excludedIds, tags });
@@ -84,6 +83,7 @@ export class SearchAction extends AbstractRouteAction {
         return {
             index: "memes",
             body: {
+                from,
                 size: limitedSize,
                 query: {
                     function_score: {
@@ -118,4 +118,4 @@ export class SearchAction extends AbstractRouteAction {
     }
 }
 
-type SearchQueryOptions = { size?: number; tags?: string[]; excludedIds: string[] };
+type SearchQueryOptions = { from?: number; size?: number; tags?: string[]; excludedIds: string[] };
