@@ -1,6 +1,7 @@
 import { Context } from "koa";
 import { Column, Entity, getConnection, JoinTable, ManyToMany, ManyToOne, OneToMany } from "typeorm";
 
+import { ListAction } from "@/actions/Meme/ListAction";
 import { SearchAction } from "@/actions/Meme/SearchAction";
 import {
     DependsOn,
@@ -30,6 +31,11 @@ import { Visibility } from "./Visibility";
             verb: ROUTE_VERB.GET,
             path: "/search",
             class: SearchAction,
+        },
+        {
+            verb: ROUTE_VERB.GET,
+            path: "/list",
+            class: ListAction,
         },
         {
             verb: ROUTE_VERB.GET,

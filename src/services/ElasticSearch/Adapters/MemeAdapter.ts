@@ -17,7 +17,7 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
 
     getMapping() {
         return {
-            dateCreated: { type: "text" },
+            dateCreated: { type: "text", fielddata: true },
             dateUpdated: { type: "text" },
             tags: { type: "text" },
             tags_suggest: { type: "completion", analyzer: "keyword" },
