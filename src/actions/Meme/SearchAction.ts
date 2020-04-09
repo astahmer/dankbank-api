@@ -61,13 +61,15 @@ export class SearchAction extends AbstractRouteAction {
                         },
                     })),
                 ],
-                must_not: [
-                    {
-                        ids: {
-                            values: excludedIds,
+                ...(excludedIds.length && {
+                    must_not: [
+                        {
+                            ids: {
+                                values: excludedIds,
+                            },
                         },
-                    },
-                ],
+                    ],
+                }),
             },
         };
     }
