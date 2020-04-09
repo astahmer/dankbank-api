@@ -65,7 +65,8 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
      * Nested properties using a path require being explicitly passed in properties array of this @ClassDecorator
      */
     protected isFilterEnabledForProperty(propPath: string) {
-        if (this.config.options.all && propPath.split(".").length === 1) {
+        const allNestedProps = this.config.options.allNested ? true : propPath.split(".").length === 1;
+        if (this.config.options.all && allNestedProps) {
             return true;
         } else {
             return this.filterProperties.indexOf(propPath) !== -1;
@@ -143,6 +144,8 @@ export interface IDefaultFilterOptions {
     [key: string]: any;
     /** Make all (not nested) properties filterable by default */
     all?: boolean;
+    /** Make all nested property paths filtereable by default */
+    allNested?: boolean;
 }
 
 export interface IAbstractFilterConfig<Options = IDefaultFilterOptions> {
