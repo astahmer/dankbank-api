@@ -42,8 +42,8 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
     /** This method should add conditions to the queryBuilder using queryParams  */
     abstract apply({ queryParams, qb, whereExp }: AbstractFilterApplyArgs): void;
 
-    /** Return true if param exists in this entity properties or is a valid propPath from this entity */
-    protected isParamInEntityProps(param: string) {
+    /** Return column metadata if param exists in this entity properties or is a valid propPath from this entity */
+    protected getColumnMetaForPropPath(param: string) {
         const propPath = param.indexOf(".") !== -1 ? param.split(".") : [param];
         return this.isPropPathValid(propPath, this.entityMetadata);
     }
@@ -78,7 +78,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
         return Object.keys(queryParams).reduce((acc, param: string) => {
             if (
                 this.isFilterEnabledForProperty(param) &&
-                this.isParamInEntityProps(param) &&
+                this.getColumnMetaForPropPath(param) &&
                 isDefined(queryParams[param])
             ) {
                 acc.push(param);
