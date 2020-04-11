@@ -101,6 +101,14 @@ export function getSubscribers() {
 
 function useRouteListAtIndex() {
     const router = new Router();
-    router.get("/", (ctx) => (ctx.body = getAppRoutes(app.middleware)));
+    const filterRoutes = (routers: ReturnType<typeof getAppRoutes>, filter: string) =>
+        routers.map((routes) => routes.filter((item) => item.path.includes(filter))).filter((routes) => routes.length);
+
+    router.get("/", (ctx) => {
+        const filter = ctx.query.filter;
+        const entrypoints = getAppRoutes(app.middleware);
+        const routers = filter ? filterRoutes(entrypoints, filter) : entrypoints;
+        ctx.body = routers.map((router) => router.map((entrypoint) => entrypoint.desc));
+    });
     return router;
 }
