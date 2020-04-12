@@ -65,6 +65,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.normalizer = new Normalizer(this.repository.metadata, this.mapper, this.aliasManager, {
             shouldEntityWithOnlyIdBeFlattenedToIri: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
             shouldMaxDepthReturnRelationPropsId: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
+            shouldSetSubresourcesIriOnItem: this.options.shouldSetSubresourcesIriOnItem,
         });
         this.denormalizer = new Denormalizer(this.repository, this.mapper);
         this.subresourceManager = new SubresourceManager<Entity>(
@@ -175,4 +176,6 @@ export interface IEntityRouteOptions {
     shouldMaxDepthReturnRelationPropsId?: boolean;
     /** In case of a relation with no other mapped props (from groups) for a request: should it unwrap "relation { id }" to relation = id ? */
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
+    /** Should set subresource IRI for prop decorated with @Subresource */
+    shouldSetSubresourcesIriOnItem?: boolean;
 }

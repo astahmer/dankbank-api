@@ -14,6 +14,7 @@ export async function useEntitiesRoutes<T extends AbstractEntity>(
         defaultMaxDepthLvl: 2,
         shouldMaxDepthReturnRelationPropsId: true,
         shouldEntityWithOnlyIdBeFlattenedToIri: true,
+        shouldSetSubresourcesIriOnItem: true,
     }
 ) {
     // Instanciate every EntityRoute

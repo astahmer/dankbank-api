@@ -369,8 +369,11 @@ interface IRouteResponse {
         /** Global response error */
         error?: string;
     };
+    /** List of entities */
     items?: any[];
+    /** deleted entity id */
     deleted?: any;
+    /** Entity props */
     [k: string]: any;
 }
 

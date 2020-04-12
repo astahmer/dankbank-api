@@ -12,7 +12,7 @@ import { QueryAliasManager } from "./QueryAliasManager";
 
 type NormalizerOptions = Pick<
     IEntityRouteOptions,
-    "shouldMaxDepthReturnRelationPropsId" | "shouldEntityWithOnlyIdBeFlattenedToIri"
+    "shouldMaxDepthReturnRelationPropsId" | "shouldEntityWithOnlyIdBeFlattenedToIri" | "shouldSetSubresourcesIriOnItem"
 >;
 export class Normalizer {
     constructor(
@@ -160,7 +160,9 @@ export class Normalizer {
             return item;
         } else {
             await this.setComputedPropsOnItem(item, operation, entityMetadata);
-            this.setSubresourcesIriOnItem(item, entityMetadata);
+            if (this.options.shouldSetSubresourcesIriOnItem) {
+                this.setSubresourcesIriOnItem(item, entityMetadata);
+            }
             return sortObjectByKeys(item);
         }
     }
