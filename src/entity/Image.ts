@@ -1,4 +1,4 @@
-import { Column, Entity, JoinColumn, OneToOne } from "typeorm";
+import { Column, Entity, JoinColumn, OneToOne, ManyToOne } from "typeorm";
 
 import { ChunkUploadAction } from "@/services/EntityRoute/Actions/ChunkUploadAction";
 import { ImageUploadAction, imgUploadMiddleware } from "@/services/EntityRoute/Actions/ImageUploadAction";
@@ -12,6 +12,7 @@ import {
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 
 import { AbstractEntity } from "./AbstractEntity";
+import { Meme } from "./Meme";
 
 @SearchFilter([], { all: true })
 @EntityRoute("/images", ["list", "details"], {
@@ -49,6 +50,9 @@ export class Image extends AbstractEntity {
     @Column()
     size: number;
 
+    @ManyToOne(() => Meme, (meme) => meme.pictures)
+    meme: Meme;
+
     @Groups({ image: ["details"] })
     @OneToOne(() => Image)
     @JoinColumn()
@@ -70,16 +74,10 @@ export class Image extends AbstractEntity {
     @DependsOn(["name", "qualities"])
     @Groups({ image: ["details", "list"], meme: ["details"] })
     getQualitiesUrl() {
-        return (
-            this.qualities &&
-            this.qualities.reduce(
-                (acc, item) => {
-                    acc[item] = getImageRelativeURL(this.name.replace(".jpg", getImageNameSuffixForQuality(item)));
-                    return acc;
-                },
-                {} as Record<string, string>
-            )
-        );
+        return this.qualities?.reduce((acc, item) => {
+            acc[item] = getImageRelativeURL(this.name.replace(".jpg", getImageNameSuffixForQuality(item)));
+            return acc;
+        }, {} as Record<string, string>);
     }
 
     @DependsOn(["cropData"])

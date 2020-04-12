@@ -2,11 +2,13 @@ import { Meme } from "@/entity/Meme";
 import { getImageRelativeURL } from "@/services/EntityRoute/ImageManager";
 
 import { ITransformer } from "./ITransformer";
+import { Image } from "@/entity/Image";
 
 export class MemeTransformer implements ITransformer<Meme> {
     transform(meme: Meme) {
         const tags = meme.tags.map((tag) => tag.tag);
-        const pictures = meme.pictures.map((item) => ({
+        const formatImage = (item: Image) => ({
+            "@id": item.getIri(),
             iri: item.getIri(),
             url: getImageRelativeURL(item.name),
             id: item.id,
@@ -14,17 +16,22 @@ export class MemeTransformer implements ITransformer<Meme> {
             name: item.name,
             qualities: item.qualities,
             ratio: item.getRatio(),
-        }));
+        });
+        const image = meme.image ? formatImage(meme.image) : null;
+        const pictures = meme.pictures.map(formatImage);
         const banks = meme.banks.map((item) => item.getIri());
 
         return {
             ...meme,
             tags,
             tags_suggest: tags,
+            image,
             pictures,
             banks,
-            owner: meme.owner && meme.owner.getIri(),
+            owner: meme.owner?.getIri(),
+            ownerId: meme.owner?.id,
             iri: meme.getIri(),
+            "@id": meme.getIri(),
         };
     }
 }

@@ -6,7 +6,7 @@ import { logger } from "@/services/logger";
 import { Client } from "@elastic/elasticsearch";
 
 import { MemeTransformer } from "../Transformers/MemeTransformer";
-import { AbstractAdapter, AbstractDocument } from "./AbstractAdapter";
+import { AbstractAdapter, AbstractDocument, DocumentMapping } from "./AbstractAdapter";
 
 export class MemeAdapter extends AbstractAdapter<Meme> {
     constructor(client: Client) {
@@ -16,27 +16,36 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
     }
 
     getMapping() {
+        const image: DocumentMapping<MemePictureDocument> = {
+            "@id": { type: "keyword" },
+            iri: { type: "keyword" },
+            id: { type: "integer" },
+            originalName: { type: "text" },
+            name: { type: "keyword" },
+            size: { type: "integer" },
+            url: { type: "text" },
+            qualities: { type: "keyword" },
+            ratio: { type: "keyword" },
+        };
+
         return {
-            dateCreated: { type: "text", fielddata: true },
-            dateUpdated: { type: "text" },
+            "@id": { type: "keyword" },
+            iri: { type: "keyword" },
+            id: { type: "integer" },
+            dateCreated: { type: "date" },
+            dateUpdated: { type: "date" },
             tags: { type: "text" },
             tags_suggest: { type: "completion", analyzer: "keyword" },
             upvoteCount: { type: "integer" },
             downvoteCount: { type: "integer" },
             views: { type: "integer" },
             isMultipartMeme: { type: "boolean" },
-            pictures: {
-                type: "nested",
-                properties: {
-                    id: { type: "keyword" },
-                    originalName: { type: "text" },
-                    name: { type: "keyword" },
-                    size: { type: "integer" },
-                },
-            },
+            image: { type: "object", properties: image },
+            pictures: { type: "nested", properties: image },
             banks: { type: "keyword" },
             owner: { type: "keyword" },
-        };
+            ownerId: { type: "integer" },
+        } as DocumentMapping<MemeDocument>;
     }
 
     /** Selects only properties needed for the transformation to documents */
@@ -44,9 +53,10 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
         const tableAlias = repository.metadata.tableName;
 
         qb.select(tableAlias)
-            .addSelect(["bank.id", "owner.id"])
+            .addSelect(["image.id", "bank.id", "owner.id"])
             .leftJoinAndSelect(`${tableAlias}.pictures`, "picture")
             .leftJoinAndSelect(`${tableAlias}.tags`, "tag")
+            .leftJoinAndSelect(`${tableAlias}.image`, "image")
             .leftJoin(`${tableAlias}.banks`, "bank")
             .leftJoin(`${tableAlias}.owner`, "owner");
     }
@@ -137,9 +147,14 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
 
 export type MemePictureDocument = {
     id: number;
+    iri: string;
+    "@id": string;
     originalName: string;
     name: string;
     size: number;
+    url: string;
+    qualities: string[];
+    ratio: number;
 };
 
 export type MemeDocument = AbstractDocument & {
@@ -148,8 +163,10 @@ export type MemeDocument = AbstractDocument & {
     upvoteCount: number;
     downvoteCount: number;
     views: number;
-    isMultipartMeme: string;
+    isMultipartMeme: boolean;
+    image: MemePictureDocument;
     pictures: MemePictureDocument[];
     banks: string[];
     owner: string;
+    ownerId: number;
 };
