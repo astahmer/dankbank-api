@@ -77,7 +77,7 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
             bodyItems.push(this.transformer.transform(items[i]));
         }
 
-        const chunks = chunk(bodyItems, 10000);
+        const chunks = chunk(bodyItems, 1000);
         const promises = chunks.map((body) => this.client.bulk({ body, refresh: "true" }));
         const results = await Promise.all(promises);
 
@@ -129,6 +129,9 @@ export class MemeAdapter extends AbstractAdapter<Meme> {
 
         // Save most recent dateUpdated value in order not to update the same entity twice if its up to date
         this.updateLastValue(lastIndexedItem.dateUpdated);
+
+        const totalIndexed: number = results.reduce((acc, chunk) => acc + chunk.body.items.length, 0);
+        return totalIndexed;
     }
 }
 

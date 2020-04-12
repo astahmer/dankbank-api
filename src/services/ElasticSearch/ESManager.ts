@@ -15,19 +15,26 @@ export class ElasticSearchManager {
     }
 
     async checkConnection() {
-        try {
-            const response = await this.client.ping();
-            return response;
-        } catch (error) {
-            setTimeout(() => {
-                this.checkConnection();
-            }, 1000);
-        }
+        logger.info("Checking connection to ElasticSearch...");
+        return this.client.ping();
+    }
+
+    async waitForConnection(delay = 5000) {
+        return new Promise(async (resolve) => {
+            try {
+                const response = await this.checkConnection();
+                resolve(response);
+            } catch (error) {
+                logger.error("Connection to ElasticSearch failed : ", error);
+                setTimeout(async () => {
+                    const response = await this.waitForConnection().catch(this.waitForConnection);
+                    resolve(response);
+                }, delay);
+            }
+        });
     }
 
     async adaptRowsToDocuments() {
-        await this.checkConnection();
-
         const memeAdapter = new MemeAdapter(this.client);
 
         const promises = [memeAdapter.run()];
@@ -39,8 +46,9 @@ export async function adaptRowsToDocuments() {
     const start = Date.now();
     logger.info("Indexing ElasticSearch documents with new entities...");
     const esManager = Container.get(ElasticSearchManager);
-    await esManager.adaptRowsToDocuments();
-    logger.info("Done indexing documents in " + (Date.now() - start) / 1000 + "s");
+    const responses = await esManager.adaptRowsToDocuments();
+    const totalIndexed = responses.reduce((acc, total) => acc + (total || 0), 0);
+    logger.info(`Done indexing ${totalIndexed} documents in ${(Date.now() - start) / 1000}s`);
 }
 
 export type SuggestionOption<T = any> = {

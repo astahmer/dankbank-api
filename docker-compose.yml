@@ -41,6 +41,7 @@ services:
             - elasticsearch
         network_mode: "bridge"
         depends_on:
+            - elasticsearch
             - phpmyadmin
             - kibana
 
@@ -69,6 +70,11 @@ services:
             - 9300:9300
             - 9200:9200
         network_mode: "bridge"
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://0.0.0.0:9200"]
+            interval: 30s
+            timeout: 10s
+            retries: 5
 
     kibana:
         image: docker.elastic.co/kibana/kibana:7.3.2

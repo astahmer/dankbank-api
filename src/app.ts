@@ -14,7 +14,7 @@ import { makeFixtures } from "./fixtures";
 import { app, BASE_URL } from "./main";
 import { logRequest } from "./middlewares";
 import { TypeORMConfig } from "./ormconfig";
-import { adaptRowsToDocuments } from "./services/ElasticSearch/ESManager";
+import { adaptRowsToDocuments, ElasticSearchManager } from "./services/ElasticSearch/ESManager";
 import { useEntitiesRoutes } from "./services/EntityRoute";
 import { logger } from "./services/logger";
 import { getAppRoutes } from "./utils/getAppRoutes";
@@ -37,6 +37,10 @@ export async function getConnectionToDatabase() {
 /** Make app & listen on given port & return it */
 export async function makeApp(connection: Connection) {
     logger.info("Starting Koa server...");
+
+    const esManager = Container.get(ElasticSearchManager);
+    await esManager.waitForConnection();
+    logger.info("Connection with ElasticSearch successful");
 
     if (process.env.MAKE_FIXTURES === "true") {
         await makeFixtures(connection);

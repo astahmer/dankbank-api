@@ -39,9 +39,9 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
     /**
      * This method will be called by ESManager
      * - should transform & import all selected entities
-     * - should returns a number of imported rows
+     * - should return a number of imported rows
      */
-    abstract async run(): Promise<void>;
+    abstract async run(): Promise<number>;
 
     /**
      * Should be called after instanciation, it:
