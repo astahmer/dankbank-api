@@ -525,21 +525,32 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     protected applyFilterParam({ qb, whereExp, filter }: ApplyFilterParamArgs) {
         const props = filter.propPath.split(".");
 
+        let column;
+        let propPath = filter.propPath;
+        // Handle case when filter.propPath is a direct relation of entity
+        // (ex: pictures;exists=true instead of pictures.id;exists=true)
         if (props.length === 1) {
-            const column = this.entityMetadata.findColumnWithPropertyName(filter.propPath);
+            column = this.getColumnMetaForPropPath(filter.propPath);
 
+            // Adding ".id" if it was not explicitly given in propPath so that we can add necessary joins
+            if (column.propertyName === "id") {
+                propPath += ".id";
+            }
+        }
+
+        if (props.length === 1 && column.propertyName !== "id") {
             this.addWhereByStrategy({
                 whereExp,
                 entityAlias: this.entityMetadata.tableName,
                 filter,
-                propName: filter.propPath,
+                propName: propPath,
                 column,
             });
         } else {
             const { entityAlias, propName, columnMeta: column } = this.normalizer.makeJoinsFromPropPath(
                 qb,
                 this.entityMetadata,
-                filter.propPath,
+                propPath,
                 props[0]
             );
 

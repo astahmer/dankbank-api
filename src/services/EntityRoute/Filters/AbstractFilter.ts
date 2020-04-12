@@ -45,10 +45,13 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
     /** Return column metadata if param exists in this entity properties or is a valid propPath from this entity */
     protected getColumnMetaForPropPath(param: string) {
         const propPath = param.indexOf(".") !== -1 ? param.split(".") : [param];
-        return this.isPropPathValid(propPath, this.entityMetadata);
+        return this.getColumnMetaForPropArrayPathInEntity(propPath, this.entityMetadata);
     }
 
-    protected isPropPathValid(propPath: string[], entityMetadata: EntityMetadata): ColumnMetadata {
+    protected getColumnMetaForPropArrayPathInEntity(
+        propPath: string[],
+        entityMetadata: EntityMetadata
+    ): ColumnMetadata {
         const column = entityMetadata.findColumnWithPropertyName(propPath[0]);
         const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(propPath[0]);
         const nextProp = propPath.length > 1 ? propPath.slice(1) : ["id"];
@@ -57,7 +60,7 @@ export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions
             return null;
         }
 
-        return column || this.isPropPathValid(nextProp, relation.inverseEntityMetadata);
+        return column || this.getColumnMetaForPropArrayPathInEntity(nextProp, relation.inverseEntityMetadata);
     }
 
     /**
