@@ -13,11 +13,7 @@ export function useAuthRoutes() {
     router.use(useVerifyJwtAuth().routes());
     router.use(useRefreshAuth().routes());
     router.use(useLogoutAction().routes());
-    router.use(
-        useTwitterAuth()
-            .prefix("/twitter")
-            .routes()
-    );
+    router.use(useTwitterAuth().prefix("/twitter").routes());
 
     return router;
 }

@@ -135,7 +135,7 @@ export class EntityMapper {
 
             // Checks for global option, class & prop decorator
             const hasGlobalMaxDepth = this.options.isMaxDepthEnabledByDefault && currentDepthLvl >= maxDepthLvl;
-            const hasLocalClassMaxDepth = maxDepthMeta && (maxDepthMeta.enabled && currentDepthLvl >= maxDepthLvl);
+            const hasLocalClassMaxDepth = maxDepthMeta && maxDepthMeta.enabled && currentDepthLvl >= maxDepthLvl;
             const hasSpecificPropMaxDepth =
                 maxDepthMeta && maxDepthMeta.fields[relation.propertyName] && currentDepthLvl >= maxDepthLvl;
 
@@ -227,38 +227,32 @@ export class EntityMapper {
         const primitives = mapping.selectProps.reduce(prettifyPrimitives, {});
 
         // Recursively make pairs of selects props & associate relation when max depth is reached with "@id" or "@id[]"
-        const relations = mapping.relationProps.reduce(
-            (acc, relationName) => {
-                if (Object.keys(mapping.mapping).length) {
-                    const nestedMapping = mapping.mapping[relationName];
-                    if (nestedMapping.exposedProps.length === 1 && nestedMapping.exposedProps[0] === "id") {
-                        // If this relation has only exposed its id, then don't bother nesting it like entity: { id: "number "}
-                        // Instead, directly associate relation with "@id" or "@id[]"
-                        const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(relationName);
-                        acc[relationName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
-                    } else {
-                        // There are still props to select deeper, recursive prettify at currentPath
-                        const prettyMappingItem = this.prettify(this.getNestedMappingAt(relationName, mapping));
-                        acc[relationName] = prettyMappingItem;
-                    }
+        const relations = mapping.relationProps.reduce((acc, relationName) => {
+            if (Object.keys(mapping.mapping).length) {
+                const nestedMapping = mapping.mapping[relationName];
+                if (nestedMapping.exposedProps.length === 1 && nestedMapping.exposedProps[0] === "id") {
+                    // If this relation has only exposed its id, then don't bother nesting it like entity: { id: "number "}
+                    // Instead, directly associate relation with "@id" or "@id[]"
+                    const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(relationName);
+                    acc[relationName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
                 } else {
-                    const primitives = mapping.selectProps.reduce(prettifyPrimitives, {});
-
-                    // If max depth is reached, then associate relation with "@id" or "@id[]"
-                    const relations = mapping.relationProps.reduce(
-                        (acc, propName) => {
-                            const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(propName);
-                            acc[propName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
-                            return acc;
-                        },
-                        {} as Record<string, any>
-                    );
-                    acc[relationName] = { ...primitives, ...relations };
+                    // There are still props to select deeper, recursive prettify at currentPath
+                    const prettyMappingItem = this.prettify(this.getNestedMappingAt(relationName, mapping));
+                    acc[relationName] = prettyMappingItem;
                 }
-                return acc;
-            },
-            {} as Record<string, any>
-        );
+            } else {
+                const primitives = mapping.selectProps.reduce(prettifyPrimitives, {});
+
+                // If max depth is reached, then associate relation with "@id" or "@id[]"
+                const relations = mapping.relationProps.reduce((acc, propName) => {
+                    const relation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(propName);
+                    acc[propName] = "@id" + (relation.relationType.endsWith("to-many") ? "[]" : "");
+                    return acc;
+                }, {} as Record<string, any>);
+                acc[relationName] = { ...primitives, ...relations };
+            }
+            return acc;
+        }, {} as Record<string, any>);
 
         return { ...primitives, ...relations };
     }

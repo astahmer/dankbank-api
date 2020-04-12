@@ -59,12 +59,7 @@ export const limit = (nb: number, [min, max]: [number, number]) => {
 };
 
 export const getRandomString = (len = 10) =>
-    Math.random()
-        .toString(36)
-        .substring(2, len) +
-    Math.random()
-        .toString(36)
-        .substring(2, len);
+    Math.random().toString(36).substring(2, len) + Math.random().toString(36).substring(2, len);
 
 export function getRandomInt(min: number, max: number) {
     min = Math.ceil(min);

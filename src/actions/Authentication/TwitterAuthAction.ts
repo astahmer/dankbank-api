@@ -80,10 +80,7 @@ class TwitterAuthAction {
     }
 
     hashRefreshToken(refreshToken: string) {
-        return crypto
-            .createHmac("sha256", process.env["REFRESH_TOKEN_HASH_SECRET"])
-            .update(refreshToken)
-            .digest("hex");
+        return crypto.createHmac("sha256", process.env["REFRESH_TOKEN_HASH_SECRET"]).update(refreshToken).digest("hex");
     }
 
     async findUserByTwitterId(twitterId: string) {

@@ -44,7 +44,7 @@ export async function isTokenValid(token: string): Promise<JwtDecoded> {
             return reject(new Error("No token found"));
         }
 
-        jwt.verify(actualToken, process.env["JWT_TOKEN_SECRET"], function(err, decoded: JwtDecoded) {
+        jwt.verify(actualToken, process.env["JWT_TOKEN_SECRET"], function (err, decoded: JwtDecoded) {
             if (err) {
                 reject(err);
             } else {

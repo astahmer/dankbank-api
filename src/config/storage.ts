@@ -62,12 +62,12 @@ export const DIR_PATH = {
 
 export const diskStorage = multer.diskStorage({
     destination: TEMP_UPLOADS_DIR,
-    filename: function(_req, file, callback) {
+    filename: function (_req, file, callback) {
         callback(null, file.originalname);
     },
 });
 
-export const imageFilter = function(
+export const imageFilter = function (
     _req: IncomingMessage,
     file: multer.File,
     callback: (error: Error, acceptFile: boolean) => void
