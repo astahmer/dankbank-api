@@ -34,7 +34,7 @@ export class TwitterOAuthManager {
 
     async twitterCallback(ctx: Context, next: NextFunction) {
         if (!this.isSessionToken(ctx)) {
-            ctx.redirect("http://dankbank.lol/twitter.html?err=WRONG_SESSION");
+            ctx.redirect(`${process.env.APP_URL}/twitter.html?err=WRONG_SESSION`);
             return;
         }
         ctx.session = null;
@@ -52,7 +52,7 @@ export class TwitterOAuthManager {
             const tokenResponse = TwitterOAuth.deParam(accessTokenReq.data);
             await this.successCallback(ctx, next, (tokenResponse as any) as TwitterSuccessCallbackArgs);
         } catch (error) {
-            ctx.redirect("http://dankbank.lol/twitter.html?err=ACCESS_TOKEN");
+            ctx.redirect(`${process.env.APP_URL}/twitter.html?err=ACCESS_TOKEN`);
         }
     }
 

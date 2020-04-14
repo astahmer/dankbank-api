@@ -2,12 +2,19 @@ import { path, prop, sortBy } from "ramda";
 import { Brackets, WhereExpression } from "typeorm";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
+import { entityRoutesContainer } from "../";
+import { camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys } from "../utils";
 import {
-    camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys
-} from "../utils";
-import {
-    AbstractFilter, AbstractFilterApplyArgs, COMPARISON_OPERATOR, FilterDefaultConfig,
-    IDefaultFilterOptions, QueryParams, QueryParamValue, WhereMethod, WhereOperator, WhereType
+    AbstractFilter,
+    AbstractFilterApplyArgs,
+    COMPARISON_OPERATOR,
+    FilterDefaultConfig,
+    IDefaultFilterOptions,
+    QueryParams,
+    QueryParamValue,
+    WhereMethod,
+    WhereOperator,
+    WhereType,
 } from "./AbstractFilter";
 
 export interface ISearchFilterOptions extends IDefaultFilterOptions {
@@ -44,6 +51,21 @@ const complexFilterRegex = /(?:((?:(?:(and|or)|(?:\(\w+\))))*):)?/;
 const propRegex = /((?:(?:\w)+\.?)+)/;
 const strategyRegex = /(?:(?:(?:;(\w+))|(<>|><|<\||>\||<|>|)?))?(!?)/;
 const queryParamRegex = new RegExp(complexFilterRegex.source + propRegex.source + strategyRegex.source, "i");
+
+const iriRegex = new RegExp(/\/api\/(\w+)\//g, "i");
+const formatIriToId = (iri: string) => iri.replace(iriRegex, "");
+const getEntrypointFromIri = (iri: string) => iri.match(iriRegex)[1];
+const isIriValidForProperty = (iri: string, column: ColumnMetadata) => {
+    if (!iri.startsWith("/api/") || !column.relationMetadata) return;
+
+    const tableName = column.relationMetadata.inverseEntityMetadata.tableName + "s";
+    const entrypoint = getEntrypointFromIri(iri);
+    const sameAsRouteName =
+        entityRoutesContainer[tableName] && entrypoint === entityRoutesContainer[tableName].routeMetadata.path;
+    const sameAsTableName = entrypoint === tableName;
+
+    return sameAsRouteName || sameAsTableName;
+};
 
 enum DAY {
     START = "00:00:00",
@@ -391,12 +413,10 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         }
 
         const [, nestedConditionRaw, typeRaw, propPath, strategyRaw, comparison, not] = matches;
+        const column = this.getColumnMetaForPropPath(propPath);
+
         // Checks that propPath is enabled/valid && has a search value
-        if (
-            !this.isFilterEnabledForProperty(propPath) ||
-            !this.isParamInEntityProps(propPath) ||
-            !isDefined(rawValue)
-        ) {
+        if (!this.isFilterEnabledForProperty(propPath) || !column || !isDefined(rawValue)) {
             return;
         }
 
@@ -408,14 +428,17 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
         // Remove actual filter WhereType from nested condition
         const nestedCondition = typeRaw ? nestedConditionRaw.slice(0, -typeRaw.length) : nestedConditionRaw;
 
+        const formatIri = (value: string) => (isIriValidForProperty(value, column) ? formatIriToId(value) : value);
+
         // If query param value is a string and contains comma-separated values, make an array from it
-        const value =
+        const formatedValue =
             typeof rawValue === "string"
                 ? rawValue
                       .split(",")
                       .map((val) => val.trim())
                       .filter(Boolean)
                 : rawValue;
+        const value = Array.isArray(formatedValue) ? formatedValue.map(formatIri) : formatIri(formatedValue);
 
         return {
             type,
@@ -502,21 +525,32 @@ export class SearchFilter extends AbstractFilter<ISearchFilterOptions> {
     protected applyFilterParam({ qb, whereExp, filter }: ApplyFilterParamArgs) {
         const props = filter.propPath.split(".");
 
+        let column;
+        let propPath = filter.propPath;
+        // Handle case when filter.propPath is a direct relation of entity
+        // (ex: pictures;exists=true instead of pictures.id;exists=true)
         if (props.length === 1) {
-            const column = this.entityMetadata.findColumnWithPropertyName(filter.propPath);
+            column = this.getColumnMetaForPropPath(filter.propPath);
 
+            // Adding ".id" if it was not explicitly given in propPath so that we can add necessary joins
+            if (column.propertyName === "id") {
+                propPath += ".id";
+            }
+        }
+
+        if (props.length === 1 && column.propertyName !== "id") {
             this.addWhereByStrategy({
                 whereExp,
                 entityAlias: this.entityMetadata.tableName,
                 filter,
-                propName: filter.propPath,
+                propName: propPath,
                 column,
             });
         } else {
             const { entityAlias, propName, columnMeta: column } = this.normalizer.makeJoinsFromPropPath(
                 qb,
                 this.entityMetadata,
-                filter.propPath,
+                propPath,
                 props[0]
             );
 

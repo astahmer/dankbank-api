@@ -39,9 +39,9 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
     /**
      * This method will be called by ESManager
      * - should transform & import all selected entities
-     * - should returns a number of imported rows
+     * - should return a number of imported rows
      */
-    abstract async run(): Promise<void>;
+    abstract async run(): Promise<number>;
 
     /**
      * Should be called after instanciation, it:
@@ -53,11 +53,16 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
         logger.info("Init adapter for index: " + this.INDEX_NAME);
         const indexResponse = await this.client.indices.exists({ index: this.INDEX_NAME });
 
-        if (!indexResponse.body) {
-            logger.info("Index doesn't exist, creating it with its mapping.");
+        const body = { mappings: { properties: this.getMapping() } };
+        const params = { index: this.INDEX_NAME, body };
+        try {
+            if (!indexResponse.body) {
+                logger.info("Index doesn't exist, creating it with its mapping.");
 
-            const body = { mappings: { properties: this.getMapping() } };
-            await this.client.indices.create({ index: this.INDEX_NAME, body });
+                await this.client.indices.create(params).catch(logger.error);
+            }
+        } catch (error) {
+            logger.error(error);
         }
 
         let lastValueStr;
@@ -106,6 +111,17 @@ export abstract class AbstractAdapter<Entity extends AbstractEntity> {
 }
 
 export type AbstractDocument = {
-    dateCreated: string;
-    dateUpdated: string;
+    id: number;
+    iri: string;
+    "@id": string;
+    dateCreated?: string;
+    dateUpdated?: string;
 };
+
+export type ElasticFieldType = {
+    type: "keyword" | "integer" | "text" | "boolean" | "date" | "completion" | "object" | "nested";
+};
+export type DocumentMapping<T extends AbstractDocument = AbstractDocument> = Record<
+    keyof T,
+    ElasticFieldType & { [k: string]: any }
+>;

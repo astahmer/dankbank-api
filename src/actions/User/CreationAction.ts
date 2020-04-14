@@ -2,9 +2,7 @@ import { hash } from "bcryptjs";
 import { Context } from "koa";
 
 import { User } from "@/entity/User";
-import {
-    AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { makeAuthTokens } from "@/services/JWT";
 

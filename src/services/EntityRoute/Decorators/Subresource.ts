@@ -1,9 +1,7 @@
 import { ObjectType } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import {
-    getRouteSubresourcesMetadata, ROUTE_SUBRESOURCES
-} from "@/services/EntityRoute/EntityRoute";
+import { getRouteSubresourcesMetadata, ROUTE_SUBRESOURCES } from "@/services/EntityRoute/EntityRoute";
 
 import { RouteSubresourcesMeta, SubresourceOperation } from "../SubresourceManager";
 
@@ -18,7 +16,7 @@ export function Subresource(
 
             // Merge default options with decorator parameter
             options = {
-                operations: ["create", "list", "details"],
+                operations: ["create", "list", "details", "delete"],
                 ...options,
             };
 

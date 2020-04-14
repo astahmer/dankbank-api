@@ -1,6 +1,8 @@
-import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 import { EntityMetadata } from "typeorm";
+
 import { GroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/GroupsMetadata";
+
+import { EntityGroupsMetadata } from "../GroupsMetadata/EntityGroupsMetadata";
 
 /**
  * Expose decorated property for each operation for each listed EntityRoute context
@@ -87,6 +89,7 @@ export function AbstractGroupsDecorator<G extends GroupsMetadata>({
 export type RouteDefaultOperation = "create" | "list" | "details" | "update" | "delete";
 export type RouteOperation = RouteDefaultOperation | string;
 
+// TODO C|R|U|D | { "groupName": C|R|U|D}
 export type GroupsOperation = "create" | "list" | "details" | "update" | string;
 export type GroupsOperationOrAll = GroupsOperation[] | "all";
 export type RouteOperations = Record<string, GroupsOperationOrAll>;

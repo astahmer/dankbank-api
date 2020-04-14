@@ -8,9 +8,7 @@ import { IRouteAction } from "./Actions/AbstractRouteAction";
 import { RouteOperation } from "./Decorators/Groups";
 import { IAbstractFilterConfig } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
-import {
-    CRUD_ACTIONS, IRouteCustomActionItemClass, ResponseManager, RouteCustomAction
-} from "./ResponseManager";
+import { CRUD_ACTIONS, IRouteCustomActionItemClass, ResponseManager, RouteCustomAction } from "./ResponseManager";
 import { Denormalizer } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
@@ -67,6 +65,7 @@ export class EntityRoute<Entity extends AbstractEntity> {
         this.normalizer = new Normalizer(this.repository.metadata, this.mapper, this.aliasManager, {
             shouldEntityWithOnlyIdBeFlattenedToIri: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
             shouldMaxDepthReturnRelationPropsId: this.options.shouldEntityWithOnlyIdBeFlattenedToIri,
+            shouldSetSubresourcesIriOnItem: this.options.shouldSetSubresourcesIriOnItem,
         });
         this.denormalizer = new Denormalizer(this.repository, this.mapper);
         this.subresourceManager = new SubresourceManager<Entity>(
@@ -106,9 +105,12 @@ export class EntityRoute<Entity extends AbstractEntity> {
 
             const requestContextMw = this.responseManager.makeRequestContextMiddleware(operation);
             const responseMw = this.responseManager.makeResponseMiddleware(operation);
-            const mappingMethod = this.responseManager.makeRouteMappingMiddleware(operation);
 
             (<any>router)[verb](path, requestContextMw, responseMw);
+
+            if (operation === "delete") continue;
+
+            const mappingMethod = this.responseManager.makeRouteMappingMiddleware(operation);
             (<any>router)[verb](path + "/mapping", mappingMethod);
         }
 
@@ -174,4 +176,6 @@ export interface IEntityRouteOptions {
     shouldMaxDepthReturnRelationPropsId?: boolean;
     /** In case of a relation with no other mapped props (from groups) for a request: should it unwrap "relation { id }" to relation = id ? */
     shouldEntityWithOnlyIdBeFlattenedToIri?: boolean;
+    /** Should set subresource IRI for prop decorated with @Subresource */
+    shouldSetSubresourcesIriOnItem?: boolean;
 }

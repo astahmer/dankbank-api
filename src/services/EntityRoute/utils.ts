@@ -2,7 +2,7 @@ import { EntityMetadata } from "typeorm";
 
 import { getRouteMetadata } from "./EntityRoute";
 
-export const isDev = () => process.env.NODE_ENV === "development";
+// export const isDev = () => process.env.NODE_ENV === "development";
 export const lowerFirstLetter = (str: string) => str.charAt(0).toLowerCase() + str.slice(1);
 
 export const sortObjectByKeys = (obj: any) =>
@@ -58,16 +58,30 @@ export const limit = (nb: number, [min, max]: [number, number]) => {
     return Math.min(Math.max(nb, min), max);
 };
 
-export const getRandomString = () =>
-    Math.random()
-        .toString(36)
-        .substring(2, 15) +
-    Math.random()
-        .toString(36)
-        .substring(2, 15);
+export const getRandomString = (len = 10) =>
+    Math.random().toString(36).substring(2, len) + Math.random().toString(36).substring(2, len);
 
 export function getRandomInt(min: number, max: number) {
     min = Math.ceil(min);
     max = Math.floor(max);
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+
+export type PrimitiveValue = string | number;
+export type Primitive = PrimitiveValue | Array<PrimitiveValue>;
+export const parseArrayQS = (query: Record<string, Primitive>, key: string) =>
+    query[key + "[]"] ? (Array.isArray(query[key + "[]"]) ? query[key + "[]"] : [query[key + "[]"]]) : query[key];
+
+export const appendArrayDuplicates = <T = any>(array: T[], count: number, idKey: string) => {
+    let result: T[] = [];
+
+    let i = 0;
+    for (i; i < count; i++) {
+        result = array.concat(
+            result,
+            array.reduce((acc) => acc.concat(array.map((item) => ({ ...item, [idKey]: getRandomString(5) }))), [])
+        );
+    }
+
+    return result;
+};

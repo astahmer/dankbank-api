@@ -2,9 +2,7 @@ import { Context } from "koa";
 
 import { diskStorage, imageFilter } from "@/config/storage";
 import { Image } from "@/entity/Image";
-import {
-    AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { logger } from "@/services/logger";
 
 import { ImageManager } from "../ImageManager";

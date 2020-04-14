@@ -1,6 +1,4 @@
-import {
-    CreateDateColumn, getRepository, ObjectType, PrimaryGeneratedColumn, UpdateDateColumn
-} from "typeorm";
+import { CreateDateColumn, getRepository, ObjectType, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 import { Groups } from "@/services/EntityRoute/Decorators";
 import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";

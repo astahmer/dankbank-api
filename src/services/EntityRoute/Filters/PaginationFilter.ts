@@ -2,8 +2,12 @@ import { SelectQueryBuilder } from "typeorm";
 
 import { isType } from "../utils";
 import {
-    AbstractFilter, AbstractFilterApplyArgs, FilterDefaultConfig, IDefaultFilterOptions,
-    QueryParams, QueryParamValue
+    AbstractFilter,
+    AbstractFilterApplyArgs,
+    FilterDefaultConfig,
+    IDefaultFilterOptions,
+    QueryParams,
+    QueryParamValue,
 } from "./AbstractFilter";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
@@ -72,11 +76,11 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
             const direction = directionRaw ? directionRaw.toUpperCase() : this.config.options.defaultOrderDirection;
 
             // Checks that given direction is valid & that filter is both enabled & valid
-            const isValidParam = this.isParamInEntityProps(propPath);
+            const column = this.getColumnMetaForPropPath(propPath);
             if (
                 !isType<ORDER_DIRECTIONS>(direction, direction in ORDER_DIRECTIONS) ||
                 !this.isFilterEnabledForProperty(propPath) ||
-                !isValidParam
+                !column
             ) {
                 continue;
             }
@@ -84,7 +88,7 @@ export class PaginationFilter extends AbstractFilter<IPaginationFilterOptions> {
             // If last part of propPath is a relation (instead of a column), append ".id" to it
             if (
                 this.entityMetadata.findRelationWithPropertyPath(props[0]) &&
-                isValidParam.propertyName === "id" &&
+                column.propertyName === "id" &&
                 !propPath.endsWith(".id")
             ) {
                 propPath += ".id";

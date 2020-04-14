@@ -2,12 +2,14 @@ require("dotenv").config();
 import "reflect-metadata";
 
 import { Connection } from "typeorm";
+import { Server } from "http";
 
 import { getConnectionToDatabase, makeApp } from "./app";
 import { logger } from "./services/logger";
 
 import Koa = require("koa");
-export const BASE_URL = `http://api.${process.env.PROJECT_NAME}.lol`;
+
+export const BASE_URL = process.env.API_URL;
 export const isDev = process.env.NODE_ENV !== "production";
 
 declare const module: any;
@@ -24,8 +26,10 @@ function init() {
     }
 }
 
+let connection: Connection;
+let server: Server;
+
 async function startServer() {
-    let connection: Connection;
     try {
         connection = await getConnectionToDatabase();
     } catch (error) {
@@ -33,16 +37,21 @@ async function startServer() {
         setTimeout(startServer, 1000);
     }
 
-    const server = await makeApp(connection);
+    try {
+        server = await makeApp(connection);
+    } catch (error) {
+        logger.error(error);
+    }
+
     if (module.hot) {
         module.hot.accept((e: any) => {
             logger.error(e);
-            server.close();
+            server?.close();
             startServer();
         });
         module.hot.dispose((data: any) => {
             data.connection = connection;
-            server.close();
+            server?.close();
         });
     }
 }

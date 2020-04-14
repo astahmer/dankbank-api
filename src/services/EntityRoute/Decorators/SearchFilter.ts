@@ -1,10 +1,6 @@
-import {
-    FilterProperty, IAbstractFilterConfig
-} from "@/services/EntityRoute/Filters/AbstractFilter";
+import { FilterProperty, IAbstractFilterConfig } from "@/services/EntityRoute/Filters/AbstractFilter";
 import { AbstractFilterDecorator } from "@/services/EntityRoute/Filters/AbstractFilterDecorator";
-import {
-    getDefaultConfig, ISearchFilterOptions, STRATEGY_TYPES
-} from "@/services/EntityRoute/Filters/SearchFilter";
+import { getDefaultConfig, ISearchFilterOptions, STRATEGY_TYPES } from "@/services/EntityRoute/Filters/SearchFilter";
 
 /**
  * SearchFilter PropertyDecorator

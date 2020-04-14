@@ -67,10 +67,10 @@ class TwitterAuthAction {
                 const queryString = `accessToken=${encodeURIComponent(
                     tokens.accessToken
                 )}&refreshToken=${encodeURIComponent(tokens.refreshToken)}`;
-                ctx.redirect("http://dankbank.lol/twitter.html?" + queryString);
+                ctx.redirect(`${process.env.APP_URL}/twitter.html?${queryString}`);
             } catch (error) {
                 const err = error.code === "ER_DUP_ENTRY" ? error.code : "UNKNOWN";
-                ctx.redirect("http://dankbank.lol/twitter.html?err=" + err);
+                ctx.redirect(`${process.env.APP_URL}/twitter.html?err=${err}`);
             }
         }
     }
@@ -80,10 +80,7 @@ class TwitterAuthAction {
     }
 
     hashRefreshToken(refreshToken: string) {
-        return crypto
-            .createHmac("sha256", process.env["REFRESH_TOKEN_HASH_SECRET"])
-            .update(refreshToken)
-            .digest("hex");
+        return crypto.createHmac("sha256", process.env["REFRESH_TOKEN_HASH_SECRET"]).update(refreshToken).digest("hex");
     }
 
     async findUserByTwitterId(twitterId: string) {

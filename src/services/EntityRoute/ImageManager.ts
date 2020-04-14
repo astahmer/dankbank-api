@@ -3,7 +3,6 @@ import { DeepPartial, EntityManager, getManager } from "typeorm";
 import { DIR_PATH, unlink } from "@/config/storage";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Image } from "@/entity/Image";
-import { BASE_URL } from "@/main";
 
 import { logger } from "../logger";
 import { entityRoutesContainer } from "./";
@@ -16,8 +15,8 @@ export function getImageLocalPath(name: string) {
     return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
 }
 
-export function getImageURL(name: string) {
-    return BASE_URL + "/public/uploads/" + name;
+export function getImageRelativeURL(name: string) {
+    return "/public/uploads/" + name;
 }
 
 type ResizeReturn = Promise<[string, number, Quality[]]>;
@@ -84,7 +83,8 @@ export class ImageManager<Entity extends AbstractEntity> {
             try {
                 savedQualities.forEach(
                     (quality) =>
-                        quality !== Quality.ORIGINAL && unlink(filePath.replace(".jpg", this.getSuffix(quality)))
+                        quality !== Quality.ORIGINAL &&
+                        unlink(filePath.replace(".jpg", getImageNameSuffixForQuality(quality)))
                 );
             } catch (error) {
                 logger.error(error);
@@ -140,16 +140,11 @@ export class ImageManager<Entity extends AbstractEntity> {
         return sizes;
     }
 
-    private getSuffix(quality: Quality) {
-        const isOriginal = quality === Quality.ORIGINAL;
-        return `${!isOriginal ? "_" + quality.toLowerCase() : ""}.jpg`;
-    }
-
     private makeImage(fileName: string, filePath: string, quality: Quality, cropData?: CropData) {
         const img = sharp(filePath);
         const isOriginal = quality === Quality.ORIGINAL;
 
-        const suffix = this.getSuffix(quality);
+        const suffix = getImageNameSuffixForQuality(quality);
         let destPath = path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, fileName);
         destPath = destPath.replace(".jpg", suffix);
 
@@ -204,3 +199,6 @@ const QualityFormat: Record<Quality, Format> = {
     [Quality.MEDIUM]: { maxSize: 750, quality: 70 },
     [Quality.LOW]: { maxSize: 375, quality: 60 },
 };
+
+export const getImageNameSuffixForQuality = (quality: Quality) =>
+    `${quality !== Quality.ORIGINAL ? "_" + quality.toLowerCase() : ""}.jpg`;

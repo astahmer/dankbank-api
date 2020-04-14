@@ -4,10 +4,8 @@ import Container from "typedi";
 
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
-import {
-    AbstractRouteAction, RouteActionConstructorArgs
-} from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { limit } from "@/services/EntityRoute/utils";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
+import { limit, parseArrayQS } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 
@@ -21,23 +19,29 @@ export class SearchAction extends AbstractRouteAction {
     }
 
     public async onRequest(ctx: Context) {
-        const { q, size, excludedIds } = ctx.query;
+        const { q, from, size, excludedIds } = ctx.query;
+        const tags = parseArrayQS(ctx.query, "tags") as string[];
         const elasticQuery = this.getElasticQuery(q, {
+            from,
             size,
             excludedIds: excludedIds ? excludedIds.split(",") : [],
+            tags: tags || [],
         });
         const searchPromise = this.esManager.client.search(elasticQuery);
 
         try {
             const searchResult = (await searchPromise) as ApiResponse<SearchResponse<MemeDocument>>;
-            ctx.body = { items: searchResult.body.hits.hits, total: searchResult.body.hits.total };
+            ctx.body = {
+                items: searchResult.body.hits.hits,
+                total: searchResult.body.hits.total,
+            };
         } catch (error) {
             logger.error(error.message);
             ctx.throw(500);
         }
     }
 
-    private getQueryForParams(queriedValue: string, { excludedIds }: SearchQueryOptions) {
+    private getQueryForParams(queriedValue: string, { excludedIds, tags }: SearchQueryOptions) {
         return {
             bool: {
                 must: [
@@ -48,28 +52,42 @@ export class SearchAction extends AbstractRouteAction {
                             },
                         },
                     },
-                ],
-                must_not: [
-                    {
-                        ids: {
-                            values: excludedIds,
+                    ...tags.map((tag) => ({
+                        match_phrase_prefix: {
+                            tags: {
+                                query: tag,
+                            },
                         },
-                    },
+                    })),
                 ],
+                ...(excludedIds.length && {
+                    must_not: [
+                        {
+                            ids: {
+                                values: excludedIds,
+                            },
+                        },
+                    ],
+                }),
             },
         };
     }
 
-    private getElasticQuery(queriedValue: string, { size, excludedIds }: SearchQueryOptions): RequestParams.Search {
+    private getElasticQuery(
+        queriedValue: string,
+        { from = 0, size, excludedIds, tags }: SearchQueryOptions
+    ): RequestParams.Search {
         const limitedSize = size ? limit(size, [1, 100]) : 25;
+        const query = this.getQueryForParams(queriedValue, { excludedIds, tags });
 
         return {
             index: "memes",
             body: {
+                from,
                 size: limitedSize,
                 query: {
                     function_score: {
-                        query: this.getQueryForParams(queriedValue, { excludedIds }),
+                        query,
                         score_mode: "multiply",
                         boost_mode: "sum",
                         max_boost: 10,
@@ -100,4 +118,4 @@ export class SearchAction extends AbstractRouteAction {
     }
 }
 
-type SearchQueryOptions = { size?: number; excludedIds: string[] };
+type SearchQueryOptions = { from?: number; size?: number; tags?: string[]; excludedIds: string[] };

@@ -3,9 +3,7 @@ import { isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { getDependsOnMetadata } from "@/services/EntityRoute/Decorators/DependsOn";
-import {
-    ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation
-} from "@/services/EntityRoute/Decorators/Groups";
+import { ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { IEntityRouteOptions } from "../EntityRoute";
 import { EntityMapper } from "../Mapping/EntityMapper";
@@ -14,7 +12,7 @@ import { QueryAliasManager } from "./QueryAliasManager";
 
 type NormalizerOptions = Pick<
     IEntityRouteOptions,
-    "shouldMaxDepthReturnRelationPropsId" | "shouldEntityWithOnlyIdBeFlattenedToIri"
+    "shouldMaxDepthReturnRelationPropsId" | "shouldEntityWithOnlyIdBeFlattenedToIri" | "shouldSetSubresourcesIriOnItem"
 >;
 export class Normalizer {
     constructor(
@@ -29,6 +27,10 @@ export class Normalizer {
         qb: SelectQueryBuilder<Entity>,
         operation?: RouteOperation
     ): Promise<[Entity[], number]> {
+        const selectProps = this.mapper.getSelectProps(operation, this.metadata, true);
+
+        qb.select(selectProps);
+
         this.joinAndSelectExposedProps(operation, qb, this.metadata, "", this.metadata.tableName);
         this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, this.metadata);
 
@@ -87,10 +89,10 @@ export class Normalizer {
         const column = entityMetadata.findColumnWithPropertyName(currentProp);
         const relation = column ? column.relationMetadata : entityMetadata.findRelationWithPropertyPath(currentProp);
 
-        // Flat primitive property
+        // Flat primitive property OR enum/simple-json/simple-array
         if (column && !relation) {
             return {
-                entityAlias: prevAlias,
+                entityAlias: prevAlias || entityMetadata.tableName,
                 propName: column.databaseName,
                 columnMeta: column,
             };
@@ -143,6 +145,8 @@ export class Normalizer {
             ) {
                 delete item[key as keyof Entity];
             }
+
+            // TODO Remove properties selected by DependsOn ? options in Route>App ? default = true
         }
 
         if (
@@ -156,7 +160,9 @@ export class Normalizer {
             return item;
         } else {
             await this.setComputedPropsOnItem(item, operation, entityMetadata);
-            this.setSubresourcesIriOnItem(item, entityMetadata);
+            if (this.options.shouldSetSubresourcesIriOnItem) {
+                this.setSubresourcesIriOnItem(item, entityMetadata);
+            }
             return sortObjectByKeys(item);
         }
     }
@@ -200,6 +206,7 @@ export class Normalizer {
 
             if (!circularProp) {
                 this.joinAndSelectExposedProps(operation, qb, relation.inverseEntityMetadata, newPath, alias);
+                this.joinAndSelectPropsThatComputedPropsDependsOn(operation, qb, relation.inverseEntityMetadata, alias);
             } else if (this.options.shouldMaxDepthReturnRelationPropsId) {
                 qb.addSelect(alias + ".id");
             }
@@ -210,7 +217,8 @@ export class Normalizer {
     private joinAndSelectPropsThatComputedPropsDependsOn(
         operation: RouteOperation,
         qb: SelectQueryBuilder<any>,
-        entityMetadata: EntityMetadata
+        entityMetadata: EntityMetadata,
+        alias?: string
     ) {
         const dependsOnMeta = getDependsOnMetadata(entityMetadata.target as Function);
         const computedProps = this.mapper.getComputedProps(operation, entityMetadata).map(getComputedPropMethodAndKey);
@@ -224,7 +232,13 @@ export class Normalizer {
                         propPath,
                         props[0]
                     );
-                    qb.addSelect([entityAlias + "." + propName]);
+
+                    const selectProp = (alias || entityAlias) + "." + propName;
+                    const isAlredySelected = qb.expressionMap.selects.find((select) => select.selection === selectProp);
+
+                    if (!isAlredySelected) {
+                        qb.addSelect([selectProp]);
+                    }
                 });
             }
         });

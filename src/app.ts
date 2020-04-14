@@ -4,9 +4,7 @@ import session = require("koa-session");
 
 import { useContainer as validatorUseContainer } from "class-validator";
 import { Container } from "typedi";
-import {
-    Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer
-} from "typeorm";
+import { Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer } from "typeorm";
 
 import { useAuthRoutes } from "./actions/Authentication";
 import { useCustomRoute } from "./actions/CustomAction";
@@ -16,7 +14,7 @@ import { makeFixtures } from "./fixtures";
 import { app, BASE_URL } from "./main";
 import { logRequest } from "./middlewares";
 import { TypeORMConfig } from "./ormconfig";
-import { adaptRowsToDocuments } from "./services/ElasticSearch/ESManager";
+import { adaptRowsToDocuments, ElasticSearchManager } from "./services/ElasticSearch/ESManager";
 import { useEntitiesRoutes } from "./services/EntityRoute";
 import { logger } from "./services/logger";
 import { getAppRoutes } from "./utils/getAppRoutes";
@@ -40,6 +38,10 @@ export async function getConnectionToDatabase() {
 export async function makeApp(connection: Connection) {
     logger.info("Starting Koa server...");
 
+    const esManager = Container.get(ElasticSearchManager);
+    await esManager.waitForConnection();
+    logger.info("Connection with ElasticSearch successful");
+
     if (process.env.MAKE_FIXTURES === "true") {
         await makeFixtures(connection);
     }
@@ -62,7 +64,7 @@ export async function makeApp(connection: Connection) {
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
 
-    const port = parseInt(process.env.VIRTUAL_PORT);
+    const port = parseInt(process.env.PORT);
     const server = app.listen(port, "0.0.0.0");
     logger.info("Listening on port " + port);
     logger.info("Server up on " + BASE_URL);
@@ -103,6 +105,14 @@ export function getSubscribers() {
 
 function useRouteListAtIndex() {
     const router = new Router();
-    router.get("/", (ctx) => (ctx.body = getAppRoutes(app.middleware)));
+    const filterRoutes = (routers: ReturnType<typeof getAppRoutes>, filter: string) =>
+        routers.map((routes) => routes.filter((item) => item.path.includes(filter))).filter((routes) => routes.length);
+
+    router.get("/", (ctx) => {
+        const filter = ctx.query.filter;
+        const entrypoints = getAppRoutes(app.middleware);
+        const routers = filter ? filterRoutes(entrypoints, filter) : entrypoints;
+        ctx.body = routers.map((router) => router.map((entrypoint) => entrypoint.desc));
+    });
     return router;
 }
