@@ -8,7 +8,7 @@ import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
-import { formatEntityId } from "../utils";
+import { formatIriToId } from "../Filters/SearchFilter";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
@@ -77,7 +77,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         if (isPrimitive(item)) {
             mapping = this.mapper.getNestedMappingAt(currentPath, routeMapping);
             return mapping && mapping.exposedProps.length === 1 && mapping.exposedProps[0] === "id"
-                ? { id: formatEntityId(item) }
+                ? { id: formatIriToId(item) }
                 : clone;
         }
 
@@ -108,7 +108,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
                 const isRelation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(key);
                 // Format IRI to id && string "id" to int id
                 if (typeof prop === "string" && (isRelation || key === "id")) {
-                    clone[key] = formatEntityId(prop);
+                    clone[key] = formatIriToId(prop);
                 } else {
                     clone[key] = prop;
                 }

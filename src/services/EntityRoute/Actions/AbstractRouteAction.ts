@@ -7,9 +7,10 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 import { GroupsOperation } from "../Decorators/Groups";
 import { EntityRoute } from "../EntityRoute";
 import { IRouteCustomActionItemClass, RouteCustomAction } from "../ResponseManager";
-import { isType } from "../utils";
 
 import Router = require("koa-router");
+import { isType } from "@/functions/asserts";
+
 export type RouteActionConstructorArgs = {
     entityRoute?: EntityRoute<any>;
     middlewares: Middleware[];

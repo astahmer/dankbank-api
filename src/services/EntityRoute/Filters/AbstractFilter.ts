@@ -4,7 +4,7 @@ import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 import { Normalizer } from "../Serializer/Normalizer";
 import { QueryAliasManager } from "../Serializer/QueryAliasManager";
-import { isDefined } from "../utils";
+import { isDefined } from "@/functions/asserts";
 
 export abstract class AbstractFilter<FilterOptions extends IDefaultFilterOptions = IDefaultFilterOptions> {
     protected config: IAbstractFilterConfig<FilterOptions>;

@@ -1,6 +1,5 @@
 import { SelectQueryBuilder } from "typeorm";
 
-import { isType } from "../utils";
 import {
     AbstractFilter,
     AbstractFilterApplyArgs,
@@ -9,6 +8,7 @@ import {
     QueryParams,
     QueryParamValue,
 } from "./AbstractFilter";
+import { isType } from "@/functions/asserts";
 
 export interface IPaginationFilterOptions extends IDefaultFilterOptions {
     defaultOrderBys?: string | string[];

@@ -13,7 +13,7 @@ import { Denormalizer } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { RouteSubresourcesMeta, SubresourceManager } from "./SubresourceManager";
-import { isType } from "./utils";
+import { isType } from "@/functions/asserts";
 
 export const ROUTE_METAKEY = Symbol("route");
 export const getRouteMetadata = (entity: Function): RouteMetadata => Reflect.getOwnMetadata(ROUTE_METAKEY, entity);

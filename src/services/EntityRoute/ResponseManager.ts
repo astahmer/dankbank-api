@@ -14,7 +14,7 @@ import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { SubresourceManager, SubresourceRelation } from "./SubresourceManager";
-import { isType } from "./utils";
+import { isType } from "@/functions/asserts";
 
 export class ResponseManager<Entity extends AbstractEntity> {
     private filtersMeta: RouteFiltersMeta;

@@ -5,9 +5,9 @@ import Container from "typedi";
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { limit } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
+import { limit } from "@/functions/object";
 
 export class ListAction extends AbstractRouteAction {
     private esManager: ElasticSearchManager;
