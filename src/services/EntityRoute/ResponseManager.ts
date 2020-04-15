@@ -10,7 +10,7 @@ import { RouteOperation } from "./Decorators/Groups";
 import { getRouteFiltersMeta, RouteFiltersMeta } from "./EntityRoute";
 import { AbstractFilter, IAbstractFilterConfig, QueryParams } from "./Filters/AbstractFilter";
 import { EntityMapper } from "./Mapping/EntityMapper";
-import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
+import { Denormalizer, EntityErrorResponse, EntityErrorResults } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { SubresourceManager, SubresourceRelation } from "./SubresourceManager";
@@ -56,8 +56,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
 
         const insertResult = await this.denormalizer.insertItem(values, { operation, queryRunner });
 
-        // Has errors
-        if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
+        if (isType<EntityErrorResponse>(insertResult, "hasValidationErrors" in insertResult)) {
             return insertResult;
         }
 
@@ -122,8 +121,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
         (values as any).id = entityId;
         const insertResult = await this.denormalizer.updateItem(values, { operation, queryRunner });
 
-        // Has errors
-        if (isType<ErrorMappingItem>(insertResult, "errors" in insertResult)) {
+        if (isType<EntityErrorResponse>(insertResult, "hasValidationErrors" in insertResult)) {
             return insertResult;
         }
 
@@ -216,8 +214,8 @@ export class ResponseManager<Entity extends AbstractEntity> {
             try {
                 const result = await this[method]({ operation, ...params }, queryRunner);
 
-                if (isType<ErrorMappingItem>(result, "errors" in result)) {
-                    response["@context"].errors = result;
+                if (isType<EntityErrorResponse>(result, "hasValidationErrors" in result)) {
+                    response["@context"].errors = result.errors;
                     ctx.status = 400;
                 } else if ("error" in result) {
                     response["@context"].error = result.error;
@@ -376,7 +374,7 @@ interface IRouteResponse {
         /** Number of items retrieved for this request */
         retrievedItems?: number;
         /** Entity validation errors */
-        errors?: ErrorMappingItem;
+        errors?: EntityErrorResults;
         /** Global response error */
         error?: string;
     };

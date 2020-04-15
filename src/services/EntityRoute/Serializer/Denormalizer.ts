@@ -8,7 +8,9 @@ import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
+import { validateClass } from "@/validators/ClassValidator";
 import { formatIriToId } from "../Filters/SearchFilter";
+import { logger } from "@/services/logger";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
@@ -45,11 +47,12 @@ export class Denormalizer<Entity extends AbstractEntity> {
         const cleanedItem = this.cleanItem(operation, values);
         const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
 
-        const validatorOptions = operation === "update" ? { skipMissingProperties: false } : undefined;
-        const errorMapping = await this.recursiveValidate(item, [], validatorOptions);
+        // TODO Validations groups
+        const validatorOptions: ValidatorOptions = operation === "update" ? { skipMissingProperties: false } : {};
+        const errors = await this.validateItem(item, validatorOptions);
 
-        if (hasAnyError(errorMapping)) {
-            return errorMapping;
+        if (Object.keys(errors).length) {
+            return { hasValidationErrors: true, errors } as EntityErrorResponse;
         }
 
         return repository.save((item as any) as DeepPartial<Entity>);
@@ -120,52 +123,72 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Recursively validate sent values & returns errors for each entity not passing validation */
     private async recursiveValidate(
-        item: any,
-        currentPath: string[],
-        options?: ValidatorOptions
-    ): Promise<ErrorMappingItem> {
-        let key: string, prop;
+        item: Entity,
+        currentPath: string,
+        errorResults: Record<string, EntityError[]>,
+        options: ValidatorOptions
+    ) {
+        let key: string, prop: any;
 
         const keys = Object.keys(item);
         // If user is updating entity and item is just an existing relation, no need to validate it since it's missing properties
-        if (
-            ((options && options.skipMissingProperties) || currentPath.length) &&
-            keys.length === 1 &&
-            keys[0] === "id"
-        ) {
-            return {
-                currentPath,
-                errors: [],
-                nested: null,
-            };
+        if ((options.skipMissingProperties || currentPath.includes(".")) && keys.length === 1 && keys[0] === "id") {
+            return [];
         }
 
-        const errors = await validate(item, options);
-        const errorMapping: ErrorMappingItem = {
-            currentPath,
-            errors,
-            nested: null,
-        };
+        const [propErrors, classErrors] = await Promise.all([validate(item, options), validateClass(item, options)]);
+        const itemErrors: EntityError[] = propErrors
+            .concat(classErrors)
+            .map((err) => ({ currentPath, property: err.property, constraints: err.constraints }));
 
+        if (itemErrors.length) {
+            // Gotta use item.className for root level errors in order to have a non-empty string as a key
+            errorResults[currentPath || item.getClassName()] = itemErrors;
+        }
+
+        // Recursively validates item.props
+        const makePromise = (nestedItem: Entity, path: string): Promise<void> =>
+            new Promise(async (resolve) => {
+                try {
+                    const errors = await this.recursiveValidate(nestedItem, path, errorResults, options);
+                    if (errors.length) {
+                        errorResults[path] = errors;
+                    }
+                    resolve();
+                } catch (error) {
+                    logger.error(`Validation failed at path ${path}`);
+                    logger.error(error);
+                    resolve();
+                }
+            });
+
+        const path = currentPath ? currentPath + "." : "";
+
+        // Parallel validation on item.props
+        const promises: Promise<void>[] = [];
         for (key in item) {
-            prop = item[key];
+            prop = (item as Record<string, any>)[key];
 
             if (Array.isArray(prop)) {
-                if (!errorMapping.nested) {
-                    errorMapping.nested = {};
+                let i = 0;
+                for (i; i < prop.length; i++) {
+                    promises.push(makePromise(prop[i], `${path}${key}[${i}]`));
                 }
-                errorMapping.nested[key] = await Promise.all(
-                    prop.map((nestedItem) => this.recursiveValidate(nestedItem, currentPath.concat(key), options))
-                );
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
-                if (!errorMapping.nested) {
-                    errorMapping.nested = {};
-                }
-                errorMapping.nested[key] = [await this.recursiveValidate(prop, currentPath.concat(key), options)];
+                promises.push(makePromise(prop, `${path}${key}`));
             }
         }
 
-        return errorMapping;
+        await Promise.all(promises);
+
+        return itemErrors;
+    }
+
+    /** Validates sent values & return a record of validation errors */
+    private async validateItem(item: Entity, options: ValidatorOptions) {
+        const errors: EntityErrorResults = {};
+        await this.recursiveValidate(item, "", errors, options);
+        return errors;
     }
 }
 
@@ -182,31 +205,12 @@ const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
 /** Checks that a MappingItem contains further nested props  */
 export const hasAnyNestedPropMapped = (mapping: MappingItem) => mapping && mapping.exposedProps.length;
 
-/** Recursively checks if there was a ValidationError on some property */
-function hasAnyError(errorMapping: ErrorMappingItem): boolean {
-    if (errorMapping.errors.length) {
-        return true;
-    }
-
-    if (errorMapping.nested) {
-        let nestedError;
-        return Object.keys(errorMapping.nested).some((prop) => {
-            nestedError = errorMapping.nested[prop];
-
-            if (Array.isArray(nestedError)) {
-                return nestedError.some((item) => hasAnyError(item));
-            } else {
-                return hasAnyError(nestedError);
-            }
-        });
-    }
-}
-
-export type ErrorMappingItem = {
-    /** Path to arrive at this entity's errors from the requested route base entity  */
-    currentPath: string[];
-    /** Errors at this path */
-    errors: ValidationError[];
-    /** Entity's nested relation errors */
-    nested: Record<string, ErrorMappingItem | ErrorMappingItem[]>;
+export type EntityError = {
+    currentPath: string;
+    property: string;
+    constraints: {
+        [type: string]: string;
+    };
 };
+export type EntityErrorResults = Record<string, EntityError[]>;
+export type EntityErrorResponse = { hasValidationErrors: true; errors: EntityErrorResults };

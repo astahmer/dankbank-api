@@ -15,6 +15,7 @@ import { MemeBank } from "./MemeBank";
 import { Tag } from "./Tag";
 import { User } from "./User";
 import { Visibility } from "./Visibility";
+import { IsUnique } from "@/validators/IsUnique";
 
 @PaginationFilter()
 @SearchFilter([], { all: true, allNested: true })
@@ -42,6 +43,8 @@ import { Visibility } from "./Visibility";
         },
     ],
 })
+@Unique(["image", "owner"])
+@IsUnique<Meme>(["image", "owner"])
 @Entity()
 export class Meme extends AbstractEntity {
     @Groups({ meme: ["create", "list", "details", "update"] })
