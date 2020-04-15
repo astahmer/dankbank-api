@@ -14,6 +14,8 @@ import { Denormalizer, ErrorMappingItem } from "./Serializer/Denormalizer";
 import { Normalizer } from "./Serializer/Normalizer";
 import { QueryAliasManager } from "./Serializer/QueryAliasManager";
 import { SubresourceManager, SubresourceRelation } from "./SubresourceManager";
+import { logger } from "../logger";
+import { isTokenValid, JwtDecoded } from "../JWT";
 import { isType } from "@/functions/asserts";
 
 export class ResponseManager<Entity extends AbstractEntity> {
@@ -175,9 +177,12 @@ export class ResponseManager<Entity extends AbstractEntity> {
 
             this.aliasManager.resetList();
 
+            // Add decoded token in requestContext
+            const decoded = await isTokenValid(ctx.req.headers.authorization);
+
             // Create query runner to retrieve requestContext in subscribers
             const queryRunner = this.connection.createQueryRunner();
-            const requestContext: RequestContext<Entity> = { params };
+            const requestContext: RequestContext<Entity> = { params, decoded };
             queryRunner.data = { requestContext };
 
             ctx.state.requestContext = requestContext;
@@ -197,7 +202,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
             const {
                 requestContext: { params },
                 queryRunner,
-            } = ctx.state;
+            } = ctx.state as RequestState<Entity>;
 
             const method = CRUD_ACTIONS[operation].method;
             let response: IRouteResponse = {
@@ -222,12 +227,13 @@ export class ResponseManager<Entity extends AbstractEntity> {
                     response["@context"].totalItems = result.totalItems;
                     response.items = result.items;
                 } else if (isType<DeleteResult>(result, "raw" in result)) {
-                    response.deleted = result.affected ? result.raw.insertId : null;
+                    response.deleted = result.affected ? params.entityId : null;
                 } else {
                     response = { ...response, ...result };
                 }
             } catch (error) {
                 response["@context"].error = isDev ? error.message : "Bad request";
+                logger.error(error);
                 ctx.status = 400;
             }
 
@@ -350,8 +356,13 @@ export interface IActionParams<Entity extends AbstractEntity> {
     operation?: RouteOperation;
 }
 
-export type RequestContext<Entity extends AbstractEntity> = {
+export type RequestContext<Entity extends AbstractEntity = AbstractEntity> = {
     params: IActionParams<Entity>;
+    decoded: JwtDecoded;
+};
+export type RequestState<Entity extends AbstractEntity = AbstractEntity> = {
+    requestContext: RequestContext<Entity>;
+    queryRunner: QueryRunner;
 };
 
 interface IRouteResponse {
