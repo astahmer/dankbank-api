@@ -1,16 +1,18 @@
-import { validate, ValidationError, ValidatorOptions } from "class-validator";
+import { validate, ValidatorOptions } from "class-validator";
 import { DeepPartial, QueryRunner, Repository } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
-import { validateClass } from "@/validators/ClassValidator";
+import { validateClass, ClassValidatorFunctionOptions } from "@/validators/ClassValidator";
 import { formatIriToId } from "../Filters/SearchFilter";
 import { logger } from "@/services/logger";
+import { RequestContext } from "../ResponseManager";
+import { isType } from "@/functions/asserts";
+import { Primitive } from "@/functions/primitives";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
@@ -21,26 +23,31 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Method used when making a POST request */
     public async insertItem(
-        values: QueryDeepPartialEntity<Entity>,
-        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
+        queryRunner?: QueryRunner
     ) {
-        return this.saveItem(params.operation || "create", values, params.queryRunner);
+        const operation = ctx.operation || "create";
+        return this.saveItem({ ...ctx, operation }, options, queryRunner);
     }
 
     /** Method used when making a PUT request on a specific id */
     public async updateItem(
-        values: QueryDeepPartialEntity<Entity>,
-        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
+        queryRunner?: QueryRunner
     ) {
-        return this.saveItem(params.operation || "update", values, params.queryRunner);
+        const operation = ctx.operation || "update";
+        return this.saveItem({ ...ctx, operation }, options, queryRunner);
     }
 
     /** Clean & validate item and then save it if there was no error */
     private async saveItem(
-        operation: RouteOperation,
-        values: QueryDeepPartialEntity<Entity>,
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
         queryRunner?: QueryRunner
     ) {
+        const { operation, values } = ctx;
         const repository = queryRunner
             ? queryRunner.manager.getRepository<Entity>(this.metadata.target)
             : this.repository;
@@ -48,8 +55,13 @@ export class Denormalizer<Entity extends AbstractEntity> {
         const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
 
         // TODO Validations groups
-        const validatorOptions: ValidatorOptions = operation === "update" ? { skipMissingProperties: false } : {};
-        const errors = await this.validateItem(item, validatorOptions);
+        const validatorOptions: DenormalizerValidatorOptions =
+            operation === "update" ? { skipMissingProperties: false } : {};
+        const errors = await this.validateItem(item, {
+            ...validatorOptions,
+            ...options,
+            requestContext: ctx,
+        });
 
         if (Object.keys(errors).length) {
             return { hasValidationErrors: true, errors } as EntityErrorResponse;
@@ -60,16 +72,16 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Return a clone of this request body values with only mapped props */
     public cleanItem(
-        operation: RouteOperation,
-        values: QueryDeepPartialEntity<Entity>
-    ): QueryDeepPartialEntity<Entity> {
+        operation: RequestContext["operation"],
+        values: RequestContext<Entity>["values"]
+    ): RequestContext<Entity>["values"] {
         const routeMapping = this.mapper.make(operation);
         return this.recursiveClean(values, {}, [], routeMapping);
     }
 
     /** Removes non-mapped (deep?) properties from sent values & format entity.id */
     private recursiveClean(
-        item: any,
+        item: RequestContext<Entity>["values"] | string,
         clone: any,
         currentPath: string[],
         routeMapping: MappingItem
@@ -77,7 +89,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         let key: string, prop, mapping, nestedMapping;
 
         // If item is an iri/id (coming from an array), just return it in object with proper id
-        if (isPrimitive(item)) {
+        if (isType<Primitive>(item, isPrimitive(item))) {
             mapping = this.mapper.getNestedMappingAt(currentPath, routeMapping);
             return mapping && mapping.exposedProps.length === 1 && mapping.exposedProps[0] === "id"
                 ? { id: formatIriToId(item) }
@@ -85,7 +97,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         }
 
         for (key in item) {
-            prop = item[key];
+            prop = item[key as keyof typeof item];
             mapping = currentPath.length ? this.mapper.getNestedMappingAt(currentPath, routeMapping) : routeMapping;
 
             if (!isPropMapped(key, mapping)) {
@@ -100,7 +112,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
                 } else {
                     clone[key] = prop;
                 }
-            } else if (isObject(prop)) {
+            } else if (isType<QueryDeepPartialEntity<Entity>>(prop, isObject(prop))) {
                 nestedMapping = this.mapper.getNestedMappingAt(currentPath.concat(key), mapping);
                 if (hasAnyNestedPropMapped(nestedMapping)) {
                     clone[key] = this.recursiveClean(prop, {}, currentPath.concat(key), routeMapping);
@@ -126,7 +138,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         item: Entity,
         currentPath: string,
         errorResults: Record<string, EntityError[]>,
-        options: ValidatorOptions
+        options: DenormalizerValidatorOptions
     ) {
         let key: string, prop: any;
 
@@ -185,7 +197,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
     }
 
     /** Validates sent values & return a record of validation errors */
-    private async validateItem(item: Entity, options: ValidatorOptions) {
+    private async validateItem(item: Entity, options: DenormalizerValidatorOptions) {
         const errors: EntityErrorResults = {};
         await this.recursiveValidate(item, "", errors, options);
         return errors;
@@ -214,3 +226,5 @@ export type EntityError = {
 };
 export type EntityErrorResults = Record<string, EntityError[]>;
 export type EntityErrorResponse = { hasValidationErrors: true; errors: EntityErrorResults };
+
+type DenormalizerValidatorOptions = ValidatorOptions & ClassValidatorFunctionOptions;

@@ -4,9 +4,10 @@ import { ObjectType } from "typeorm";
 import Container, { Service } from "typedi";
 import { logger } from "@/services/logger";
 import { isPromise } from "@/functions/asserts";
+import { RequestContext } from "@/services/EntityRoute/ResponseManager";
 
 export const VALIDATION_METAKEY = Symbol("validation");
-export const getClassValidatorMetadata = <T extends AbstractEntity>(entity: Function): ClassValidatorMetadata<T> =>
+export const getClassValidatorMetadata = <T extends AbstractEntity>(entity: Object): ClassValidatorMetadata<T> =>
     Reflect.getOwnMetadata(VALIDATION_METAKEY, entity);
 
 /** Call Service.ClassValidator.execute on entity with given options  */
@@ -24,19 +25,21 @@ export class ClassValidator {
     /** Execute all registered validators on entity */
     async execute<T extends AbstractEntity>(
         entity: T,
-        options?: ClassValidatorFunctionOptions
+        options: ClassValidatorFunctionOptions = {}
     ): Promise<ValidationError[]> {
         // TODO Validations groups
         // const groups = options?.groups || [];
 
         const metadata = getClassValidatorMetadata(entity.constructor);
+        if (!metadata) return [];
+
         const promises = [];
         const errors: ValidationError[] = [];
 
         for (const key in metadata) {
             if (metadata.hasOwnProperty(key)) {
                 const config = metadata[key];
-                const result = this.validate(entity, config);
+                const result = this.validate(entity, config, options);
                 const onFinished = (result: boolean) => !result && errors.push(this.makeError(entity, config));
 
                 if (isPromise(result)) {
@@ -68,12 +71,18 @@ export class ClassValidator {
     }
 
     /** Call a validator's validate function with given config on entity */
-    validate<T extends AbstractEntity>(entity: T, config: ClassValidatorConfig<T>) {
+    validate<T extends AbstractEntity>(
+        entity: T,
+        config: ClassValidatorConfig<T>,
+        options: ClassValidatorFunctionOptions<T>
+    ) {
         const args: ClassValidationArguments<T> = {
             value: entity,
             object: entity.constructor,
             targetName: entity.constructor?.name,
             data: config.data,
+            property: config.property,
+            requestContext: options.requestContext,
         };
 
         const validateFn = config.validator instanceof Function ? config.validator : config.validator.validate;
@@ -105,10 +114,18 @@ export function registerClassDecorator<T extends AbstractEntity>({
     target,
     ...args
 }: RegisterClassDecoratorArgs<T>) {
-    const metadata = getClassValidatorMetadata(target.constructor) || {};
+    const metadata = getClassValidatorMetadata(target) || {};
 
     const config: ClassValidatorConfig<any> = { name, ...args };
-    metadata[name] = config;
+
+    // Handle the case where there is multiple decorator of same kind on same entity
+    if (metadata[name]) {
+        const keys = Object.keys(metadata);
+        const count = keys.reduce((acc, value) => acc + (value.startsWith(name) ? 1 : 0), 0);
+        metadata[name + "." + count] = config;
+    } else {
+        metadata[name] = config;
+    }
 
     Reflect.defineMetadata(VALIDATION_METAKEY, metadata, target);
 }
@@ -131,7 +148,9 @@ export type ClassValidatorFunction<T extends AbstractEntity> = (
 ) => Promise<boolean> | boolean;
 
 /** ClassValidator validate function options */
-export type ClassValidatorFunctionOptions = Pick<ValidatorOptions, "groups">;
+export type ClassValidatorFunctionOptions<T extends AbstractEntity = any> = Pick<ValidatorOptions, "groups"> & {
+    requestContext?: RequestContext<T>;
+};
 
 /** Can either be a custom class implementing ClassValidatorConstraintInterface or a function with ClassValidatorFunction signature */
 export type ClassValidatorTypeUnion<T extends AbstractEntity> =
@@ -153,17 +172,23 @@ export type ClassValidatorConfig<T extends AbstractEntity, Data = any, U = Class
     property?: string;
 };
 /** Interface to implement for custom ClassValidator */
-export interface ClassValidatorConstraintInterface<T extends AbstractEntity> {
+export interface ClassValidatorConstraintInterface<T extends AbstractEntity = any> {
     validate(value: T, validationArguments?: ClassValidationArguments<T>): Promise<boolean> | boolean;
 }
 /** Arguments passed to validate function */
-export interface ClassValidationArguments<T extends AbstractEntity, Data = any>
-    extends Pick<ValidationArguments, "value" | "object" | "targetName"> {
+export interface ClassValidationArguments<T extends AbstractEntity = any, Data = any>
+    extends Pick<ValidationArguments, "value" | "object" | "targetName" | "property"> {
+    /** Entity being validated */
     value: T;
+    /** Class of entity being validated */
     object: ObjectType<T>;
+    /** Custom data to pass to validator function */
     data?: Data;
+    /** Request state if coming from regular entity routes */
+    requestContext?: RequestContext<T>;
 }
 
+// TODO different options si property decorator
 /** ClassValidator decorator options */
 export interface ClassValidatorOptions extends ValidationOptions {
     /** Property on which the constraint failed */

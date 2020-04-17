@@ -41,7 +41,9 @@ export class ResponseManager<Entity extends AbstractEntity> {
         return Object.values(this.filtersMeta);
     }
 
-    public async create({ operation, values, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
+    public async create(ctx: RequestContext<Entity>, queryRunner: QueryRunner) {
+        const { operation, values, subresourceRelation } = ctx;
+
         // Auto-join subresource parent on body values
         if (
             subresourceRelation &&
@@ -54,7 +56,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
             return { error: "Body can't be empty on create operation" };
         }
 
-        const insertResult = await this.denormalizer.insertItem(values, { operation, queryRunner });
+        const insertResult = await this.denormalizer.insertItem(ctx, {}, queryRunner);
 
         if (isType<EntityErrorResponse>(insertResult, "hasValidationErrors" in insertResult)) {
             return insertResult;
@@ -76,10 +78,9 @@ export class ResponseManager<Entity extends AbstractEntity> {
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
-    public async getList(
-        { operation, queryParams, subresourceRelation }: IActionParams<Entity>,
-        queryRunner: QueryRunner
-    ) {
+    public async getList(ctx: RequestContext<Entity>, queryRunner: QueryRunner) {
+        const { operation, queryParams, subresourceRelation } = ctx;
+
         const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
         const qb = repository.createQueryBuilder(this.metadata.tableName);
 
@@ -103,10 +104,9 @@ export class ResponseManager<Entity extends AbstractEntity> {
     }
 
     /** Returns an entity with every mapped props (from groups) for a given id */
-    public async getDetails(
-        { operation, entityId, subresourceRelation }: IActionParams<Entity>,
-        queryRunner: QueryRunner
-    ) {
+    public async getDetails(ctx: RequestContext<Entity>, queryRunner: QueryRunner) {
+        const { operation, entityId, subresourceRelation } = ctx;
+
         const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
         const qb = repository.createQueryBuilder(this.metadata.tableName);
 
@@ -117,18 +117,20 @@ export class ResponseManager<Entity extends AbstractEntity> {
         return await this.normalizer.getItem<Entity>(qb, entityId, operation || "details");
     }
 
-    public async update({ operation, values, entityId }: IActionParams<Entity>, queryRunner: QueryRunner) {
-        (values as any).id = entityId;
-        const insertResult = await this.denormalizer.updateItem(values, { operation, queryRunner });
+    public async update(ctx: RequestContext<Entity>, queryRunner: QueryRunner) {
+        const { operation, values, entityId, decoded } = ctx;
 
-        if (isType<EntityErrorResponse>(insertResult, "hasValidationErrors" in insertResult)) {
-            return insertResult;
+        (values as any).id = entityId;
+        const result = await this.denormalizer.updateItem(ctx, {}, queryRunner);
+
+        if (isType<EntityErrorResponse>(result, "hasValidationErrors" in result)) {
+            return result;
         }
 
-        return this.getDetails({ operation, entityId: insertResult.id }, queryRunner);
+        return this.getDetails({ operation, decoded, entityId: result.id }, queryRunner);
     }
 
-    public async delete({ entityId, subresourceRelation }: IActionParams<Entity>, queryRunner: QueryRunner) {
+    public async delete({ entityId, subresourceRelation }: RequestContext<Entity>, queryRunner: QueryRunner) {
         // Remove relation if used on a subresource
         if (subresourceRelation) {
             const repository = queryRunner.manager.getRepository<Entity>(this.metadata.target);
@@ -164,7 +166,11 @@ export class ResponseManager<Entity extends AbstractEntity> {
                 subresourceRelation.id = parseInt(ctx.params[subresourceRelation.param]);
             }
 
-            const params: IActionParams<Entity> = {
+            // Add decoded token in requestContext
+            const decoded = await isTokenValid(ctx.req.headers.authorization);
+
+            const params: RequestContext<Entity> = {
+                decoded,
                 subresourceRelation,
                 isUpdateOrCreate: ctx.request.body && (ctx.method === "POST" || ctx.method === "PUT"),
             };
@@ -175,15 +181,11 @@ export class ResponseManager<Entity extends AbstractEntity> {
 
             this.aliasManager.resetList();
 
-            // Add decoded token in requestContext
-            const decoded = await isTokenValid(ctx.req.headers.authorization);
-
             // Create query runner to retrieve requestContext in subscribers
             const queryRunner = this.connection.createQueryRunner();
-            const requestContext: RequestContext<Entity> = { params, decoded };
-            queryRunner.data = { requestContext };
+            queryRunner.data = { requestContext: params };
 
-            ctx.state.requestContext = requestContext;
+            ctx.state.requestContext = params;
             ctx.state.queryRunner = queryRunner;
 
             await next();
@@ -197,10 +199,7 @@ export class ResponseManager<Entity extends AbstractEntity> {
     /** Returns the response method on a given operation for this entity */
     public makeResponseMiddleware(operation: RouteOperation): Middleware {
         return async (ctx) => {
-            const {
-                requestContext: { params },
-                queryRunner,
-            } = ctx.state as RequestState<Entity>;
+            const { requestContext: params, queryRunner } = ctx.state as RequestState<Entity>;
 
             const method = CRUD_ACTIONS[operation].method;
             let response: IRouteResponse = {
@@ -339,7 +338,7 @@ export interface IRouteCustomActionItemFunction extends IRouteCustomActionItem {
 
 export type RouteCustomAction = IRouteCustomActionItemClass | IRouteCustomActionItemFunction;
 
-export interface IActionParams<Entity extends AbstractEntity> {
+export type RequestContext<Entity extends AbstractEntity = AbstractEntity> = {
     /** Current route entity id */
     entityId?: number;
     /** Subresource relation with parent, used to auto-join on this entity's relation inverse side */
@@ -352,12 +351,10 @@ export interface IActionParams<Entity extends AbstractEntity> {
     queryParams?: any;
     /** Custom operation for a custom action */
     operation?: RouteOperation;
-}
-
-export type RequestContext<Entity extends AbstractEntity = AbstractEntity> = {
-    params: IActionParams<Entity>;
-    decoded: JwtDecoded;
+    /** Decoded JWT Token */
+    decoded?: JwtDecoded;
 };
+
 export type RequestState<Entity extends AbstractEntity = AbstractEntity> = {
     requestContext: RequestContext<Entity>;
     queryRunner: QueryRunner;

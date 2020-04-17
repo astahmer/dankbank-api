@@ -6,7 +6,7 @@ import {
     ClassValidatorConstraintInterface,
     ClassValidatorOptions,
 } from "./ClassValidator";
-import { ValidatorOptions } from "class-validator";
+import { ValidationOptions } from "class-validator";
 import { getConnection } from "typeorm";
 import { formatIriToId } from "@/services/EntityRoute/Filters/SearchFilter";
 
@@ -35,7 +35,7 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
 
 export type IsUniqueData<T extends AbstractEntity> = { relations: EntityKeys<T>[] };
 /** Checks that an entity doesn't already exist with same relation(s) id */
-export function IsUnique<T extends AbstractEntity>(options?: ValidatorOptions): PropertyDecorator;
+export function IsUnique<T extends AbstractEntity>(options?: ValidationOptions): PropertyDecorator;
 export function IsUnique<T extends AbstractEntity>(
     relations: EntityKeys<T>[],
     options?: ClassValidatorOptions
