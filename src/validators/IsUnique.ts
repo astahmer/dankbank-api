@@ -1,7 +1,12 @@
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { EntityKeys } from "@/utils/globalTypes";
-import { registerClassDecorator, ClassValidationArguments, ClassValidatorConstraintInterface } from "./ClassValidator";
-import { ValidationOptions } from "class-validator";
+import {
+    registerClassDecorator,
+    ClassValidationArguments,
+    ClassValidatorConstraintInterface,
+    ClassValidatorOptions,
+} from "./ClassValidator";
+import { ValidatorOptions } from "class-validator";
 import { getConnection } from "typeorm";
 import { formatIriToId } from "@/services/EntityRoute/Filters/SearchFilter";
 
@@ -30,18 +35,37 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
 
 export type IsUniqueData<T extends AbstractEntity> = { relations: EntityKeys<T>[] };
 /** Checks that an entity doesn't already exist with same relation(s) id */
-export const IsUnique = <T extends AbstractEntity>(
+export function IsUnique<T extends AbstractEntity>(options?: ValidatorOptions): PropertyDecorator;
+export function IsUnique<T extends AbstractEntity>(
     relations: EntityKeys<T>[],
-    options?: ValidationOptions
-): ClassDecorator => {
-    return (target) => {
+    options?: ClassValidatorOptions
+): ClassDecorator;
+export function IsUnique<T extends AbstractEntity>(
+    relationsOrOptions: EntityKeys<T>[] | ClassValidatorOptions,
+    options?: ClassValidatorOptions
+): PropertyDecorator | ClassDecorator {
+    return (target, propName: string) => {
+        // If propName is defined => PropertyDecorator, else it's a ClassDecorator
+        const isPropDecorator = !!propName;
+        target = isPropDecorator ? target.constructor : target;
+        options = isPropDecorator ? (relationsOrOptions as ClassValidatorOptions) : options;
+
+        const relations = isPropDecorator ? [propName] : relationsOrOptions;
+        const className = (target as any)?.name;
+
+        const defaultProperty = isPropDecorator ? propName : (relations as string[]).join(", ");
+        const defaultMessage = `Another <${className}> entity already exists with unique constraints on : <${defaultProperty}>`;
+
+        const property = options?.property || defaultProperty;
+
         registerClassDecorator({
             name: "IsUnique",
             target,
             options,
             validator: new IsUniqueValidator(),
             data: { relations } as IsUniqueData<T>,
-            defaultMessage: "Entity already exists",
+            defaultMessage,
+            property,
         });
     };
-};
+}
