@@ -84,14 +84,15 @@ export class ClassValidator {
     /** Generates a ValidationError with given config on entity */
     makeError<T extends AbstractEntity>(entity: T, config: ClassValidatorConfig<T>): ValidationError {
         // TODO Message token + messageFn with args ? (extends interface.message)
-        const message = config.options?.message
-            ? config.options.message instanceof Function
-                ? config.options.message(entity)
-                : config.options.message
-            : config.defaultMessage || `Failed validation cause of constraint '${config.name}'`;
+        const message = config.options?.message || config.defaultMessage;
+        const errorMessage = message
+            ? message instanceof Function
+                ? message(entity)
+                : message
+            : `Failed validation cause of constraint '${config.name}'`;
 
         return {
-            constraints: { [config.name]: message },
+            constraints: { [config.name]: errorMessage },
             children: [],
             property: config.property || "class",
         };
@@ -114,14 +115,10 @@ export function registerClassDecorator<T extends AbstractEntity>({
 
 export type RegisterClassDecoratorArgs<T extends AbstractEntity> = Pick<
     ClassValidatorConfig<T>,
-    "name" | "options" | "validator"
+    "name" | "defaultMessage" | "options" | "validator" | "data" | "property"
 > & {
-    /** Entity class */
-    target: Function;
-    /** Default validation error message */
-    defaultMessage?: string;
-    /** Custom data to pass as decorator args & to be used by the custom validator */
-    data?: any;
+    /** Entity class constructor */
+    target: Object;
 };
 
 /** Store every ClassValidatorConfig for a given entity */
@@ -143,12 +140,15 @@ export type ClassValidatorTypeUnion<T extends AbstractEntity> =
 
 /** Validator config to pass to registerClassDecorator & stored in metadata */
 export type ClassValidatorConfig<T extends AbstractEntity, Data = any, U = ClassValidatorTypeUnion<T>> = {
+    /** Key that will be used in constraints */
     name: string;
-    defaultMessage?: string;
-    options?: ValidationOptions;
+    /** Default validation error message */
+    defaultMessage?: ClassValidatorOptions["message"];
+    options?: ClassValidatorOptions;
     validator: U extends ClassValidatorConstraintInterface<T>
         ? ClassValidatorConstraintInterface<T>
         : ClassValidatorFunction<T>;
+    /** Custom data to pass as decorator args & to be used by the custom validator */
     data?: Data;
     property?: string;
 };
