@@ -10,7 +10,7 @@ export const getClassValidatorMetadata = <T extends AbstractEntity>(entity: Func
     Reflect.getOwnMetadata(VALIDATION_METAKEY, entity);
 
 /** Call Service.ClassValidator.execute on entity with given options  */
-export async function validateClass<T extends AbstractEntity>(entity: T, options?: ClassValidatorOptions) {
+export async function validateClass<T extends AbstractEntity>(entity: T, options?: ClassValidatorFunctionOptions) {
     const validator = Container.get(ClassValidator);
     return validator.execute(entity, options);
 }
@@ -22,7 +22,10 @@ export async function validateClass<T extends AbstractEntity>(entity: T, options
 @Service()
 export class ClassValidator {
     /** Execute all registered validators on entity */
-    async execute<T extends AbstractEntity>(entity: T, options?: ClassValidatorOptions): Promise<ValidationError[]> {
+    async execute<T extends AbstractEntity>(
+        entity: T,
+        options?: ClassValidatorFunctionOptions
+    ): Promise<ValidationError[]> {
         // TODO Validations groups
         // const groups = options?.groups || [];
 
@@ -90,7 +93,7 @@ export class ClassValidator {
         return {
             constraints: { [config.name]: message },
             children: [],
-            property: "class",
+            property: config.property || "class",
         };
     }
 }
@@ -130,6 +133,9 @@ export type ClassValidatorFunction<T extends AbstractEntity> = (
     validationArguments?: ClassValidationArguments<T>
 ) => Promise<boolean> | boolean;
 
+/** ClassValidator validate function options */
+export type ClassValidatorFunctionOptions = Pick<ValidatorOptions, "groups">;
+
 /** Can either be a custom class implementing ClassValidatorConstraintInterface or a function with ClassValidatorFunction signature */
 export type ClassValidatorTypeUnion<T extends AbstractEntity> =
     | ClassValidatorConstraintInterface<T>
@@ -144,6 +150,7 @@ export type ClassValidatorConfig<T extends AbstractEntity, Data = any, U = Class
         ? ClassValidatorConstraintInterface<T>
         : ClassValidatorFunction<T>;
     data?: Data;
+    property?: string;
 };
 /** Interface to implement for custom ClassValidator */
 export interface ClassValidatorConstraintInterface<T extends AbstractEntity> {
@@ -158,4 +165,7 @@ export interface ClassValidationArguments<T extends AbstractEntity, Data = any>
 }
 
 /** ClassValidator decorator options */
-export type ClassValidatorOptions = Pick<ValidatorOptions, "groups">;
+export interface ClassValidatorOptions extends ValidationOptions {
+    /** Property on which the constraint failed */
+    property?: string;
+}
