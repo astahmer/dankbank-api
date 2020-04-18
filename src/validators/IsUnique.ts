@@ -16,6 +16,7 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
         const repository = getConnection().getRepository(args.object);
         const query = repository.createQueryBuilder(args.targetName).select(args.targetName + ".id");
 
+        let usedRelations = 0;
         let i = 0;
         for (i; i < relations.length; i++) {
             const prop = relations[i];
@@ -23,8 +24,14 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
             const value =
                 typeof item[prop] === "string" ? parseInt(formatIriToId((item[prop] as any) as string)) : item[prop];
             if (!value) continue;
+            usedRelations++;
 
             query.andWhere(`${args.targetName}.${prop} = :${paramName}`, { [paramName]: value });
+        }
+
+        // If not all relations were used for a where condition, then there is no need to check for unicity
+        if (usedRelations !== relations.length) {
+            return true;
         }
 
         const result = await query.getOne();
@@ -34,7 +41,13 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
 }
 
 export type IsUniqueData<T extends AbstractEntity> = { relations: EntityKeys<T>[] };
-/** Checks that an entity doesn't already exist with same relation(s) id */
+/**
+ * Checks that an entity doesn't already exist with same relation(s) id
+ *
+ * @example
+ * [at]IsUnique(["image", "owner"]) as ClassDecorator
+ * [at]IsUnique({ groups: ["meme_create", "update"]}) as PropertyDecorator
+ */
 export function IsUnique<T extends AbstractEntity>(options?: ValidationOptions): PropertyDecorator;
 export function IsUnique<T extends AbstractEntity>(
     relations: EntityKeys<T>[],
