@@ -52,10 +52,9 @@ export class Denormalizer<Entity extends AbstractEntity> {
             ? queryRunner.manager.getRepository<Entity>(this.metadata.target)
             : this.repository;
         const cleanedItem = this.cleanItem(operation, values);
-        const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
+        const item = repository.create(cleanedItem as DeepPartial<Entity>);
 
-        // TODO Validations groups
-        const validatorOptions: DenormalizerValidatorOptions =
+        const validatorOptions: Partial<DenormalizerValidatorOptions> =
             operation === "update" ? { skipMissingProperties: false } : {};
         const errors = await this.validateItem(item, {
             ...validatorOptions,
@@ -148,14 +147,25 @@ export class Denormalizer<Entity extends AbstractEntity> {
             return [];
         }
 
-        const [propErrors, classErrors] = await Promise.all([validate(item, options), validateClass(item, options)]);
+        const routeEntityName = this.metadata.name.toLocaleLowerCase();
+        // Add default groups [entity, entity_operation]
+        const groups = (options.groups || []).concat([
+            routeEntityName,
+            routeEntityName + "_" + options.requestContext.operation,
+        ]);
+        const validationOptions = { ...options, groups };
+
+        const [propErrors, classErrors] = await Promise.all([
+            validate(item, validationOptions),
+            validateClass(item, validationOptions),
+        ]);
         const itemErrors: EntityError[] = propErrors
             .concat(classErrors)
             .map((err) => ({ currentPath, property: err.property, constraints: err.constraints }));
 
         if (itemErrors.length) {
             // Gotta use item.className for root level errors in order to have a non-empty string as a key
-            errorResults[currentPath || item.getClassName()] = itemErrors;
+            errorResults[currentPath || routeEntityName] = itemErrors;
         }
 
         // Recursively validates item.props
@@ -208,7 +218,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
 export const isPropMapped = (prop: string, mapping: MappingItem) => mapping && mapping.exposedProps.includes(prop);
 
 /** Checks that given item contains any nested mapped prop */
-const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
+export const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
     if (mapping) {
         const nestedProps = mapping.exposedProps;
         return nestedProps.length && Object.keys(item).some((prop) => nestedProps.includes(prop));
@@ -216,6 +226,10 @@ const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
 };
 /** Checks that a MappingItem contains further nested props  */
 export const hasAnyNestedPropMapped = (mapping: MappingItem) => mapping && mapping.exposedProps.length;
+
+export const hasAnyValidationGroupMatchingForRequest = (routeEntityName: string, operation: string) => (
+    group: string
+) => group === routeEntityName || group === routeEntityName + "_" + operation;
 
 export type EntityError = {
     currentPath: string;

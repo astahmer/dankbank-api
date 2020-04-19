@@ -2,7 +2,7 @@ import Router = require("koa-router");
 import bodyParser = require("koa-bodyparser");
 import session = require("koa-session");
 
-import { useContainer as validatorUseContainer } from "class-validator";
+import { useContainer as validatorUseContainer, getMetadataStorage } from "class-validator";
 import { Container } from "typedi";
 import { Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer } from "typeorm";
 
@@ -64,6 +64,9 @@ export async function makeApp(connection: Connection) {
     const entities = getEntities();
     useEntitiesRoutes(app, entities);
 
+    // Always validate when no groups are passed on validators
+    entities.forEach(setEntityValidatorsDefaultOption);
+
     const port = parseInt(process.env.PORT);
     const server = app.listen(port, "0.0.0.0");
     logger.info("Listening on port " + port);
@@ -72,7 +75,7 @@ export async function makeApp(connection: Connection) {
     return server;
 }
 
-export function getEntities(included?: string[]) {
+export function getEntities(included?: string[]): Function[] {
     const context = require.context("./entity/", true, /\.ts$/);
     return context.keys().reduce((acc, path) => {
         const entityModule = context(path);
@@ -115,4 +118,17 @@ function useRouteListAtIndex() {
         ctx.body = routers.map((router) => router.map((entrypoint) => entrypoint.desc));
     });
     return router;
+}
+
+/** Set "always" validator option to true when no groups are passed to validation decorators */
+function setEntityValidatorsDefaultOption(entity: Function) {
+    const validationMetaStorage = getMetadataStorage();
+    const metadatas = validationMetaStorage.getTargetValidationMetadatas(entity, entity.name);
+
+    let i = 0;
+    for (i; i < metadatas.length; i++) {
+        if (!metadatas[i].groups || !metadatas[i].groups?.length) {
+            metadatas[i].always = true;
+        }
+    }
 }

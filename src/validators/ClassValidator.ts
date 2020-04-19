@@ -27,8 +27,7 @@ export class ClassValidator {
         entity: T,
         options: ClassValidatorFunctionOptions = {}
     ): Promise<ValidationError[]> {
-        // TODO Validations groups
-        // const groups = options?.groups || [];
+        const groups = options.groups || [];
 
         const metadata = getClassValidatorMetadata(entity.constructor);
         if (!metadata) return [];
@@ -39,6 +38,19 @@ export class ClassValidator {
         for (const key in metadata) {
             if (metadata.hasOwnProperty(key)) {
                 const config = metadata[key];
+
+                // Only validate if execute validation groups has at least 1 in common with decorator validator's config groups
+                // Or if always validating
+                const shouldCheckGroups = !config.options?.always && config.options?.groups?.length;
+                const shouldValidate =
+                    shouldCheckGroups &&
+                    config.options.groups.some((configGroup) =>
+                        groups.some((validationGroup: string) => configGroup === validationGroup)
+                    );
+                if (shouldCheckGroups && !shouldValidate) {
+                    return;
+                }
+
                 const result = this.validate(entity, config, options);
                 const onFinished = (result: boolean) => !result && errors.push(this.makeError(entity, config));
 
@@ -96,7 +108,7 @@ export class ClassValidator {
         const message = config.options?.message || config.defaultMessage;
         const errorMessage = message
             ? message instanceof Function
-                ? message(entity)
+                ? message(entity as any) // TODO Fix message/defaultMessage method signature
                 : message
             : `Failed validation cause of constraint '${config.name}'`;
 
@@ -115,6 +127,11 @@ export function registerClassDecorator<T extends AbstractEntity>({
     ...args
 }: RegisterClassDecoratorArgs<T>) {
     const metadata = getClassValidatorMetadata(target) || {};
+
+    // Always validate when no groups are passed
+    if (!args.options?.groups || !args.options?.groups?.length) {
+        args.options = { ...args.options, always: true };
+    }
 
     const config: ClassValidatorConfig<any> = { name, ...args };
 
@@ -188,9 +205,10 @@ export interface ClassValidationArguments<T extends AbstractEntity = any, Data =
     requestContext?: RequestContext<T>;
 }
 
-// TODO different options si property decorator
 /** ClassValidator decorator options */
 export interface ClassValidatorOptions extends ValidationOptions {
     /** Property on which the constraint failed */
     property?: string;
 }
+
+// TODO @ValidationGroups extends GroupsMetadata ? & also use it for base validator ?
