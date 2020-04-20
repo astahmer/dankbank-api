@@ -13,6 +13,7 @@
         "t:mg": "npm run typeorm -- migration:generate -n"
     },
     "dependencies": {
+        "@astahmer/entity-validator": "^0.1.1",
         "@elastic/elasticsearch": "^7.6.1",
         "@koa/multer": "^2.0.2",
         "@types/elasticsearch": "^5.0.36",

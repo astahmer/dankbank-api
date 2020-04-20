@@ -1,36 +1,44 @@
-import { AbstractEntity } from "@/entity/AbstractEntity";
-import { EntityKeys } from "@/utils/globalTypes";
-import {
-    registerClassDecorator,
-    ClassValidationArguments,
-    ClassValidatorConstraintInterface,
-    ClassValidatorOptions,
-} from "./ClassValidator";
 import { ValidationOptions } from "class-validator";
 import { getConnection } from "typeorm";
+import {
+    EntityValidatorConstraintInterface,
+    EntityValidationArguments,
+    EntityValidatorOptions,
+    registerEntityDecorator,
+} from "@astahmer/entity-validator";
+
+import { AbstractEntity } from "@/entity/AbstractEntity";
+import { NonFunctionKeys } from "@/utils/globalTypes";
 import { formatIriToId } from "@/services/EntityRoute/Filters/SearchFilter";
 
-class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConstraintInterface<T> {
-    async validate(item: T, args: ClassValidationArguments<T, IsUniqueData<T>>) {
-        const relations = args.data.relations;
+class IsUniqueValidator<T extends AbstractEntity> implements EntityValidatorConstraintInterface<T> {
+    async validate(item: T, args: EntityValidationArguments<T, IsUniqueData<T>>) {
+        const fields = args.data.fields;
         const repository = getConnection().getRepository(args.object);
+        const metadata = repository.metadata;
         const query = repository.createQueryBuilder(args.targetName).select(args.targetName + ".id");
 
-        let usedRelations = 0;
+        let usedFields = 0;
         let i = 0;
-        for (i; i < relations.length; i++) {
-            const prop = relations[i];
-            const paramName = prop + "Id";
+        for (i; i < fields.length; i++) {
+            const prop = fields[i];
+            const isRelation = metadata.findRelationWithPropertyPath(prop as string);
+
+            const paramName = isRelation ? prop + "Id" : prop;
             const value =
-                typeof item[prop] === "string" ? parseInt(formatIriToId((item[prop] as any) as string)) : item[prop];
+                typeof item[prop] === "string"
+                    ? parseInt(formatIriToId((item[prop] as any) as string))
+                    : typeof item[prop] === "object"
+                    ? ((item[prop] as any) as AbstractEntity).id
+                    : item[prop];
             if (!value) continue;
-            usedRelations++;
+            usedFields++;
 
             query.andWhere(`${args.targetName}.${prop} = :${paramName}`, { [paramName]: value });
         }
 
-        // If not all relations were used for a where condition, then there is no need to check for unicity
-        if (usedRelations !== relations.length) {
+        // If not all fields were used for a where condition, then there is no need to check for unicity
+        if (usedFields !== fields.length) {
             return true;
         }
 
@@ -40,9 +48,9 @@ class IsUniqueValidator<T extends AbstractEntity> implements ClassValidatorConst
     }
 }
 
-export type IsUniqueData<T extends AbstractEntity> = { relations: EntityKeys<T>[] };
+export type IsUniqueData<T extends AbstractEntity> = { fields: NonFunctionKeys<T>[] };
 /**
- * Checks that an entity doesn't already exist with same relation(s) id
+ * Checks that an entity doesn't already exist with same columns value
  *
  * @example
  * [at]IsUnique(["image", "owner"]) as ClassDecorator
@@ -50,33 +58,33 @@ export type IsUniqueData<T extends AbstractEntity> = { relations: EntityKeys<T>[
  */
 export function IsUnique<T extends AbstractEntity>(options?: ValidationOptions): PropertyDecorator;
 export function IsUnique<T extends AbstractEntity>(
-    relations: EntityKeys<T>[],
-    options?: ClassValidatorOptions
+    fields: NonFunctionKeys<T>[],
+    options?: EntityValidatorOptions
 ): ClassDecorator;
 export function IsUnique<T extends AbstractEntity>(
-    relationsOrOptions: EntityKeys<T>[] | ClassValidatorOptions,
-    options?: ClassValidatorOptions
+    fieldsOrOptions: NonFunctionKeys<T>[] | EntityValidatorOptions,
+    options?: EntityValidatorOptions
 ): PropertyDecorator | ClassDecorator {
     return (target, propName: string) => {
         // If propName is defined => PropertyDecorator, else it's a ClassDecorator
         const isPropDecorator = !!propName;
         target = isPropDecorator ? target.constructor : target;
-        options = isPropDecorator ? (relationsOrOptions as ClassValidatorOptions) : options;
+        options = isPropDecorator ? (fieldsOrOptions as EntityValidatorOptions) : options;
 
-        const relations = isPropDecorator ? [propName] : relationsOrOptions;
+        const fields = isPropDecorator ? [propName] : fieldsOrOptions;
         const className = (target as any)?.name;
 
-        const defaultProperty = isPropDecorator ? propName : (relations as string[]).join(", ");
+        const defaultProperty = isPropDecorator ? propName : (fields as string[]).join(", ");
         const defaultMessage = `Another <${className}> entity already exists with unique constraints on : <${defaultProperty}>`;
 
         const property = options?.property || defaultProperty;
 
-        registerClassDecorator({
+        registerEntityDecorator({
             name: "IsUnique",
             target,
             options,
             validator: new IsUniqueValidator(),
-            data: { relations } as IsUniqueData<T>,
+            data: { fields } as IsUniqueData<T>,
             defaultMessage,
             property,
         });

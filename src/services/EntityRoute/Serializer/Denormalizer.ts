@@ -7,12 +7,13 @@ import { AbstractEntity } from "@/entity/AbstractEntity";
 
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
-import { validateClass, ClassValidatorFunctionOptions } from "@/validators/ClassValidator";
+import { validateEntity } from "@/validators";
 import { formatIriToId } from "../Filters/SearchFilter";
 import { logger } from "@/services/logger";
 import { RequestContext } from "../ResponseManager";
 import { isType } from "@/functions/asserts";
 import { Primitive } from "@/functions/primitives";
+import { EntityValidatorFunctionOptions } from "@astahmer/entity-validator";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
@@ -59,7 +60,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
         const errors = await this.validateItem(item, {
             ...validatorOptions,
             ...options,
-            requestContext: ctx,
+            context: ctx,
         });
 
         if (Object.keys(errors).length) {
@@ -151,13 +152,13 @@ export class Denormalizer<Entity extends AbstractEntity> {
         // Add default groups [entity, entity_operation]
         const groups = (options.groups || []).concat([
             routeEntityName,
-            routeEntityName + "_" + options.requestContext.operation,
+            routeEntityName + "_" + options.context.operation,
         ]);
         const validationOptions = { ...options, groups };
 
         const [propErrors, classErrors] = await Promise.all([
             validate(item, validationOptions),
-            validateClass(item, validationOptions),
+            validateEntity(item, validationOptions),
         ]);
         const itemErrors: EntityError[] = propErrors
             .concat(classErrors)
@@ -241,4 +242,4 @@ export type EntityError = {
 export type EntityErrorResults = Record<string, EntityError[]>;
 export type EntityErrorResponse = { hasValidationErrors: true; errors: EntityErrorResults };
 
-type DenormalizerValidatorOptions = ValidatorOptions & ClassValidatorFunctionOptions;
+type DenormalizerValidatorOptions = ValidatorOptions & EntityValidatorFunctionOptions<RequestContext>;
