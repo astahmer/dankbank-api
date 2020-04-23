@@ -6,10 +6,10 @@ import {
     EntityValidatorOptions,
     registerEntityDecorator,
 } from "@astahmer/entity-validator";
+import { formatIriToId } from "@astahmer/entity-routes/";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { NonFunctionKeys } from "@/utils/globalTypes";
-import { formatIriToId } from "@/services/EntityRoute/Filters/SearchFilter";
 
 class IsUniqueValidator<T extends AbstractEntity> implements EntityValidatorConstraintInterface<T> {
     async validate(item: T, args: EntityValidationArguments<T, IsUniqueData<T>>) {

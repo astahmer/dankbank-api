@@ -1,14 +1,12 @@
+import * as multer from "@koa/multer";
 import { Context } from "koa";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@astahmer/entity-routes/";
 
 import { diskStorage, imageFilter } from "@/config/storage";
 import { Image } from "@/entity/Image";
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { logger } from "@/services/logger";
-
-import { ImageManager } from "../ImageManager";
-
-import multer = require("@koa/multer");
 import { getRandomString } from "@/functions/primitives";
+import { ImageManager } from "@/services/ImageManager";
 
 export const imgUploadMiddleware = (fieldName: string) => async (ctx: Context, next: any) => {
     try {

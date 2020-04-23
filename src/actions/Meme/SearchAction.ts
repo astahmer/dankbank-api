@@ -1,10 +1,10 @@
 import { SearchResponse } from "elasticsearch";
 import { Context } from "koa";
 import Container from "typedi";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@astahmer/entity-routes/";
 
 import { MemeDocument } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
 import { logger } from "@/services/logger";
 import { ApiResponse, RequestParams } from "@elastic/elasticsearch";
 import { parseArrayQS, limit } from "@/functions/object";

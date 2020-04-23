@@ -1,4 +1,4 @@
-import Router = require("koa-router");
+import * as Router from "koa-router";
 
 import { useLogoutAction } from "./LogoutAuthAction";
 import { usePasswordAuth } from "./PasswordAuthAction";

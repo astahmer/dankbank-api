@@ -1,42 +1,44 @@
-import Router = require("koa-router");
-import bodyParser = require("koa-bodyparser");
-import session = require("koa-session");
+import * as Koa from "koa";
+import * as Router from "koa-router";
+import * as bodyParser from "koa-bodyparser";
+import * as session from "koa-session";
 
-import { useContainer as validatorUseContainer, getMetadataStorage } from "class-validator";
+// TODO Remove all require()
+
+import { getMetadataStorage } from "class-validator";
 import { Container } from "typedi";
-import { Connection, createConnection, getConnectionOptions, useContainer as typeOrmUseContainer } from "typeorm";
+import { Connection, createConnection, getConnectionOptions } from "typeorm";
 
 import { useAuthRoutes } from "./actions/Authentication";
 import { useCustomRoute } from "./actions/CustomAction";
 import { useGroupsRoute } from "./actions/GroupsAction";
 import { AbstractEntity } from "./entity/AbstractEntity";
 import { makeFixtures } from "./fixtures";
-import { app, BASE_URL } from "./main";
 import { logRequest } from "./middlewares";
-import { TypeORMConfig } from "./ormconfig";
 import { adaptRowsToDocuments, ElasticSearchManager } from "./services/ElasticSearch/ESManager";
-import { useEntitiesRoutes } from "./services/EntityRoute";
 import { logger } from "./services/logger";
 import { getAppRoutes } from "./utils/getAppRoutes";
+import { useEntitiesRoutes } from "@astahmer/entity-routes/";
+import { config } from "./ormconfig";
 
 /** Creates connection and returns it */
-export async function getConnectionToDatabase() {
+export async function createConnectionToDatabase() {
     const connectionOptions = await getConnectionOptions();
 
-    typeOrmUseContainer(Container);
-    validatorUseContainer(Container);
-
-    return createConnection({
+    const options = {
         ...connectionOptions,
-        ...(TypeORMConfig as any),
+        ...(config as any),
         entities: getEntities(),
         subscribers: getSubscribers(),
-    });
+    };
+
+    return createConnection(options);
 }
 
 /** Make app & listen on given port & return it */
 export async function makeApp(connection: Connection) {
-    logger.info("Starting Koa server...");
+    const app = new Koa();
+    logger.info("Starting; Koa server...");
 
     const esManager = Container.get(ElasticSearchManager);
     await esManager.waitForConnection();
@@ -56,13 +58,13 @@ export async function makeApp(connection: Connection) {
     app.use(bodyParser());
     app.use(logRequest(logger));
 
-    app.use(useRouteListAtIndex().routes());
+    app.use(useRouteListAtIndex(app).routes());
     app.use(useCustomRoute().routes());
     app.use(useGroupsRoute().routes());
     app.use(useAuthRoutes().routes());
 
     const entities = getEntities();
-    useEntitiesRoutes(app, entities);
+    useEntitiesRoutes({ app, connections: [connection], entities });
 
     // Always validate when no groups are passed on validators
     entities.forEach(setEntityValidatorsDefaultOption);
@@ -70,7 +72,7 @@ export async function makeApp(connection: Connection) {
     const port = parseInt(process.env.PORT);
     const server = app.listen(port, "0.0.0.0");
     logger.info("Listening on port " + port);
-    logger.info("Server up on " + BASE_URL);
+    logger.info("Server up on " + process.env.API_URL);
 
     return server;
 }
@@ -106,7 +108,7 @@ export function getSubscribers() {
     }, []);
 }
 
-function useRouteListAtIndex() {
+function useRouteListAtIndex(app: Koa) {
     const router = new Router();
     const filterRoutes = (routers: ReturnType<typeof getAppRoutes>, filter: string) =>
         routers.map((routes) => routes.filter((item) => item.path.includes(filter))).filter((routes) => routes.length);

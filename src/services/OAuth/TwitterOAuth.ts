@@ -3,7 +3,6 @@ import { Context } from "koa";
 
 import { TWITTER_URLS, TwitterOAuth } from "@/config/twitter";
 
-import { ROUTE_VERB } from "../EntityRoute/ResponseManager";
 import { getAuthorizedRequest } from "./utils";
 
 export type TwitterSuccessCallbackArgs = {
@@ -25,7 +24,7 @@ export class TwitterOAuthManager {
         const requestTokenReq = await getAuthorizedRequest(TwitterOAuth, {
             url: TWITTER_URLS.OAUTH.REQUEST_TOKEN,
             data: { oauth_callback: TWITTER_URLS.OAUTH.CALLBACK },
-            method: ROUTE_VERB.POST,
+            method: "post",
         });
         const { oauth_token, oauth_token_secret } = TwitterOAuth.deParam(requestTokenReq.data);
         ctx.session.twitterTokens = { oauth_token, oauth_token_secret };
@@ -45,7 +44,7 @@ export class TwitterOAuthManager {
         try {
             const accessTokenReq = await getAuthorizedRequest(TwitterOAuth, {
                 url: TWITTER_URLS.OAUTH.ACCESS_TOKEN,
-                method: ROUTE_VERB.POST,
+                method: "post",
                 data: { oauth_token, oauth_verifier },
             });
 

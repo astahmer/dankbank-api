@@ -1,16 +1,14 @@
+import * as path from "path";
+import * as sharp from "sharp";
+
 import { DeepPartial, EntityManager, getManager } from "typeorm";
+import { EntityRouteService, entityRoutesContainer, GroupsOperation } from "@astahmer/entity-routes/";
 
 import { DIR_PATH, unlink } from "@/config/storage";
 import { AbstractEntity } from "@/entity/AbstractEntity";
 import { Image } from "@/entity/Image";
 
-import { logger } from "../logger";
-import { entityRoutesContainer } from "./";
-import { GroupsOperation } from "./Decorators/Groups";
-import { EntityRoute } from "./EntityRoute";
-
-import path = require("path");
-import sharp = require("sharp");
+import { logger } from "./logger";
 
 export function getImageLocalPath(name: string) {
     return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
@@ -22,7 +20,7 @@ export function getImageRelativeURL(name: string) {
 
 type ResizeReturn = Promise<[string, number, Quality[]]>;
 export class ImageManager<Entity extends AbstractEntity> {
-    protected entityRoute: EntityRoute<Entity>;
+    protected entityRoute: EntityRouteService<Entity>;
     protected entityManager: EntityManager;
 
     constructor(protected entityName: string) {

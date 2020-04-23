@@ -1,7 +1,5 @@
 import { CreateDateColumn, getRepository, ObjectType, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
-
-import { Groups } from "@/services/EntityRoute/Decorators";
-import { getRouteMetadata } from "@/services/EntityRoute/EntityRoute";
+import { Groups, getRouteMetadata } from "@astahmer/entity-routes/";
 
 export abstract class AbstractEntity {
     @Groups(["create", "list", "details", "update"])

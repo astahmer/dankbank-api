@@ -1,16 +1,15 @@
 import { Context } from "koa";
 import { getManager } from "typeorm";
+import { makeRouterFromCustomActions } from "@astahmer/entity-routes/";
 
 import { ACCESS_TOKEN_DURATION } from "@/config/jwt";
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid, makeToken } from "@/services/JWT";
 
 export function useRefreshAuth() {
     return makeRouterFromCustomActions([
         {
-            verb: ROUTE_VERB.GET,
+            verb: "get",
             path: "/refresh",
             handler: refreshAccessToken,
         },

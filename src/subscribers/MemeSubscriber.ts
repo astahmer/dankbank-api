@@ -1,16 +1,28 @@
-import { EntitySubscriberInterface, EventSubscriber, InsertEvent, Repository, UpdateEvent } from "typeorm";
+import {
+    EntitySubscriberInterface,
+    EventSubscriber,
+    InsertEvent,
+    Repository,
+    UpdateEvent,
+    RemoveEvent,
+    Connection,
+} from "typeorm";
+import { RequestContext } from "@astahmer/entity-routes/";
 
 import { Meme } from "@/entity/Meme";
 import { MemeAdapter } from "@/services/ElasticSearch/Adapters/MemeAdapter";
 import { ElasticSearchManager } from "@/services/ElasticSearch/ESManager";
 import { logger } from "@/services/logger";
+import Container from "typedi";
 
 @EventSubscriber()
 export class MemeSubscriber implements EntitySubscriberInterface<Meme> {
+    private esManager: ElasticSearchManager;
     private adapter: MemeAdapter;
 
-    constructor(private esManager: ElasticSearchManager) {
-        this.adapter = new MemeAdapter(esManager.client);
+    constructor(connection: Connection) {
+        this.esManager = Container.get(ElasticSearchManager);
+        this.adapter = new MemeAdapter(this.esManager.client);
     }
 
     listenTo() {
@@ -22,7 +34,11 @@ export class MemeSubscriber implements EntitySubscriberInterface<Meme> {
             return;
         }
 
-        this.upsertDocumentFromEntity(event);
+        try {
+            this.upsertDocumentFromEntity(event);
+        } catch (error) {
+            logger.error(error);
+        }
     }
 
     afterUpdate(event: UpdateEvent<Meme>) {
@@ -30,7 +46,23 @@ export class MemeSubscriber implements EntitySubscriberInterface<Meme> {
             return;
         }
 
-        this.upsertDocumentFromEntity(event);
+        try {
+            this.upsertDocumentFromEntity(event);
+        } catch (error) {
+            logger.error(error);
+        }
+    }
+
+    afterRemove(event: RemoveEvent<Meme>) {
+        const ctx = event.queryRunner.data?.requestContext as RequestContext;
+        if (!ctx?.entityId) return;
+
+        try {
+            logger.info("Removing ElasticSearch document for Meme#" + ctx.entityId);
+            this.esManager.client.delete({ index: this.adapter.INDEX_NAME, id: ctx.entityId + "" });
+        } catch (error) {
+            logger.error(error);
+        }
     }
 
     isEventFromFixtures(event: InsertEvent<Meme> | UpdateEvent<Meme>) {

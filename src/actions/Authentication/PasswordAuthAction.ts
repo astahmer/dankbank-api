@@ -1,16 +1,15 @@
 import { compare } from "bcryptjs";
 import { Context } from "koa";
 import { getManager } from "typeorm";
+import { makeRouterFromCustomActions, IRouteAction } from "@astahmer/entity-routes/";
 
 import { User } from "@/entity/User";
-import { IRouteAction, makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { makeAuthTokens } from "@/services/JWT";
 
 export function usePasswordAuth() {
     return makeRouterFromCustomActions([
         {
-            verb: ROUTE_VERB.POST,
+            verb: "post",
             path: "/login",
             class: PasswordAuthAction,
         },

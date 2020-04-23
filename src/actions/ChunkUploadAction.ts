@@ -1,13 +1,13 @@
+import * as fs from "fs";
 import { Context } from "koa";
 
 import { DIR_PATH, readStream, unlink, writeStream } from "@/config/storage";
 import { Image } from "@/entity/Image";
 import { logger } from "@/services/logger";
 
-import { ImageManager } from "../ImageManager";
-import { AbstractRouteAction, RouteActionConstructorArgs } from "./AbstractRouteAction";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@astahmer/entity-routes/";
+import { ImageManager } from "@/services/ImageManager";
 
-import fs = require("fs");
 export class ChunkUploadAction extends AbstractRouteAction {
     private chunks: Record<string, number[]> = {};
     private imageManager: ImageManager<Image>;

@@ -1,6 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from "typeorm";
-
-import { EntityRoute, Groups, Subresource } from "@/services/EntityRoute/Decorators";
+import { EntityRoute, Groups, Subresource } from "@astahmer/entity-routes/";
 
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";

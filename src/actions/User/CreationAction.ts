@@ -1,10 +1,10 @@
 import { hash } from "bcryptjs";
 import { Context } from "koa";
+import { AbstractRouteAction, RouteActionConstructorArgs } from "@astahmer/entity-routes/";
 
 import { User } from "@/entity/User";
-import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { makeAuthTokens } from "@/services/JWT";
+import { CustomActionClass } from "@astahmer/entity-routes/";
 
 // TODO move dans RegisterAuthAction en externalisant les fonctions d'EntityRoute (mapper, serializers, etc)
 class UserCreationAction extends AbstractRouteAction<User> {
@@ -39,8 +39,8 @@ class UserCreationAction extends AbstractRouteAction<User> {
     }
 }
 
-export const userCreationMw = {
-    verb: ROUTE_VERB.POST,
+export const userCreationMw: CustomActionClass = {
+    verb: "post",
     path: "/",
     class: UserCreationAction,
 };

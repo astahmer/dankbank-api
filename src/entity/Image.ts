@@ -1,36 +1,30 @@
 import { Column, Entity, JoinColumn, OneToOne, ManyToOne } from "typeorm";
+import { Groups, Search, EntityRoute, DependsOn } from "@astahmer/entity-routes/";
 
-import { ChunkUploadAction } from "@/services/EntityRoute/Actions/ChunkUploadAction";
-import { ImageUploadAction, imgUploadMiddleware } from "@/services/EntityRoute/Actions/ImageUploadAction";
-import { DependsOn, EntityRoute, Groups, SearchFilter } from "@/services/EntityRoute/Decorators";
-import {
-    CropData,
-    getImageNameSuffixForQuality,
-    getImageRelativeURL,
-    Quality,
-} from "@/services/EntityRoute/ImageManager";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
+import { ChunkUploadAction } from "@/actions/ChunkUploadAction";
+import { ImageUploadAction, imgUploadMiddleware } from "@/actions/ImageUploadAction";
+import { Quality, CropData, getImageRelativeURL, getImageNameSuffixForQuality } from "@/services/ImageManager";
 
 import { AbstractEntity } from "./AbstractEntity";
 import { Meme } from "./Meme";
 
-@SearchFilter([], { all: true })
+@Search([], { all: true })
 @EntityRoute("/images", ["list", "details"], {
     actions: [
         {
-            verb: ROUTE_VERB.POST,
+            verb: "post",
             path: "/upload/",
             middlewares: [imgUploadMiddleware("image")],
             class: ImageUploadAction,
         },
         {
-            verb: ROUTE_VERB.POST,
+            verb: "post",
             path: "/upload/crop",
             class: ImageUploadAction,
             action: "crop",
         },
         {
-            verb: ROUTE_VERB.POST,
+            verb: "post",
             path: "/upload/chunk",
             class: ChunkUploadAction,
         },
@@ -50,8 +44,11 @@ export class Image extends AbstractEntity {
     @Column()
     size: number;
 
-    @ManyToOne(() => Meme, (meme) => meme.pictures)
+    @OneToOne(() => Meme, (meme) => meme.image, { onDelete: "CASCADE" })
     meme: Meme;
+
+    @ManyToOne(() => Meme, (meme) => meme.pictures)
+    multipartMeme: Meme;
 
     @Groups({ image: ["details"] })
     @OneToOne(() => Image)

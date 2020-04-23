@@ -1,6 +1,9 @@
-export const TypeORMConfig = {
+import { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions";
+
+export const config = {
+    type: "mariadb",
     username: process.env.TYPEORM_USERNAME,
-    password: process.env.PASSWORD,
+    password: process.env.TYPEORM_PASSWORD,
     synchronize: true,
     logging: ["query"],
     logger: "file",
@@ -10,4 +13,4 @@ export const TypeORMConfig = {
         entitiesDir: "src/entity",
         migrationsDir: "src/migration",
     },
-};
+} as MysqlConnectionOptions;

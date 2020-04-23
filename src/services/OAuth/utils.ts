@@ -1,10 +1,9 @@
 import axios, { AxiosResponse } from "axios";
-
-import { ROUTE_VERB } from "../EntityRoute/ResponseManager";
+import { RouteVerb } from "@astahmer/entity-routes/";
 
 export const getAuthorizedRequest = async (
     oauth: OAuth,
-    { url, data, method, credentials }: { url: string; data?: any; method: ROUTE_VERB; credentials?: OAuth.Token }
+    { url, data, method, credentials }: { url: string; data?: any; method: RouteVerb; credentials?: OAuth.Token }
 ): Promise<AxiosResponse<any>> => {
     const req = { url, data, method };
     const headers = oauth.toHeader(oauth.authorize(req, credentials));

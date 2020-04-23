@@ -1,15 +1,14 @@
 import { Context } from "koa";
 import { getManager } from "typeorm";
+import { makeRouterFromCustomActions } from "@astahmer/entity-routes/";
 
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid } from "@/services/JWT";
 
 export function useLogoutAction() {
     return makeRouterFromCustomActions([
         {
-            verb: ROUTE_VERB.GET,
+            verb: "get",
             path: "/logout",
             handler: logout,
         },

@@ -5,10 +5,10 @@ import {
     registerEntityDecorator,
 } from "@astahmer/entity-validator";
 
-import { formatIriToId } from "@/services/EntityRoute/Filters/SearchFilter";
-import { User } from "@/entity/User";
+import { RequestContext, formatIriToId } from "@astahmer/entity-routes/";
+
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { RequestContext } from "@/services/EntityRoute/ResponseManager";
+import { User } from "@/entity/User";
 
 class IsCurrentUserConstraint<T extends AbstractEntity> implements EntityValidatorConstraintInterface {
     validate(value: T, args: EntityValidationArguments<T, RequestContext<T>>) {

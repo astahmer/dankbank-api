@@ -1,17 +1,15 @@
 import { NextFunction } from "connect";
 import { Context } from "koa";
 import { EntityManager, getManager, Repository } from "typeorm";
+import { makeRouterFromCustomActions } from "@astahmer/entity-routes/";
+import * as crypto from "crypto";
 
 import { TWITTER_URLS, TwitterOAuth } from "@/config/twitter";
 import { User } from "@/entity/User";
-import { makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
 import { isTokenValid, makeAuthTokens } from "@/services/JWT";
 import { logger } from "@/services/logger";
 import { TwitterOAuthManager, TwitterSuccessCallbackArgs } from "@/services/OAuth/TwitterOAuth";
 import { getAuthorizedRequest } from "@/services/OAuth/utils";
-
-import crypto = require("crypto");
 
 export function useTwitterAuth() {
     const action = new TwitterAuthAction();
@@ -19,12 +17,12 @@ export function useTwitterAuth() {
 
     return makeRouterFromCustomActions([
         {
-            verb: ROUTE_VERB.GET,
+            verb: "get",
             path: "/",
             handler: auth.twitterSignIn.bind(auth),
         },
         {
-            verb: ROUTE_VERB.GET,
+            verb: "get",
             path: "/callback",
             handler: auth.twitterCallback.bind(auth),
         },
@@ -103,7 +101,7 @@ class TwitterAuthAction {
     async getTwitterProfile() {
         return getAuthorizedRequest(TwitterOAuth, {
             url: TWITTER_URLS.ACCOUNT_VERIFY,
-            method: ROUTE_VERB.GET,
+            method: "get",
             credentials: this.credentials,
         });
     }

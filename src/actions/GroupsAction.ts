@@ -1,15 +1,14 @@
 import * as Koa from "koa";
 import { Connection, getConnection } from "typeorm";
+import { EntityGroupsMetadata } from "@astahmer/entity-routes/";
 
 import { isAuthenticatedMw } from "@/middlewares/isAuthenticated";
-import { IRouteAction, makeRouterFromCustomActions } from "@/services/EntityRoute/Actions/AbstractRouteAction";
-import { EntityGroupsMetadata } from "@/services/EntityRoute/GroupsMetadata/EntityGroupsMetadata";
-import { ROUTE_VERB } from "@/services/EntityRoute/ResponseManager";
+import { makeRouterFromCustomActions, IRouteAction } from "@astahmer/entity-routes/";
 
 export function useGroupsRoute() {
     return makeRouterFromCustomActions([
         {
-            verb: ROUTE_VERB.GET,
+            verb: "get",
             path: "/groups/:tableName",
             middlewares: [isAuthenticatedMw],
             class: GroupsAction,

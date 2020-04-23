@@ -1,21 +1,14 @@
 require("dotenv").config();
 import "reflect-metadata";
 
-import { getMetadataStorage } from "class-validator";
 import { Connection } from "typeorm";
 import { Server } from "http";
 
-import { getConnectionToDatabase, makeApp } from "./app";
+import { createConnectionToDatabase, makeApp } from "./app";
 import { logger } from "./services/logger";
-
-import Koa = require("koa");
-
-export const BASE_URL = process.env.API_URL;
-export const isDev = process.env.NODE_ENV !== "production";
 
 declare const module: any;
 
-export const app = new Koa();
 init();
 
 /** If there is an existing connection, close it and then restart app, else just start app */
@@ -32,10 +25,11 @@ let server: Server;
 
 async function startServer() {
     try {
-        connection = await getConnectionToDatabase();
+        connection = await createConnectionToDatabase();
     } catch (error) {
         logger.error(error);
         setTimeout(startServer, 1000);
+        return;
     }
 
     try {
