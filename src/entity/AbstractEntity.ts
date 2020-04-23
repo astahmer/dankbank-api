@@ -41,3 +41,5 @@ export abstract class AbstractEntity {
         return this.repository.metadata;
     }
 }
+
+export type EntityReference = <Entity extends AbstractEntity>(type?: Entity) => ObjectType<Entity>;

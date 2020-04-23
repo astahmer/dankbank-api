@@ -1,6 +1,4 @@
-import { ObjectType } from "typeorm";
-
-import { AbstractEntity } from "@/entity/AbstractEntity";
+import { EntityReference } from "@/entity/AbstractEntity";
 import { getRouteSubresourcesMetadata, ROUTE_SUBRESOURCES } from "@/services/EntityRoute/EntityRoute";
 
 import { RouteSubresourcesMeta, SubresourceOperation } from "../SubresourceManager";
@@ -32,7 +30,6 @@ export function Subresource(
     };
 }
 
-type EntityReference = <Entity extends AbstractEntity>(type?: any) => ObjectType<Entity>;
 type SubresourceOptions = {
     path?: string;
     operations?: SubresourceOperation[];

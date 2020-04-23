@@ -1,12 +1,12 @@
 import { Repository, SelectQueryBuilder } from "typeorm";
 
 import { Meme } from "@/entity/Meme";
-import { chunk } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { Client } from "@elastic/elasticsearch";
 
 import { MemeTransformer } from "../Transformers/MemeTransformer";
 import { AbstractAdapter, AbstractDocument, DocumentMapping } from "./AbstractAdapter";
+import { chunk } from "@/functions/object";
 
 export class MemeAdapter extends AbstractAdapter<Meme> {
     constructor(client: Client) {

@@ -3,11 +3,11 @@ import * as path from "path";
 import { EntityManager, getConnection, SelectQueryBuilder } from "typeorm";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { getUnixTimestampFromDate } from "@/services/EntityRoute/utils";
 import { logger } from "@/services/logger";
 import { Client } from "@elastic/elasticsearch";
 
 import { ITransformer } from "../Transformers/ITransformer";
+import { getUnixTimestampFromDate } from "@/functions/object";
 
 const MIN_DATE = new Date("January 1, 1970 00:00:00").toISOString();
 const TMP_DIR = path.resolve(__dirname, "../tmp/");

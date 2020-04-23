@@ -3,7 +3,6 @@ import { Brackets, WhereExpression } from "typeorm";
 import { ColumnMetadata } from "typeorm/metadata/ColumnMetadata";
 
 import { entityRoutesContainer } from "../";
-import { camelToSnake, isDefined, parseStringAsBoolean, setNestedKey, sortObjectByKeys } from "../utils";
 import {
     AbstractFilter,
     AbstractFilterApplyArgs,
@@ -16,6 +15,9 @@ import {
     WhereOperator,
     WhereType,
 } from "./AbstractFilter";
+import { camelToSnake, parseStringAsBoolean } from "@/functions/primitives";
+import { isDefined } from "@/functions/asserts";
+import { setNestedKey, sortObjectByKeys } from "@/functions/object";
 
 export interface ISearchFilterOptions extends IDefaultFilterOptions {
     defaultWhereStrategy?: STRATEGY_TYPES;
@@ -53,7 +55,7 @@ const strategyRegex = /(?:(?:(?:;(\w+))|(<>|><|<\||>\||<|>|)?))?(!?)/;
 const queryParamRegex = new RegExp(complexFilterRegex.source + propRegex.source + strategyRegex.source, "i");
 
 const iriRegex = new RegExp(/\/api\/(\w+)\//g, "i");
-const formatIriToId = (iri: string) => iri.replace(iriRegex, "");
+export const formatIriToId = (iri: string) => iri.replace(iriRegex, "");
 const getEntrypointFromIri = (iri: string) => iri.match(iriRegex)[1];
 const isIriValidForProperty = (iri: string, column: ColumnMetadata) => {
     if (!iri.startsWith("/api/") || !column.relationMetadata) return;

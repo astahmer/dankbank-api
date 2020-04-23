@@ -1,6 +1,7 @@
 require("dotenv").config();
 import "reflect-metadata";
 
+import { getMetadataStorage } from "class-validator";
 import { Connection } from "typeorm";
 import { Server } from "http";
 
@@ -19,7 +20,7 @@ init();
 
 /** If there is an existing connection, close it and then restart app, else just start app */
 function init() {
-    if (module.hot && module.hot.data && module.hot.data.connection) {
+    if (module?.hot?.data?.connection) {
         module.hot.data.connection.close().then(startServer);
     } else {
         startServer();
@@ -50,6 +51,12 @@ async function startServer() {
             startServer();
         });
         module.hot.dispose((data: any) => {
+            // On HMR we have to reset metadata storage else there will be duplicates appended on each reload
+            // const validationMetaStorage = getMetadataStorage();
+            // (validationMetaStorage as any).validationMetadatas = [];
+            // (validationMetaStorage as any).constraintMetadatas = [];
+
+            // Passing existing connection as data to restart it
             data.connection = connection;
             server?.close();
         });

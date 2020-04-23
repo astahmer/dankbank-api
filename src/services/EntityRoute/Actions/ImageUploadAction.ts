@@ -6,9 +6,10 @@ import { AbstractRouteAction, RouteActionConstructorArgs } from "@/services/Enti
 import { logger } from "@/services/logger";
 
 import { ImageManager } from "../ImageManager";
-import { getRandomString } from "../utils";
 
 import multer = require("@koa/multer");
+import { getRandomString } from "@/functions/primitives";
+
 export const imgUploadMiddleware = (fieldName: string) => async (ctx: Context, next: any) => {
     try {
         await multer({ storage: diskStorage, fileFilter: imageFilter }).single(fieldName)(ctx, next);

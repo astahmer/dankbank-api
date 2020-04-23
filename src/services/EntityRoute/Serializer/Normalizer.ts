@@ -7,8 +7,9 @@ import { ALIAS_PREFIX, COMPUTED_PREFIX, RouteOperation } from "@/services/Entity
 
 import { IEntityRouteOptions } from "../EntityRoute";
 import { EntityMapper } from "../Mapping/EntityMapper";
-import { lowerFirstLetter, sortObjectByKeys } from "../utils";
 import { QueryAliasManager } from "./QueryAliasManager";
+import { sortObjectByKeys } from "@/functions/object";
+import { lowerFirstLetter } from "@/functions/primitives";
 
 type NormalizerOptions = Pick<
     IEntityRouteOptions,

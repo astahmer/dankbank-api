@@ -11,6 +11,7 @@ import { EntityRoute } from "./EntityRoute";
 
 import path = require("path");
 import sharp = require("sharp");
+
 export function getImageLocalPath(name: string) {
     return path.resolve(DIR_PATH.PUBLIC_UPLOADS_DIR, name);
 }

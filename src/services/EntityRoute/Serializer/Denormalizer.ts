@@ -1,14 +1,19 @@
-import { validate, ValidationError, ValidatorOptions } from "class-validator";
+import { validate, ValidatorOptions } from "class-validator";
 import { DeepPartial, QueryRunner, Repository } from "typeorm";
 import { QueryDeepPartialEntity } from "typeorm/query-builder/QueryPartialEntity";
 import { isObject, isPrimitive } from "util";
 
 import { AbstractEntity } from "@/entity/AbstractEntity";
-import { RouteOperation } from "@/services/EntityRoute/Decorators/Groups";
 
 import { ENTITY_META_SYMBOL } from "../GroupsMetadata/GroupsMetadata";
 import { EntityMapper, MappingItem } from "../Mapping/EntityMapper";
-import { formatEntityId } from "../utils";
+import { validateEntity } from "@/validators";
+import { formatIriToId } from "../Filters/SearchFilter";
+import { logger } from "@/services/logger";
+import { RequestContext } from "../ResponseManager";
+import { isType } from "@/functions/asserts";
+import { Primitive } from "@/functions/primitives";
+import { EntityValidatorFunctionOptions } from "@astahmer/entity-validator";
 
 export class Denormalizer<Entity extends AbstractEntity> {
     constructor(private repository: Repository<Entity>, private mapper: EntityMapper) {}
@@ -19,37 +24,47 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Method used when making a POST request */
     public async insertItem(
-        values: QueryDeepPartialEntity<Entity>,
-        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
+        queryRunner?: QueryRunner
     ) {
-        return this.saveItem(params.operation || "create", values, params.queryRunner);
+        const operation = ctx.operation || "create";
+        return this.saveItem({ ...ctx, operation }, options, queryRunner);
     }
 
     /** Method used when making a PUT request on a specific id */
     public async updateItem(
-        values: QueryDeepPartialEntity<Entity>,
-        params?: { operation?: RouteOperation; queryRunner?: QueryRunner }
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
+        queryRunner?: QueryRunner
     ) {
-        return this.saveItem(params.operation || "update", values, params.queryRunner);
+        const operation = ctx.operation || "update";
+        return this.saveItem({ ...ctx, operation }, options, queryRunner);
     }
 
     /** Clean & validate item and then save it if there was no error */
     private async saveItem(
-        operation: RouteOperation,
-        values: QueryDeepPartialEntity<Entity>,
+        ctx: RequestContext<Entity>,
+        options?: DenormalizerValidatorOptions,
         queryRunner?: QueryRunner
     ) {
+        const { operation, values } = ctx;
         const repository = queryRunner
             ? queryRunner.manager.getRepository<Entity>(this.metadata.target)
             : this.repository;
         const cleanedItem = this.cleanItem(operation, values);
-        const item = repository.create((cleanedItem as any) as DeepPartial<Entity>);
+        const item = repository.create(cleanedItem as DeepPartial<Entity>);
 
-        const validatorOptions = operation === "update" ? { skipMissingProperties: false } : undefined;
-        const errorMapping = await this.recursiveValidate(item, [], validatorOptions);
+        const validatorOptions: Partial<DenormalizerValidatorOptions> =
+            operation === "update" ? { skipMissingProperties: false } : {};
+        const errors = await this.validateItem(item, {
+            ...validatorOptions,
+            ...options,
+            context: ctx,
+        });
 
-        if (hasAnyError(errorMapping)) {
-            return errorMapping;
+        if (Object.keys(errors).length) {
+            return { hasValidationErrors: true, errors } as EntityErrorResponse;
         }
 
         return repository.save((item as any) as DeepPartial<Entity>);
@@ -57,16 +72,16 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Return a clone of this request body values with only mapped props */
     public cleanItem(
-        operation: RouteOperation,
-        values: QueryDeepPartialEntity<Entity>
-    ): QueryDeepPartialEntity<Entity> {
+        operation: RequestContext["operation"],
+        values: RequestContext<Entity>["values"]
+    ): RequestContext<Entity>["values"] {
         const routeMapping = this.mapper.make(operation);
         return this.recursiveClean(values, {}, [], routeMapping);
     }
 
     /** Removes non-mapped (deep?) properties from sent values & format entity.id */
     private recursiveClean(
-        item: any,
+        item: RequestContext<Entity>["values"] | string,
         clone: any,
         currentPath: string[],
         routeMapping: MappingItem
@@ -74,15 +89,15 @@ export class Denormalizer<Entity extends AbstractEntity> {
         let key: string, prop, mapping, nestedMapping;
 
         // If item is an iri/id (coming from an array), just return it in object with proper id
-        if (isPrimitive(item)) {
+        if (isType<Primitive>(item, isPrimitive(item))) {
             mapping = this.mapper.getNestedMappingAt(currentPath, routeMapping);
             return mapping && mapping.exposedProps.length === 1 && mapping.exposedProps[0] === "id"
-                ? { id: formatEntityId(item) }
+                ? { id: formatIriToId(item) }
                 : clone;
         }
 
         for (key in item) {
-            prop = item[key];
+            prop = item[key as keyof typeof item];
             mapping = currentPath.length ? this.mapper.getNestedMappingAt(currentPath, routeMapping) : routeMapping;
 
             if (!isPropMapped(key, mapping)) {
@@ -97,7 +112,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
                 } else {
                     clone[key] = prop;
                 }
-            } else if (isObject(prop)) {
+            } else if (isType<QueryDeepPartialEntity<Entity>>(prop, isObject(prop))) {
                 nestedMapping = this.mapper.getNestedMappingAt(currentPath.concat(key), mapping);
                 if (hasAnyNestedPropMapped(nestedMapping)) {
                     clone[key] = this.recursiveClean(prop, {}, currentPath.concat(key), routeMapping);
@@ -108,7 +123,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
                 const isRelation = mapping[ENTITY_META_SYMBOL].findRelationWithPropertyPath(key);
                 // Format IRI to id && string "id" to int id
                 if (typeof prop === "string" && (isRelation || key === "id")) {
-                    clone[key] = formatEntityId(prop);
+                    clone[key] = formatIriToId(prop);
                 } else {
                     clone[key] = prop;
                 }
@@ -120,52 +135,83 @@ export class Denormalizer<Entity extends AbstractEntity> {
 
     /** Recursively validate sent values & returns errors for each entity not passing validation */
     private async recursiveValidate(
-        item: any,
-        currentPath: string[],
-        options?: ValidatorOptions
-    ): Promise<ErrorMappingItem> {
-        let key: string, prop;
+        item: Entity,
+        currentPath: string,
+        errorResults: Record<string, EntityError[]>,
+        options: DenormalizerValidatorOptions
+    ) {
+        let key: string, prop: any;
 
         const keys = Object.keys(item);
         // If user is updating entity and item is just an existing relation, no need to validate it since it's missing properties
-        if (
-            ((options && options.skipMissingProperties) || currentPath.length) &&
-            keys.length === 1 &&
-            keys[0] === "id"
-        ) {
-            return {
-                currentPath,
-                errors: [],
-                nested: null,
-            };
+        if ((options.skipMissingProperties || currentPath.includes(".")) && keys.length === 1 && keys[0] === "id") {
+            return [];
         }
 
-        const errors = await validate(item, options);
-        const errorMapping: ErrorMappingItem = {
-            currentPath,
-            errors,
-            nested: null,
-        };
+        const routeEntityName = this.metadata.name.toLocaleLowerCase();
+        // Add default groups [entity, entity_operation]
+        const groups = (options.groups || []).concat([
+            routeEntityName,
+            routeEntityName + "_" + options.context.operation,
+        ]);
+        const validationOptions = { ...options, groups };
 
+        const [propErrors, classErrors] = await Promise.all([
+            validate(item, validationOptions),
+            validateEntity(item, validationOptions),
+        ]);
+        const itemErrors: EntityError[] = propErrors
+            .concat(classErrors)
+            .map((err) => ({ currentPath, property: err.property, constraints: err.constraints }));
+
+        if (itemErrors.length) {
+            // Gotta use item.className for root level errors in order to have a non-empty string as a key
+            errorResults[currentPath || routeEntityName] = itemErrors;
+        }
+
+        // Recursively validates item.props
+        const makePromise = (nestedItem: Entity, path: string): Promise<void> =>
+            new Promise(async (resolve) => {
+                try {
+                    const errors = await this.recursiveValidate(nestedItem, path, errorResults, options);
+                    if (errors.length) {
+                        errorResults[path] = errors;
+                    }
+                    resolve();
+                } catch (error) {
+                    logger.error(`Validation failed at path ${path}`);
+                    logger.error(error);
+                    resolve();
+                }
+            });
+
+        const path = currentPath ? currentPath + "." : "";
+
+        // Parallel validation on item.props
+        const promises: Promise<void>[] = [];
         for (key in item) {
-            prop = item[key];
+            prop = (item as Record<string, any>)[key];
 
             if (Array.isArray(prop)) {
-                if (!errorMapping.nested) {
-                    errorMapping.nested = {};
+                let i = 0;
+                for (i; i < prop.length; i++) {
+                    promises.push(makePromise(prop[i], `${path}${key}[${i}]`));
                 }
-                errorMapping.nested[key] = await Promise.all(
-                    prop.map((nestedItem) => this.recursiveValidate(nestedItem, currentPath.concat(key), options))
-                );
             } else if (prop instanceof Object && prop.constructor.prototype instanceof AbstractEntity) {
-                if (!errorMapping.nested) {
-                    errorMapping.nested = {};
-                }
-                errorMapping.nested[key] = [await this.recursiveValidate(prop, currentPath.concat(key), options)];
+                promises.push(makePromise(prop, `${path}${key}`));
             }
         }
 
-        return errorMapping;
+        await Promise.all(promises);
+
+        return itemErrors;
+    }
+
+    /** Validates sent values & return a record of validation errors */
+    private async validateItem(item: Entity, options: DenormalizerValidatorOptions) {
+        const errors: EntityErrorResults = {};
+        await this.recursiveValidate(item, "", errors, options);
+        return errors;
     }
 }
 
@@ -173,7 +219,7 @@ export class Denormalizer<Entity extends AbstractEntity> {
 export const isPropMapped = (prop: string, mapping: MappingItem) => mapping && mapping.exposedProps.includes(prop);
 
 /** Checks that given item contains any nested mapped prop */
-const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
+export const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
     if (mapping) {
         const nestedProps = mapping.exposedProps;
         return nestedProps.length && Object.keys(item).some((prop) => nestedProps.includes(prop));
@@ -182,31 +228,18 @@ const isAnyItemPropMapped = (item: any, mapping: MappingItem) => {
 /** Checks that a MappingItem contains further nested props  */
 export const hasAnyNestedPropMapped = (mapping: MappingItem) => mapping && mapping.exposedProps.length;
 
-/** Recursively checks if there was a ValidationError on some property */
-function hasAnyError(errorMapping: ErrorMappingItem): boolean {
-    if (errorMapping.errors.length) {
-        return true;
-    }
+export const hasAnyValidationGroupMatchingForRequest = (routeEntityName: string, operation: string) => (
+    group: string
+) => group === routeEntityName || group === routeEntityName + "_" + operation;
 
-    if (errorMapping.nested) {
-        let nestedError;
-        return Object.keys(errorMapping.nested).some((prop) => {
-            nestedError = errorMapping.nested[prop];
-
-            if (Array.isArray(nestedError)) {
-                return nestedError.some((item) => hasAnyError(item));
-            } else {
-                return hasAnyError(nestedError);
-            }
-        });
-    }
-}
-
-export type ErrorMappingItem = {
-    /** Path to arrive at this entity's errors from the requested route base entity  */
-    currentPath: string[];
-    /** Errors at this path */
-    errors: ValidationError[];
-    /** Entity's nested relation errors */
-    nested: Record<string, ErrorMappingItem | ErrorMappingItem[]>;
+export type EntityError = {
+    currentPath: string;
+    property: string;
+    constraints: {
+        [type: string]: string;
+    };
 };
+export type EntityErrorResults = Record<string, EntityError[]>;
+export type EntityErrorResponse = { hasValidationErrors: true; errors: EntityErrorResults };
+
+type DenormalizerValidatorOptions = ValidatorOptions & EntityValidatorFunctionOptions<RequestContext>;
