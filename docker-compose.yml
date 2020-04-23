@@ -30,6 +30,7 @@ services:
         volumes:
             - .:/usr/app/
             - ./node_modules/:/usr/app/node_modules
+            - ../entity-routes:/usr/app/node_modules/@astahmer/entity-routes
         ports:
             - 3000:3000
             - 9229:9229
@@ -120,8 +121,3 @@ services:
         links:
             - database
         network_mode: "bridge"
-
-volumes:
-    data-nginx:
-    data-mkcert:
-    data-elastic:
